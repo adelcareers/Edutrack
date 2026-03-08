@@ -47,7 +47,7 @@ def role_required(role):
         @functools.wraps(view_func)
         def _wrapped(request, *args, **kwargs):
             try:
-                user_role = request.user.userprofile.role
+                user_role = request.user.profile.role
             except AttributeError:
                 # UserProfile does not exist — treat as wrong role
                 user_role = None

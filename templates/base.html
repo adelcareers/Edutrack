@@ -45,7 +45,7 @@
             <li class="nav-item me-2">
               <span class="nav-link text-light">
                 {{ user.first_name|default:user.username }}
-                {% with role=user.userprofile.role %}
+                {% with role=user.profile.role %}
                   {% if role == 'parent' %}
                     <span class="badge bg-primary ms-1">Parent</span>
                   {% elif role == 'student' %}
