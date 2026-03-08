@@ -51,17 +51,17 @@ repo_url: 'https://github.com/adelcareers/Edutrack'
 heroku_url: '[ADD HEROKU APP URL HERE]'
 last_updated: '2026-03-08'
 current_sprint: Sprint 0
-current_story: S0.3
-current_story_title: Cloudinary Storage Configuration
+current_story: S1.1
+current_story_title: Auth — Registration & Login
 current_story_status: NOT_STARTED
 sprint_0_status: IN_PROGRESS
 sprint_1_status: NOT_STARTED
 sprint_2_status: NOT_STARTED
 sprint_3_status: NOT_STARTED
-stories_done: [S0.1, S0.2]
+stories_done: [S0.1, S0.2, S0.3, S0.4, S0.5, S0.6, S0.7]
 stories_in_progress: []
 stories_blocked: []
-last_commit: '45af844'
+last_commit: 'd146929'
 heroku_deployed: false
 tests_passing: true
 debug_false_in_prod: false
@@ -592,7 +592,7 @@ epic: E1
 sprint: 0
 priority: P0
 points: 1
-status: NOT_STARTED
+status: DONE
 depends_on: [S0.2]
 ```
 **User Story:** As a developer, I can configure Cloudinary as the media file storage backend, so that all file uploads in later sprints work in both development and production.
@@ -627,7 +627,7 @@ epic: E1
 sprint: 0
 priority: P0
 points: 5
-status: NOT_STARTED
+status: DONE
 depends_on: [S0.3]
 ```
 **User Story:** As a developer, I can define all seven custom data models, so that the complete data architecture exists in code and can be migrated in one step.
@@ -703,7 +703,7 @@ epic: E1
 sprint: 0
 priority: P0
 points: 2
-status: NOT_STARTED
+status: DONE
 depends_on: [S0.4]
 ```
 **User Story:** As an admin, I can manage all application data through the Django admin panel, so that I can provide customer support and manage users without a separate interface.
@@ -750,7 +750,7 @@ epic: E1
 sprint: 0
 priority: P0
 points: 3
-status: NOT_STARTED
+status: DONE
 depends_on: [S0.5]
 ```
 **User Story:** As a developer, I can run a single management command to load the Oak National Academy CSV data into the database, so that the full 10,055-row curriculum is available for subject selection and scheduling.
@@ -797,7 +797,7 @@ epic: E1
 sprint: 0
 priority: P0
 points: 2
-status: NOT_STARTED
+status: DONE
 depends_on: [S0.6]
 ```
 **User Story:** As a developer, I can create a base HTML template with Bootstrap 5 and a configured static file system, so that every page built in subsequent sprints inherits a consistent, accessible layout.
