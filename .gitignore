@@ -6,3 +6,5 @@ media/
 .DS_Store
 venv/
 staticfiles/
+AGENT_DELIVERY_PLAN.md
+AGENT_DELIVERY_PLAN.pdf
