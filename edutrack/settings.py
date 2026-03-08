@@ -49,7 +49,9 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    "cloudinary_storage",
     "django.contrib.staticfiles",
+    "cloudinary",
     "crispy_forms",
     "crispy_bootstrap5",
     "accounts",
@@ -154,6 +156,12 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# Cloudinary media storage
+# All user-uploaded files go to Cloudinary in both dev and production.
+# CLOUDINARY_URL must be set in .env (dev) or Heroku Config Vars (prod).
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+CLOUDINARY_STORAGE = {'CLOUDINARY_URL': config('CLOUDINARY_URL', default='cloudinary://key:secret@cloud')}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
