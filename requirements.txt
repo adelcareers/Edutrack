@@ -4,5 +4,8 @@ dj-database-url
 python-decouple
 gunicorn
 whitenoise
+cloudinary
+django-cloudinary-storage
+Pillow
 django-crispy-forms
 crispy-bootstrap5
