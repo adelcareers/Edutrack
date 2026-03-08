@@ -1,0 +1,30 @@
+/* EduTrack — Custom CSS */
+/* Colour system variables used throughout the project. */
+
+:root {
+  --primary:   #2563EB;
+  --secondary: #EA580C;
+  --success:   #16A34A;
+  --warning:   #D97706;
+  --danger:    #DC2626;
+  --dark:      #1B2A4A;
+  --light-bg:  #F8FAFC;
+  --border:    #E2E8F0;
+}
+
+body {
+  background-color: var(--light-bg);
+  color: var(--dark);
+}
+
+/* Lesson / subject cards */
+.card {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+/* Mastery badges */
+.mastery-green  { background-color: var(--success); color: #fff; }
+.mastery-amber  { background-color: var(--warning); color: #fff; }
+.mastery-red    { background-color: var(--danger);  color: #fff; }
+.mastery-unset  { background-color: var(--border);  color: var(--dark); }
