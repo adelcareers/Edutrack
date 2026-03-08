@@ -4,14 +4,15 @@ on:
   pull_request:
     branches: [ main ]
   push:
-    branches: [ main ]
+    branches: [ main, 'ci/**', 'feat/**', 'fix/**', 'chore/**' ]
+  workflow_dispatch:
 
 jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      DJANGO_SECRET_KEY: ${{ l@i2z!(jwqsf$=+ugt4&t&k4+p*7^z-!#*!mv09)q6yss=-j+4 }}
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -59,6 +60,6 @@ jobs:
           html5validator --root templates/ || true
 
       - name: Run gitleaks scan
-        uses: zricethezav/gitleaks-action@v1
-        with:
-          args: --no-git
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
