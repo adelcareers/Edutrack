@@ -48,7 +48,7 @@ DIRECTIVE 6 — STATE UPDATE ON COMPLETION
 project_name: EduTrack
 tagline: Home Education, Evidenced.
 repo_url: 'https://github.com/adelcareers/Edutrack'
-heroku_url: '[ADD HEROKU APP URL HERE]'
+heroku_url: 'https://edutrack-3e8b5606319f.herokuapp.com'
 last_updated: '2026-03-08'
 current_sprint: Sprint 0
 current_story: S1.1
@@ -61,10 +61,11 @@ sprint_3_status: NOT_STARTED
 stories_done: [S0.1, S0.2, S0.3, S0.4, S0.5, S0.6, S0.7]
 stories_in_progress: []
 stories_blocked: []
-last_commit: 'd146929'
-heroku_deployed: false
+last_commit: '95b137f'
+heroku_url: 'https://edutrack-3e8b5606319f.herokuapp.com'
+heroku_deployed: true
 tests_passing: true
-debug_false_in_prod: false
+debug_false_in_prod: true
 ```
 
 Note: You can run `python scripts/update_project_state.py --commit` to automatically set `last_updated` to today's date and commit the change.
