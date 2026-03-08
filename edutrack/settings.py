@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 from decouple import config, Csv
+import warnings
 import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -22,7 +23,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('DJANGO_SECRET_KEY')
+# Use the configured secret if present; otherwise fall back to a clearly
+# insecure default so CI and local checks can run. Emit a warning when the
+# fallback is used to encourage setting a real secret in production.
+SECRET_KEY = config('DJANGO_SECRET_KEY', default=None)
+if not SECRET_KEY:
+    SECRET_KEY = 'insecure-default-for-ci'
+    warnings.warn(
+        'DJANGO_SECRET_KEY not set; using insecure default. '
+        'Set DJANGO_SECRET_KEY in environment for production.',
+        UserWarning,
+    )
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DJANGO_DEBUG', cast=bool, default=False)
