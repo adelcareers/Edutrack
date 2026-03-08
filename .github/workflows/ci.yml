@@ -9,6 +9,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      DJANGO_SECRET_KEY: ${{ l@i2z!(jwqsf$=+ugt4&t&k4+p*7^z-!#*!mv09)q6yss=-j+4 }}
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
       - uses: actions/checkout@v4
 
