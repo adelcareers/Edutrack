@@ -51,14 +51,14 @@ repo_url: 'https://github.com/adelcareers/Edutrack'
 heroku_url: 'https://edutrack-3e8b5606319f.herokuapp.com'
 last_updated: '2026-03-08'
 current_sprint: Sprint 0
-current_story: S1.1
-current_story_title: Auth — Registration & Login
+current_story: S1.2
+current_story_title: Login, Logout & Login State
 current_story_status: NOT_STARTED
 sprint_0_status: IN_PROGRESS
-sprint_1_status: NOT_STARTED
+sprint_1_status: IN_PROGRESS
 sprint_2_status: NOT_STARTED
 sprint_3_status: NOT_STARTED
-stories_done: [S0.1, S0.2, S0.3, S0.4, S0.5, S0.6, S0.7]
+stories_done: [S0.1, S0.2, S0.3, S0.4, S0.5, S0.6, S0.7, S1.1]
 stories_in_progress: []
 stories_blocked: []
 last_commit: '95b137f'
