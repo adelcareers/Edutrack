@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}Create Login for {{ child.first_name }} — EduTrack{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6 col-lg-5">
+
+    <div class="card shadow-sm mt-5">
+      <div class="card-body p-4">
+
+        <h2 class="card-title mb-1 fw-bold">Create login for {{ child.first_name }}</h2>
+        <p class="text-muted mb-4">
+          Choose a username and password that {{ child.first_name }} will use to sign in.
+        </p>
+
+        <form method="post" novalidate aria-label="Student login creation form">
+          {% csrf_token %}
+          {{ form|crispy }}
+
+          <div class="d-grid mt-3">
+            <button type="submit" class="btn btn-primary btn-lg">
+              <i class="bi bi-person-plus me-1"></i>Create login
+            </button>
+          </div>
+        </form>
+
+      </div>
+    </div>
+
+    <p class="text-center mt-3 text-muted">
+      <a href="{% url 'home' %}">Back to dashboard</a>
+    </p>
+
+  </div>
+</div>
+{% endblock %}
