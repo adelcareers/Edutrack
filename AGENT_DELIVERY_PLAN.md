@@ -46,30 +46,28 @@ DIRECTIVE 6 — STATE UPDATE ON COMPLETION
 
 ```yaml
 project_name: EduTrack
-tagline: "Home Education, Evidenced."
-repo_url: "[ADD GITHUB REPO URL HERE]"
-heroku_url: "[ADD HEROKU APP URL HERE]"
-last_updated: "[DATE]"
-
+tagline: Home Education, Evidenced.
+repo_url: '[ADD GITHUB REPO URL HERE]'
+heroku_url: '[ADD HEROKU APP URL HERE]'
+last_updated: '2026-03-08'
 current_sprint: Sprint 0
 current_story: S0.1
 current_story_title: Django Project Skeleton
-current_story_status: NOT_STARTED  # NOT_STARTED | IN_PROGRESS | IN_REVIEW | DONE
-
+current_story_status: NOT_STARTED
 sprint_0_status: IN_PROGRESS
 sprint_1_status: NOT_STARTED
 sprint_2_status: NOT_STARTED
 sprint_3_status: NOT_STARTED
-
 stories_done: []
 stories_in_progress: []
 stories_blocked: []
-
-last_commit: "[PASTE LAST COMMIT HASH HERE]"
+last_commit: '[PASTE LAST COMMIT HASH HERE]'
 heroku_deployed: false
 tests_passing: false
 debug_false_in_prod: false
 ```
+
+Note: You can run `python scripts/update_project_state.py --commit` to automatically set `last_updated` to today's date and commit the change.
 
 ---
 
