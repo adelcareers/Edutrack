@@ -1,1 +1,3 @@
-# Edutrack
+# EduTrack
+
+Home Education, Evidenced.

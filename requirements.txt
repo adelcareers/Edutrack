@@ -1,0 +1,8 @@
+django>=5.0,<6.0
+psycopg2-binary
+dj-database-url
+python-decouple
+gunicorn
+whitenoise
+django-crispy-forms
+crispy-bootstrap5
