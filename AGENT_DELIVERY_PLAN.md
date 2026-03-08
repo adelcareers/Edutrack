@@ -47,23 +47,23 @@ DIRECTIVE 6 — STATE UPDATE ON COMPLETION
 ```yaml
 project_name: EduTrack
 tagline: Home Education, Evidenced.
-repo_url: '[ADD GITHUB REPO URL HERE]'
+repo_url: 'https://github.com/adelcareers/Edutrack'
 heroku_url: '[ADD HEROKU APP URL HERE]'
 last_updated: '2026-03-08'
 current_sprint: Sprint 0
-current_story: S0.1
-current_story_title: Django Project Skeleton
+current_story: S0.3
+current_story_title: Cloudinary Storage Configuration
 current_story_status: NOT_STARTED
 sprint_0_status: IN_PROGRESS
 sprint_1_status: NOT_STARTED
 sprint_2_status: NOT_STARTED
 sprint_3_status: NOT_STARTED
-stories_done: []
+stories_done: [S0.1, S0.2]
 stories_in_progress: []
 stories_blocked: []
-last_commit: '[PASTE LAST COMMIT HASH HERE]'
+last_commit: '45af844'
 heroku_deployed: false
-tests_passing: false
+tests_passing: true
 debug_false_in_prod: false
 ```
 
@@ -490,7 +490,7 @@ epic: E1
 sprint: 0
 priority: P0
 points: 2
-status: NOT_STARTED
+status: DONE
 depends_on: []
 ```
 **User Story:** As a developer, I can initialise a clean Django project with all six apps registered, so that every subsequent story has a consistent, scalable codebase to build on.
@@ -548,7 +548,7 @@ epic: E1
 sprint: 0
 priority: P0
 points: 1
-status: NOT_STARTED
+status: DONE
 depends_on: [S0.1]
 ```
 **User Story:** As a developer, I can connect the Django project to the Neon Postgres database, so that all models can be migrated and the app has a persistent data store.
