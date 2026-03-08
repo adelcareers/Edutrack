@@ -86,13 +86,22 @@ WSGI_APPLICATION = "edutrack.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASES = {
-    'default': dj_database_url.config(
-        default=config('DATABASE_URL', default='sqlite:///' + str(BASE_DIR / 'db.sqlite3')),
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
-}
+# Configure the database. If `DATABASE_URL` is present and non-empty in the
+# environment (loaded via python-decouple), use dj_database_url to parse it.
+# If the variable is present but empty (e.g. `DATABASE_URL=` in .env), fall
+# back to a local sqlite DB so management commands still work locally.
+_db_url = config('DATABASE_URL', default=None)
+if _db_url:
+    DATABASES = {
+        'default': dj_database_url.parse(_db_url, conn_max_age=600, conn_health_checks=True)
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': str(BASE_DIR / 'db.sqlite3'),
+        }
+    }
 
 
 # Password validation
