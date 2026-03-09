@@ -6,4 +6,5 @@ app_name = 'reports'
 
 urlpatterns = [
     path('reports/create/<int:child_id>/', views.create_report_view, name='create_report'),
+    path('reports/<int:pk>/', views.report_detail_view, name='report_detail'),
 ]
