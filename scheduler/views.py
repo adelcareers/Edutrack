@@ -8,7 +8,33 @@ from django.http import HttpResponseForbidden
 from accounts.decorators import role_required
 from accounts.forms import StudentCreationForm
 from accounts.models import UserProfile
+from scheduler.forms import ChildForm
 from scheduler.models import Child
+
+
+@role_required('parent')
+def add_child_view(request):
+    """Allow a parent to add a child's profile.
+
+    On successful submission the parent is forwarded to the subject selection
+    page for the newly created child so the onboarding flow continues without
+    interruption.
+    """
+    if request.method == 'POST':
+        form = ChildForm(request.POST)
+        if form.is_valid():
+            child = form.save(commit=False)
+            child.parent = request.user
+            child.save()
+            messages.success(
+                request,
+                f"{child.first_name} added! Now select their subjects.",
+            )
+            return redirect(f'/children/{child.pk}/subjects/')
+    else:
+        form = ChildForm()
+
+    return render(request, 'scheduler/add_child.html', {'form': form})
 
 
 @role_required('parent')
