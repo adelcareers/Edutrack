@@ -483,7 +483,7 @@ class TokenReportViewTests(TestCase):
     def _url(self, token=None):
         return reverse(self.SHARED_URL, kwargs={'token': token or self.report.share_token})
 
-    def test_valid_token_renders_without_login(self):
+    def test_valid_token_renders_report(self):
         response = self.client.get(self._url())
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'reports/shared_report.html')
@@ -492,7 +492,7 @@ class TokenReportViewTests(TestCase):
         response = self.client.get(self._url(token=uuid.uuid4()))
         self.assertEqual(response.status_code, 404)
 
-    def test_invalid_uuid_path_returns_404(self):
+    def test_invalid_token_returns_404(self):
         response = self.client.get('/reports/share/not-a-uuid/')
         self.assertEqual(response.status_code, 404)
 

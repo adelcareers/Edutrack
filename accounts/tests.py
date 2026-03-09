@@ -25,7 +25,7 @@ class RegistrationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'accounts/register.html')
 
-    def test_register_valid_creates_user_and_profile(self):
+    def test_registration_creates_parent_role(self):
         response = self.client.post(reverse('accounts:register'), {
             'first_name': 'Alice',
             'last_name': 'Smith',
@@ -145,7 +145,7 @@ class RoleRequiredDecoratorTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, b'parent content')
 
-    def test_wrong_role_parent_blocked_from_student_view(self):
+    def test_parent_blocked_from_student_views(self):
         self.client.force_login(self.parent)
         from django.test import RequestFactory
         from django.contrib.messages.storage.fallback import FallbackStorage
@@ -157,7 +157,7 @@ class RoleRequiredDecoratorTests(TestCase):
         response = self.student_only_view(request)
         self.assertEqual(response.status_code, 302)
 
-    def test_wrong_role_student_blocked_from_parent_view(self):
+    def test_student_blocked_from_parent_views(self):
         from django.test import RequestFactory
         from django.contrib.messages.storage.fallback import FallbackStorage
         rf = RequestFactory()

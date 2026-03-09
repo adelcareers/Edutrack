@@ -468,13 +468,13 @@ class GenerateScheduleTests(TestCase):
         self.assertIsInstance(count, int)
         self.assertGreater(count, 0)
 
-    def test_count_matches_db_records(self):
+    def test_schedule_generates_correct_count(self):
         count = self._run()
         self.assertEqual(
             ScheduledLesson.objects.filter(child=self.child).count(), count
         )
 
-    def test_no_lesson_falls_on_weekend(self):
+    def test_no_weekend_lessons(self):
         self._run()
         for sl in ScheduledLesson.objects.filter(child=self.child):
             self.assertLess(
@@ -482,7 +482,7 @@ class GenerateScheduleTests(TestCase):
                 f"{sl.scheduled_date} falls on a weekend",
             )
 
-    def test_no_subject_exceeds_weekly_pace(self):
+    def test_respects_weekly_pace(self):
         self._run()
         from collections import defaultdict
         week_subject_counts = defaultdict(int)

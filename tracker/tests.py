@@ -617,7 +617,7 @@ class LessonStatusUpdateTests(TestCase):
         self.assertTrue(data['success'])
         self.assertEqual(data['status'], 'complete')
 
-    def test_mark_complete_creates_lessonlog(self):
+    def test_lesson_log_created_on_complete(self):
         self.client.force_login(self.student)
         self._post('complete')
         log = LessonLog.objects.get(scheduled_lesson=self.sl)
@@ -647,7 +647,7 @@ class LessonStatusUpdateTests(TestCase):
 
     # ---------- idempotency / update existing log ----------
 
-    def test_second_post_updates_existing_log(self):
+    def test_status_update(self):
         """Posting complete then skipped should update the same LessonLog row."""
         self.client.force_login(self.student)
         self._post('complete')
