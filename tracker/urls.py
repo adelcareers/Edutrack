@@ -11,4 +11,5 @@ urlpatterns = [
     path('lessons/<int:scheduled_id>/update/', views.update_lesson_status_view, name='lesson_update'),
     path('lessons/<int:scheduled_id>/mastery/', views.update_mastery_view, name='lesson_mastery'),
     path('lessons/<int:scheduled_id>/notes/', views.save_notes_view, name='lesson_notes'),
+    path('lessons/<int:scheduled_id>/reschedule/', views.reschedule_lesson_view, name='lesson_reschedule'),
 ]
