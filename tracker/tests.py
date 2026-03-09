@@ -992,3 +992,107 @@ class LessonRescheduleTests(TestCase):
         data = self._post('2030-06-15').json()
         self.assertEqual(data['new_date'], '2030-06-15')
 
+
+class ParentCalendarTests(TestCase):
+    """Tests for S2.9 parent_calendar_view — read-only calendar for parents."""
+
+    def setUp(self):
+        self.parent = _make_parent(username='pcal_parent')
+        self.other_parent = _make_parent(username='pcal_other_parent')
+        self.student = _make_student(username='pcal_student')
+        self.child = _make_child(self.parent, student_user=self.student)
+        self.lesson = _make_lesson(title='Parent View Test Lesson')
+        self.enrolled = _make_enrolled_subject(self.child, subject_name='Science')
+        self.monday = datetime.date.fromisocalendar(2026, 16, 1)
+        self.sl = _make_scheduled_lesson(self.child, self.lesson, self.enrolled, self.monday)
+
+    def _url(self, child_id=None, year=None, week=None):
+        child_id = child_id or self.child.pk
+        if year is not None and week is not None:
+            return reverse('tracker:parent_calendar_week',
+                           kwargs={'child_id': child_id, 'year': year, 'week': week})
+        return reverse('tracker:parent_calendar', kwargs={'child_id': child_id})
+
+    # ---------- access ----------
+
+    def test_unauthenticated_redirects(self):
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, 302)
+
+    def test_student_role_blocked(self):
+        self.client.force_login(self.student)
+        response = self.client.get(self._url())
+        self.assertRedirects(response, '/', fetch_redirect_response=False)
+
+    def test_other_parent_gets_403(self):
+        self.client.force_login(self.other_parent)
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, 403)
+
+    def test_owner_parent_gets_200(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, 200)
+
+    # ---------- content ----------
+
+    def test_uses_calendar_template(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self._url())
+        self.assertTemplateUsed(response, 'tracker/calendar.html')
+
+    def test_is_readonly_in_context(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self._url())
+        self.assertTrue(response.context['is_readonly'])
+
+    def test_child_name_in_context(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self._url())
+        self.assertEqual(response.context['child_name'], self.child.first_name)
+
+    def test_action_buttons_not_rendered(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self._url())
+        content = response.content.decode()
+        self.assertNotIn('modal-btn-complete', content)
+        self.assertNotIn('modal-btn-skip', content)
+        self.assertNotIn('modal-btn-reschedule', content)
+
+    def test_notes_and_mastery_not_rendered(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self._url())
+        content = response.content.decode()
+        self.assertNotIn('modal-btn-save-notes', content)
+        self.assertNotIn('id="modal-notes"', content)
+
+    def test_lesson_appears_in_calendar(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self._url(year=2026, week=16))
+        self.assertContains(response, self.lesson.lesson_title)
+
+    # ---------- week navigation ----------
+
+    def test_week_navigation_returns_200(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self._url(year=2026, week=16))
+        self.assertEqual(response.status_code, 200)
+
+    def test_prev_next_urls_use_parent_calendar_route(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self._url(year=2026, week=16))
+        content = response.content.decode()
+        self.assertIn(f'/parent/calendar/{self.child.pk}/', content)
+
+    def test_student_calendar_unaffected_for_student(self):
+        """Student calendar is still accessible and not read-only."""
+        self.client.force_login(self.student)
+        response = self.client.get(reverse('tracker:calendar'))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context.get('is_readonly', False))
+
+    def test_nonexistent_child_returns_404(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self._url(child_id=99999))
+        self.assertEqual(response.status_code, 404)
+
