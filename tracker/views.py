@@ -3,6 +3,8 @@ import datetime
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.contrib.auth.decorators import login_required
+from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from accounts.decorators import role_required
 from scheduler.models import ScheduledLesson
@@ -101,4 +103,36 @@ def lesson_detail_view(request, scheduled_id):
         'mastery': log.mastery if log else 'unset',
         'student_notes': log.student_notes if log else '',
         'evidence_count': evidence_count,
+    })
+
+
+@login_required
+@role_required('student')
+@require_POST
+def update_lesson_status_view(request, scheduled_id):
+    """Accept a POST {status: 'complete'|'skipped'} and persist it to LessonLog.
+
+    Ownership is verified: the lesson must belong to the authenticated
+    student's child profile.  Returns JSON on both success and error.
+    """
+    child = getattr(request.user, 'child_profile', None)
+    sl = get_object_or_404(ScheduledLesson, pk=scheduled_id)
+
+    if child is None or sl.child_id != child.pk:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+
+    new_status = request.POST.get('status', '')
+    if new_status not in ('complete', 'skipped'):
+        return JsonResponse({'error': 'invalid status'}, status=400)
+
+    log, _ = LessonLog.objects.get_or_create(scheduled_lesson=sl)
+    log.status = new_status
+    if new_status == 'complete':
+        log.completed_at = timezone.now()
+    log.save()
+
+    return JsonResponse({
+        'success': True,
+        'status': log.status,
+        'message': 'Lesson marked as complete.' if new_status == 'complete' else 'Lesson skipped.',
     })
