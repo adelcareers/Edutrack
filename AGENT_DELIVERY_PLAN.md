@@ -2107,7 +2107,7 @@ epic: E8
 sprint: 3
 priority: P1
 points: 3
-status: DONE
+status: NOT_STARTED
 depends_on: [S3.4]
 ```
 **User Story:** As a parent, I can click "Choose Pro" and be taken through a subscription upgrade journey, so that the payment flow is complete even if live charging is not yet active.

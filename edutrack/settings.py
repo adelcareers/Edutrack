@@ -173,3 +173,7 @@ CLOUDINARY_STORAGE = {'CLOUDINARY_URL': config('CLOUDINARY_URL', default='cloudi
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Stripe Configuration (Epic E8)
+STRIPE_ENABLED = config('STRIPE_ENABLED', cast=bool, default=False)
+STRIPE_PUBLISHABLE_KEY = config('STRIPE_PUBLISHABLE_KEY', default='')
