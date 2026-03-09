@@ -28,3 +28,48 @@ body {
 .mastery-amber  { background-color: var(--warning); color: #fff; }
 .mastery-red    { background-color: var(--danger);  color: #fff; }
 .mastery-unset  { background-color: var(--border);  color: var(--dark); }
+
+/* Calendar lesson cards (S2.3) */
+.lesson-card {
+  --subject-colour: #6c757d;
+  border: 1px solid #dee2e6;
+  border-left: 4px solid var(--subject-colour);
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  overflow: hidden;
+  background: #fff;
+}
+.lesson-card .card-header {
+  background-color: var(--subject-colour);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.3rem 0.75rem;
+  border-bottom: none;
+}
+.lesson-card .card-body {
+  padding: 0.4rem 0.75rem;
+  color: #212529;
+}
+.lesson-card .card-footer {
+  padding: 0.25rem 0.75rem;
+  background: transparent;
+  border-top: none;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 1.5rem;
+}
+.mastery-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.mastery-dot.green { background: #16A34A; }
+.mastery-dot.amber { background: #D97706; }
+.mastery-dot.red   { background: #DC2626; }
