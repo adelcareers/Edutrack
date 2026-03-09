@@ -99,4 +99,23 @@
   </form>
 
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.subject-checkbox').forEach(function (checkbox) {
+      var row = checkbox.closest('tr');
+      var spinner = row.querySelector('.pace-spinner');
+
+      function sync() {
+        spinner.disabled = !checkbox.checked;
+        if (!checkbox.checked) {
+          spinner.value = 1;
+        }
+      }
+
+      checkbox.addEventListener('change', sync);
+      sync();
+    });
+  });
+</script>
 {% endblock %}
