@@ -49,7 +49,7 @@ class CreateStudentLoginAccessTests(TestCase):
         UserProfile.objects.create(user=student_user, role='student')
         self.client.force_login(student_user)
         response = self.client.get(self.url)
-        self.assertRedirects(response, '/')
+        self.assertRedirects(response, '/', fetch_redirect_response=False)
 
     def test_parent_can_access_own_child(self):
         self.client.force_login(self.parent)
@@ -79,7 +79,7 @@ class CreateStudentLoginPostTests(TestCase):
             'password1': 'SecurePass99!',
             'password2': 'SecurePass99!',
         })
-        self.assertRedirects(response, '/')
+        self.assertRedirects(response, '/', fetch_redirect_response=False)
         student_user = User.objects.get(username='alice_student')
         self.assertEqual(student_user.profile.role, 'student')
 
@@ -121,7 +121,7 @@ class CreateStudentLoginPostTests(TestCase):
         self.child.student_user = existing
         self.child.save()
         response = self.client.get(self.url)
-        self.assertRedirects(response, '/')
+        self.assertRedirects(response, '/', fetch_redirect_response=False)
 
     def test_student_can_log_in_after_creation(self):
         self.client.post(self.url, {
@@ -179,7 +179,7 @@ class AddChildAccessTests(TestCase):
         UserProfile.objects.create(user=student_user, role='student')
         self.client.force_login(student_user)
         response = self.client.get(self.url)
-        self.assertRedirects(response, '/')
+        self.assertRedirects(response, '/', fetch_redirect_response=False)
 
     def test_parent_can_access_page(self):
         self.client.force_login(self.parent)
@@ -302,7 +302,7 @@ class SubjectSelectionAccessTests(TestCase):
         UserProfile.objects.create(user=stu, role='student')
         self.client.force_login(stu)
         response = self.client.get(self.url)
-        self.assertRedirects(response, '/')
+        self.assertRedirects(response, '/', fetch_redirect_response=False)
 
     def test_other_parent_gets_403(self):
         other = _make_parent(username='parent3')
@@ -559,7 +559,7 @@ class GenerateScheduleViewTests(TestCase):
         UserProfile.objects.create(user=student, role='student')
         self.client.force_login(student)
         response = self.client.get(self.url)
-        self.assertRedirects(response, '/')
+        self.assertRedirects(response, '/', fetch_redirect_response=False)
 
     def test_other_parent_gets_403(self):
         other = _make_parent(username='other_gen')

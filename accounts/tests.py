@@ -33,7 +33,7 @@ class RegistrationTests(TestCase):
             'password1': 'Str0ng!Pass99',
             'password2': 'Str0ng!Pass99',
         })
-        self.assertRedirects(response, reverse('home'))
+        self.assertRedirects(response, reverse('home'), fetch_redirect_response=False)
         user = User.objects.get(email='alice@example.com')
         self.assertEqual(user.username, 'alice@example.com')
         self.assertEqual(user.profile.role, 'parent')
@@ -77,7 +77,7 @@ class LoginLogoutTests(TestCase):
             'username': 'parent@example.com',
             'password': 'Str0ng!Pass99',
         })
-        self.assertRedirects(response, '/')
+        self.assertRedirects(response, '/', fetch_redirect_response=False)
 
     def test_login_wrong_password_shows_error(self):
         response = self.client.post(reverse('accounts:login'), {
