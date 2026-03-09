@@ -51,14 +51,14 @@ repo_url: 'https://github.com/adelcareers/Edutrack'
 heroku_url: 'https://edutrack-3e8b5606319f.herokuapp.com'
 last_updated: '2026-03-09'
 current_sprint: Sprint 3
-current_story: S3.4
-current_story_title: Stripe Pricing Page
+current_story: S3.5
+current_story_title: Stripe Checkout Stub
 current_story_status: NOT_STARTED
 sprint_0_status: DONE
 sprint_1_status: DONE
 sprint_2_status: DONE
 sprint_3_status: IN_PROGRESS
-stories_done: [S0.1, S0.2, S0.3, S0.4, S0.5, S0.6, S0.7, S1.1, S1.2, S1.3, S1.4, S1.5, S1.6, S1.7, S1.8, S1.9, S1.10, S2.1, S2.2, S2.3, S2.4, S2.5, S2.6, S2.7, S2.8, S2.9, S2.10, S2.11, S2.12, S3.1, S3.2, S3.3]
+stories_done: [S0.1, S0.2, S0.3, S0.4, S0.5, S0.6, S0.7, S1.1, S1.2, S1.3, S1.4, S1.5, S1.6, S1.7, S1.8, S1.9, S1.10, S2.1, S2.2, S2.3, S2.4, S2.5, S2.6, S2.7, S2.8, S2.9, S2.10, S2.11, S2.12, S3.1, S3.2, S3.3, S3.4, S3.4]
 stories_in_progress: []
 stories_blocked: []
 last_commit: '4676fbb'
@@ -2068,7 +2068,7 @@ epic: E8
 sprint: 3
 priority: P0
 points: 2
-status: NOT_STARTED
+status: DONE
 depends_on: [S3.3]
 ```
 **User Story:** As a parent, I can view available subscription plans and understand what each tier includes, so that I can make an informed decision about upgrading.
@@ -2107,7 +2107,7 @@ epic: E8
 sprint: 3
 priority: P1
 points: 3
-status: NOT_STARTED
+status: DONE
 depends_on: [S3.4]
 ```
 **User Story:** As a parent, I can click "Choose Pro" and be taken through a subscription upgrade journey, so that the payment flow is complete even if live charging is not yet active.
