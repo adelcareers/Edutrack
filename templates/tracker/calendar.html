@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}My Calendar — EduTrack{% endblock %}
+{% block title %}{% if is_readonly %}{{ child_name }}'s Calendar — EduTrack{% else %}My Calendar — EduTrack{% endif %}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -53,17 +53,17 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
   <h2 class="h4 mb-0">
-    <i class="bi bi-calendar3 me-2"></i>My Calendar
+    <i class="bi bi-calendar3 me-2"></i>{% if is_readonly %}{{ child_name }}'s Calendar{% else %}My Calendar{% endif %}
     <small class="text-muted fs-6 ms-2">{{ week_display }}</small>
   </h2>
   <div class="btn-group" role="group" aria-label="Week navigation">
-    <a href="{% url 'tracker:calendar_week' prev_year prev_week %}"
+    <a href="{% if is_readonly %}{% url 'tracker:parent_calendar_week' child_id prev_year prev_week %}{% else %}{% url 'tracker:calendar_week' prev_year prev_week %}{% endif %}"
        class="btn btn-outline-secondary btn-sm" aria-label="Previous week">
       &larr; Prev
     </a>
-    <a href="{% url 'tracker:calendar_week' today_year today_week %}"
+    <a href="{% if is_readonly %}{% url 'tracker:parent_calendar_week' child_id today_year today_week %}{% else %}{% url 'tracker:calendar_week' today_year today_week %}{% endif %}"
        class="btn btn-outline-primary btn-sm">Today</a>
-    <a href="{% url 'tracker:calendar_week' next_year next_week %}"
+    <a href="{% if is_readonly %}{% url 'tracker:parent_calendar_week' child_id next_year next_week %}{% else %}{% url 'tracker:calendar_week' next_year next_week %}{% endif %}"
        class="btn btn-outline-secondary btn-sm" aria-label="Next week">
       Next &rarr;
     </a>
@@ -119,6 +119,7 @@
           </a>
         </div>
         <hr>
+        {% if not is_readonly %}
         <div class="d-flex gap-2 flex-wrap">
           <button id="modal-btn-complete" class="btn btn-sm btn-success" data-action="complete" disabled>
             &#10003; Mark Complete
@@ -151,6 +152,7 @@
             <button id="modal-btn-reschedule" class="btn btn-sm btn-outline-warning" disabled>Move Lesson</button>
           </div>
         </div>
+        {% endif %}
       </div>
       <div class="modal-footer" id="modal-status-row">
         <span class="small text-muted" id="modal-status-text"></span>
