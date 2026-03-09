@@ -1,4 +1,7 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
+from django.conf import settings
+from accounts.decorators import role_required
 
 def pricing_page_view(request):
     """View to display subscription plans."""
@@ -38,3 +41,13 @@ def pricing_page_view(request):
     ]
     return render(request, 'payments/pricing.html', {'plans': plans})
 
+
+@login_required
+@role_required('parent')
+def checkout_view(request):
+    """View to display Stripe checkout or test mode banner based on feature flag."""
+    context = {
+        'stripe_enabled': settings.STRIPE_ENABLED,
+        'stripe_key': settings.STRIPE_PUBLISHABLE_KEY,
+    }
+    return render(request, 'payments/checkout.html', context)
