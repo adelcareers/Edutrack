@@ -90,6 +90,14 @@ def lesson_detail_view(request, scheduled_id):
 
     log = getattr(sl, 'log', None)
     evidence_count = log.evidence_files.count() if log else 0
+    evidence_files = [
+        {
+            'id': ef.pk,
+            'filename': ef.original_filename,
+            'uploaded_at': ef.uploaded_at.strftime('%d %b %Y'),
+        }
+        for ef in log.evidence_files.all()
+    ] if log else []
 
     return JsonResponse({
         'id': sl.pk,
@@ -103,6 +111,7 @@ def lesson_detail_view(request, scheduled_id):
         'mastery': log.mastery if log else 'unset',
         'student_notes': log.student_notes if log else '',
         'evidence_count': evidence_count,
+        'evidence_files': evidence_files,
     })
 
 
@@ -274,6 +283,40 @@ def upload_evidence_view(request, scheduled_id):
         'file_id': evidence.pk,
         'filename': evidence.original_filename,
         'uploaded_at': evidence.uploaded_at.isoformat(),
+        'evidence_count': log.evidence_files.count(),
+    })
+
+
+@login_required
+@role_required('student')
+@require_POST
+def delete_evidence_view(request, file_id):
+    """Delete an evidence file from Cloudinary and the database.
+
+    Only the student who uploaded the file may delete it.
+    Returns JSON: {success, evidence_count}.
+    """
+    import cloudinary.uploader
+
+    evidence = get_object_or_404(EvidenceFile, pk=file_id)
+    if evidence.uploaded_by_id != request.user.pk:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+
+    public_id = (
+        evidence.file.public_id
+        if hasattr(evidence.file, 'public_id')
+        else str(evidence.file)
+    )
+    try:
+        cloudinary.uploader.destroy(public_id, resource_type='raw')
+    except Exception:
+        pass  # best-effort; always delete DB record
+
+    log = evidence.lesson_log
+    evidence.delete()
+
+    return JsonResponse({
+        'success': True,
         'evidence_count': log.evidence_files.count(),
     })
 
