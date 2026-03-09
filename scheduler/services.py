@@ -67,4 +67,28 @@ def generate_schedule(child, enrolled_subjects: List[EnrolledSubject]) -> int:
             .order_by('unit_slug', 'lesson_number')
         )
 
-    raise NotImplementedError("Steps 3–4 to be implemented.")
+    # STEP 3: Distribute round-robin with weekly pace limits
+    to_create = []
+    week_counts = {s.id: 0 for s in enrolled_subjects}
+    current_week = school_days[0].isocalendar()[1]
+
+    for day in school_days:
+        if day.isocalendar()[1] != current_week:
+            week_counts = {s.id: 0 for s in enrolled_subjects}
+            current_week = day.isocalendar()[1]
+        order = 0
+        for subject in enrolled_subjects:
+            if (week_counts[subject.id] < subject.lessons_per_week
+                    and queues[subject.id]):
+                lesson = queues[subject.id].pop(0)
+                to_create.append(ScheduledLesson(
+                    child=child,
+                    lesson=lesson,
+                    enrolled_subject=subject,
+                    scheduled_date=day,
+                    order_on_day=order,
+                ))
+                week_counts[subject.id] += 1
+                order += 1
+
+    raise NotImplementedError("Step 4 to be implemented.")
