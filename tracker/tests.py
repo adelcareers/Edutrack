@@ -414,3 +414,106 @@ class SubjectColourCardTests(TestCase):
         self.assertContains(response, '--subject-colour: #3B82F6')
         self.assertContains(response, '--subject-colour: #EF4444')
 
+
+class LessonDetailViewTests(TestCase):
+    """Tests for S2.4 lesson_detail_view JSON endpoint."""
+
+    DETAIL_URL = 'tracker:lesson_detail'
+
+    def setUp(self):
+        self.parent = _make_parent(username='det_parent')
+        self.student = _make_student(username='det_student')
+        self.child = _make_child(self.parent, student_user=self.student)
+        self.lesson = _make_lesson()
+        self.enrolled = _make_enrolled_subject(self.child)
+        self.monday = datetime.date.fromisocalendar(2026, 10, 1)
+        self.sl = _make_scheduled_lesson(self.child, self.lesson, self.enrolled, self.monday)
+
+    def _url(self, pk=None):
+        return reverse(self.DETAIL_URL, kwargs={'scheduled_id': pk or self.sl.pk})
+
+    # ---------- access ----------
+
+    def test_unauthenticated_redirects(self):
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, 302)
+
+    def test_parent_role_forbidden(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self._url())
+        # role_required redirects to '/'
+        self.assertRedirects(response, '/', fetch_redirect_response=False)
+
+    def test_student_returns_200_json(self):
+        self.client.force_login(self.student)
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/json')
+
+    # ---------- ownership ----------
+
+    def test_other_student_gets_403(self):
+        other_student = User.objects.create_user(username='other_stu', password='Pass!')
+        UserProfile.objects.create(user=other_student, role='student')
+        other_parent = _make_parent(username='other_par')
+        other_child = _make_child(other_parent, student_user=other_student, first_name='Other')
+        self.client.force_login(other_student)
+        response = self.client.get(self._url())  # sl belongs to self.child, not other_child
+        self.assertEqual(response.status_code, 403)
+
+    def test_student_without_child_profile_gets_403(self):
+        orphan = User.objects.create_user(username='orphan2', password='Pass!')
+        UserProfile.objects.create(user=orphan, role='student')
+        self.client.force_login(orphan)
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, 403)
+
+    # ---------- JSON payload ----------
+
+    def test_json_contains_required_keys(self):
+        self.client.force_login(self.student)
+        data = self.client.get(self._url()).json()
+        for key in ('id', 'lesson_title', 'unit_title', 'subject_name',
+                    'scheduled_date', 'lesson_url', 'colour_hex',
+                    'status', 'mastery', 'student_notes', 'evidence_count'):
+            self.assertIn(key, data, msg=f"Missing key: {key}")
+
+    def test_json_lesson_title_correct(self):
+        self.client.force_login(self.student)
+        data = self.client.get(self._url()).json()
+        self.assertEqual(data['lesson_title'], self.lesson.lesson_title)
+
+    def test_json_subject_name_correct(self):
+        self.client.force_login(self.student)
+        data = self.client.get(self._url()).json()
+        self.assertEqual(data['subject_name'], self.enrolled.subject_name)
+
+    def test_json_colour_hex_correct(self):
+        self.client.force_login(self.student)
+        data = self.client.get(self._url()).json()
+        self.assertEqual(data['colour_hex'], self.enrolled.colour_hex)
+
+    def test_json_status_pending_when_no_log(self):
+        self.client.force_login(self.student)
+        data = self.client.get(self._url()).json()
+        self.assertEqual(data['status'], 'pending')
+        self.assertEqual(data['mastery'], 'unset')
+
+    def test_json_status_reflects_log(self):
+        LessonLog.objects.create(
+            scheduled_lesson=self.sl, status='complete', mastery='green',
+            updated_by=self.student,
+        )
+        self.client.force_login(self.student)
+        data = self.client.get(self._url()).json()
+        self.assertEqual(data['status'], 'complete')
+        self.assertEqual(data['mastery'], 'green')
+
+    # ---------- template renders card with data-id ----------
+
+    def test_calendar_card_has_data_id(self):
+        self.client.force_login(self.student)
+        url = reverse('tracker:calendar_week', kwargs={'year': 2026, 'week': 10})
+        response = self.client.get(url)
+        self.assertContains(response, f'data-id="{self.sl.pk}"')
+
