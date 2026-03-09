@@ -51,17 +51,17 @@ repo_url: 'https://github.com/adelcareers/Edutrack'
 heroku_url: 'https://edutrack-3e8b5606319f.herokuapp.com'
 last_updated: '2026-03-09'
 current_sprint: Sprint 2
-current_story: S2.1
-current_story_title: Weekly Calendar View Structure
+current_story: S2.2
+current_story_title: Calendar Week Navigation
 current_story_status: NOT_STARTED
 sprint_0_status: DONE
 sprint_1_status: DONE
 sprint_2_status: IN_PROGRESS
 sprint_3_status: NOT_STARTED
-stories_done: [S0.1, S0.2, S0.3, S0.4, S0.5, S0.6, S0.7, S1.1, S1.2, S1.3, S1.4, S1.5, S1.6, S1.7, S1.8, S1.9, S1.10]
+stories_done: [S0.1, S0.2, S0.3, S0.4, S0.5, S0.6, S0.7, S1.1, S1.2, S1.3, S1.4, S1.5, S1.6, S1.7, S1.8, S1.9, S1.10, S2.1]
 stories_in_progress: []
 stories_blocked: []
-last_commit: '150a841'
+last_commit: '7418f7c'
 heroku_url: 'https://edutrack-3e8b5606319f.herokuapp.com'
 heroku_deployed: true
 tests_passing: true
