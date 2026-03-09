@@ -9,3 +9,4 @@ django-cloudinary-storage
 Pillow
 django-crispy-forms
 crispy-bootstrap5
+xhtml2pdf==0.2.15
