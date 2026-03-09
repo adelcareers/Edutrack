@@ -44,9 +44,28 @@ def calendar_view(request, year=None, week=None):
             'lessons': lesson_by_date.get(date, []),
         }
 
+    # Week navigation
+    prev_monday = monday - datetime.timedelta(weeks=1)
+    next_monday = monday + datetime.timedelta(weeks=1)
+    prev_y, prev_w, _ = prev_monday.isocalendar()
+    next_y, next_w, _ = next_monday.isocalendar()
+
+    # Week display string e.g. "9–13 Jan 2026" or "30 Mar–3 Apr 2026"
+    if monday.month == friday.month:
+        week_display = f"{monday.day}–{friday.day} {friday.strftime('%b %Y')}"
+    else:
+        week_display = f"{monday.strftime('%-d %b')}–{friday.strftime('%-d %b %Y')}"
+
     return render(request, 'tracker/calendar.html', {
         'days': days,
         'year': year,
         'week': week,
         'today': today,
+        'prev_year': prev_y,
+        'prev_week': prev_w,
+        'next_year': next_y,
+        'next_week': next_w,
+        'today_year': iso_year,
+        'today_week': iso_week,
+        'week_display': week_display,
     })
