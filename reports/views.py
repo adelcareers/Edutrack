@@ -1,11 +1,16 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
+import cloudinary.utils
+
 from accounts.decorators import role_required
+from reports.models import Report
 from scheduler.models import Child
 from tracker.models import LessonLog
 
 from .forms import ReportForm
+from .services import generate_pdf
 
 
 @login_required
@@ -14,8 +19,8 @@ def create_report_view(request, child_id):
     """Show and process the report creation form.
 
     GET: renders the form with a lesson-count preview for the child.
-    POST: validates the form; on success redirects to a not-yet-implemented
-    detail page (placeholder redirect back to dashboard until S3.2).
+    POST: validates the form; on success generates a PDF, saves the report,
+    and redirects to the report detail page.
     """
     child = get_object_or_404(Child, pk=child_id, parent=request.user)
 
@@ -27,15 +32,10 @@ def create_report_view(request, child_id):
         report.child = child
         report.created_by = request.user
         report.save()
-        return redirect('scheduler:parent_dashboard')
+        generate_pdf(report)
+        messages.success(request, 'Report generated! Download below.')
+        return redirect('reports:report_detail', pk=report.pk)
 
-    # Preview: count completed lessons in the current date range
-    if request.method == 'GET':
-        # Show a preview when date params are passed as GET query strings
-        # (used by JS to update the preview count without a full POST)
-        pass
-
-    # Count completed LessonLogs for this child (date range not yet set — shown after form entry)
     completed_count = LessonLog.objects.filter(
         scheduled_lesson__child=child,
         status='complete',
@@ -46,5 +46,25 @@ def create_report_view(request, child_id):
         'child': child,
         'preview_count': preview_count,
         'total_completed': completed_count,
+    })
+
+
+@login_required
+@role_required('parent')
+def report_detail_view(request, pk):
+    """Display report metadata, PDF download link, and share token URL."""
+    report = get_object_or_404(Report, pk=pk, child__parent=request.user)
+
+    download_url = None
+    if report.pdf_file:
+        download_url, _ = cloudinary.utils.cloudinary_url(
+            str(report.pdf_file),
+            resource_type='raw',
+            format='pdf',
+        )
+
+    return render(request, 'reports/report_detail.html', {
+        'report': report,
+        'download_url': download_url,
     })
 
