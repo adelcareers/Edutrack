@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}My Calendar — EduTrack{% endblock %}
 
@@ -72,7 +73,7 @@
 
     {% if day.lessons %}
       {% for sl in day.lessons %}
-      <div class="lesson-card" style="--subject-colour: {{ sl.enrolled_subject.colour_hex }}">
+      <div class="lesson-card" style="--subject-colour: {{ sl.enrolled_subject.colour_hex }}" data-id="{{ sl.pk }}" role="button" tabindex="0" aria-haspopup="dialog">
         <div class="card-header">{{ sl.enrolled_subject.subject_name }}</div>
         <div class="card-body">{{ sl.lesson.lesson_title }}</div>
         <div class="card-footer">
@@ -90,4 +91,53 @@
   </div>
   {% endfor %}
 </div>
+
+<!-- Lesson Detail Modal -->
+<div id="lesson-modal" class="modal fade" tabindex="-1" role="dialog"
+     aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div id="modal-header" class="modal-header" style="background: var(--modal-colour, #6c757d); color: #fff; border-bottom: none;">
+        <h5 class="modal-title" id="modal-title">Lesson Detail</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-1" id="modal-subject"></p>
+        <p class="text-muted small mb-3" id="modal-date"></p>
+        <p class="mb-1" id="modal-unit"></p>
+        <div class="d-flex gap-2 mt-3">
+          <a id="modal-oak-link" href="#" target="_blank" rel="noopener noreferrer"
+             class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-box-arrow-up-right me-1"></i>Open on Oak
+          </a>
+        </div>
+        <hr>
+        <div class="d-flex gap-2 flex-wrap">
+          <button id="modal-btn-complete" class="btn btn-sm btn-success" data-action="complete" disabled>
+            &#10003; Mark Complete
+          </button>
+          <button id="modal-btn-skip" class="btn btn-sm btn-secondary" data-action="skip" disabled>
+            Skip
+          </button>
+        </div>
+        <div class="mt-3 d-flex gap-2 align-items-center">
+          <span class="small text-muted me-1">Mastery:</span>
+          <button class="btn btn-sm mastery-btn" data-mastery="green" disabled
+                  style="background:#16A34A;color:#fff;">Green</button>
+          <button class="btn btn-sm mastery-btn" data-mastery="amber" disabled
+                  style="background:#D97706;color:#fff;">Amber</button>
+          <button class="btn btn-sm mastery-btn" data-mastery="red" disabled
+                  style="background:#DC2626;color:#fff;">Red</button>
+        </div>
+      </div>
+      <div class="modal-footer" id="modal-status-row">
+        <span class="small text-muted" id="modal-status-text"></span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/calendar.js' %}"></script>
 {% endblock %}
