@@ -1,14 +1,17 @@
-"""Tests for the reports app — S3.1 Report Creation Form."""
+"""Tests for the reports app — S3.1 Report Creation Form, S3.2 PDF Generation."""
 
 import datetime
+from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth.models import User
 
 from accounts.models import UserProfile
+from curriculum.models import Lesson
 from reports.forms import ReportForm
 from reports.models import Report
+from reports.services import generate_pdf
 from scheduler.models import Child, EnrolledSubject, ScheduledLesson
 from tracker.models import LessonLog
 
@@ -105,6 +108,12 @@ class CreateReportViewTests(TestCase):
         self.parent = _make_parent()
         self.child = _make_child(self.parent)
         self.student = _make_student()
+        patcher = patch(
+            'reports.views.generate_pdf',
+            return_value='https://cdn.example.com/r.pdf',
+        )
+        self.mock_generate_pdf = patcher.start()
+        self.addCleanup(patcher.stop)
 
     def _url(self, child_id=None):
         return reverse(self.CREATE_URL, kwargs={'child_id': child_id or self.child.pk})
@@ -206,11 +215,15 @@ class CreateReportViewTests(TestCase):
         response = self._post()
         self.assertEqual(response.status_code, 302)
 
-    def test_valid_post_redirects_to_dashboard(self):
+    def test_valid_post_redirects_to_detail(self):
         self.client.force_login(self.parent)
         response = self._post()
-        self.assertRedirects(response, reverse('scheduler:parent_dashboard'),
-                             fetch_redirect_response=False)
+        report = Report.objects.get(child=self.child)
+        self.assertRedirects(
+            response,
+            reverse('reports:report_detail', kwargs={'pk': report.pk}),
+            fetch_redirect_response=False,
+        )
 
     # ---------- POST invalid ----------
 
@@ -228,4 +241,198 @@ class CreateReportViewTests(TestCase):
         self.client.force_login(self.parent)
         self._post(date_from='2026-06-30', date_to='2026-01-01')
         self.assertEqual(Report.objects.filter(child=self.child).count(), 0)
+
+
+# ---------------------------------------------------------------------------
+# S3.2 / T2 — generate_pdf service
+# ---------------------------------------------------------------------------
+
+def _make_lesson(subject='Maths', title='Counting', number=1):
+    return Lesson.objects.create(
+        key_stage='KS3',
+        subject_name=subject,
+        unit_title='Numbers',
+        lesson_number=number,
+        lesson_title=title,
+        lesson_url='http://example.com',
+    )
+
+
+def _make_enrolled(child, subject='Maths'):
+    return EnrolledSubject.objects.create(
+        child=child,
+        subject_name=subject,
+        key_stage='KS3',
+        lessons_per_week=2,
+        colour_hex='#123456',
+    )
+
+
+class GeneratePdfServiceTests(TestCase):
+    """Tests for reports.services.generate_pdf."""
+
+    def setUp(self):
+        self.parent = _make_parent(username='svc_parent')
+        self.child = _make_child(self.parent, first_name='SvcChild')
+        self.report = Report.objects.create(
+            child=self.child,
+            created_by=self.parent,
+            report_type='summary',
+            date_from=datetime.date(2026, 1, 1),
+            date_to=datetime.date(2026, 6, 30),
+        )
+        self._upload_rv = {
+            'public_id': 'reports/test_report.pdf',
+            'secure_url': 'https://cdn.example.com/test_report.pdf',
+        }
+
+    @patch('reports.services.cloudinary.uploader.upload')
+    @patch('reports.services.pisa.CreatePDF')
+    def test_returns_secure_url(self, mock_pisa, mock_upload):
+        mock_upload.return_value = self._upload_rv
+        url = generate_pdf(self.report)
+        self.assertEqual(url, 'https://cdn.example.com/test_report.pdf')
+
+    @patch('reports.services.cloudinary.uploader.upload')
+    @patch('reports.services.pisa.CreatePDF')
+    def test_sets_pdf_file_on_report(self, mock_pisa, mock_upload):
+        mock_upload.return_value = self._upload_rv
+        generate_pdf(self.report)
+        self.report.refresh_from_db()
+        # CloudinaryField strips the format extension from the public_id.
+        self.assertIn('reports/test_report', str(self.report.pdf_file))
+
+    @patch('reports.services.cloudinary.uploader.upload')
+    @patch('reports.services.pisa.CreatePDF')
+    def test_calls_cloudinary_upload(self, mock_pisa, mock_upload):
+        mock_upload.return_value = self._upload_rv
+        generate_pdf(self.report)
+        self.assertTrue(mock_upload.called)
+        call_kwargs = mock_upload.call_args[1]
+        self.assertEqual(call_kwargs.get('resource_type'), 'raw')
+
+    @patch('reports.services.cloudinary.uploader.upload')
+    @patch('reports.services.pisa.CreatePDF')
+    def test_only_completed_logs_included_in_html(self, mock_pisa, mock_upload):
+        """Completed lessons appear in context; pending ones do not."""
+        mock_upload.return_value = self._upload_rv
+        lesson = _make_lesson()
+        enrolled = _make_enrolled(self.child)
+        sl_done = ScheduledLesson.objects.create(
+            child=self.child, lesson=lesson, enrolled_subject=enrolled,
+            scheduled_date=datetime.date(2026, 3, 1),
+        )
+        sl_pending = ScheduledLesson.objects.create(
+            child=self.child, lesson=lesson, enrolled_subject=enrolled,
+            scheduled_date=datetime.date(2026, 3, 2),
+        )
+        LessonLog.objects.create(scheduled_lesson=sl_done, status='complete')
+        LessonLog.objects.create(scheduled_lesson=sl_pending, status='pending')
+
+        generate_pdf(self.report)
+
+        html = mock_pisa.call_args[0][0]
+        self.assertIn('SvcChild', html)
+
+    @patch('reports.services.cloudinary.uploader.upload')
+    @patch('reports.services.pisa.CreatePDF')
+    def test_portfolio_report_includes_lesson_detail_heading(self, mock_pisa, mock_upload):
+        """Portfolio type renders the per-lesson detail section."""
+        mock_upload.return_value = self._upload_rv
+        portfolio = Report.objects.create(
+            child=self.child, created_by=self.parent, report_type='portfolio',
+            date_from=datetime.date(2026, 1, 1), date_to=datetime.date(2026, 6, 30),
+        )
+        lesson = _make_lesson(title='Algebra', number=2)
+        enrolled = _make_enrolled(self.child)
+        sl = ScheduledLesson.objects.create(
+            child=self.child, lesson=lesson, enrolled_subject=enrolled,
+            scheduled_date=datetime.date(2026, 2, 5),
+        )
+        LessonLog.objects.create(scheduled_lesson=sl, status='complete', mastery='green')
+
+        generate_pdf(portfolio)
+
+        html = mock_pisa.call_args[0][0]
+        self.assertIn('Lesson Detail', html)
+        self.assertIn('Algebra', html)
+
+
+# ---------------------------------------------------------------------------
+# S3.2 / T5 — report_detail_view
+# ---------------------------------------------------------------------------
+
+class ReportDetailViewTests(TestCase):
+    """Tests for report_detail_view access control and rendering."""
+
+    DETAIL_URL = 'reports:report_detail'
+
+    def setUp(self):
+        self.parent = _make_parent(username='det_parent')
+        self.child = _make_child(self.parent, first_name='DetailChild')
+        self.student = _make_student(username='det_student')
+        self.report = Report.objects.create(
+            child=self.child,
+            created_by=self.parent,
+            report_type='summary',
+            date_from=datetime.date(2026, 1, 1),
+            date_to=datetime.date(2026, 6, 30),
+        )
+
+    def _url(self, pk=None):
+        return reverse(self.DETAIL_URL, kwargs={'pk': pk or self.report.pk})
+
+    # ---------- access ----------
+
+    def test_unauthenticated_redirects(self):
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, 302)
+
+    def test_student_role_blocked(self):
+        self.client.force_login(self.student)
+        response = self.client.get(self._url())
+        self.assertRedirects(response, '/', fetch_redirect_response=False)
+
+    def test_other_parent_gets_404(self):
+        other = _make_parent(username='det_other')
+        self.client.force_login(other)
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, 404)
+
+    def test_owner_gets_200(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, 200)
+
+    # ---------- rendering ----------
+
+    def test_uses_correct_template(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self._url())
+        self.assertTemplateUsed(response, 'reports/report_detail.html')
+
+    def test_report_in_context(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self._url())
+        self.assertEqual(response.context['report'], self.report)
+
+    def test_no_pdf_file_gives_none_download_url(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self._url())
+        self.assertIsNone(response.context['download_url'])
+
+    def test_no_pdf_shows_not_available_text(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self._url())
+        self.assertContains(response, 'PDF is not yet available')
+
+    def test_shows_child_name(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self._url())
+        self.assertContains(response, 'DetailChild')
+
+    def test_shows_report_type(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self._url())
+        self.assertContains(response, 'Summary')
 
