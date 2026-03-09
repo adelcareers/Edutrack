@@ -51,14 +51,14 @@ repo_url: 'https://github.com/adelcareers/Edutrack'
 heroku_url: 'https://edutrack-3e8b5606319f.herokuapp.com'
 last_updated: '2026-03-09'
 current_sprint: Sprint 3
-current_story: S3.6
-current_story_title: Testing User Needs (Student Flow)
+current_story: S3.7
+current_story_title: README: UX and Design Documentation
 current_story_status: NOT_STARTED
 sprint_0_status: DONE
 sprint_1_status: DONE
 sprint_2_status: DONE
 sprint_3_status: IN_PROGRESS
-stories_done: [S0.1, S0.2, S0.3, S0.4, S0.5, S0.6, S0.7, S1.1, S1.2, S1.3, S1.4, S1.5, S1.6, S1.7, S1.8, S1.9, S1.10, S2.1, S2.2, S2.3, S2.4, S2.5, S2.6, S2.7, S2.8, S2.9, S2.10, S2.11, S2.12, S3.1, S3.2, S3.3, S3.4, S3.4, S3.5, S3.5]
+stories_done: [S0.1, S0.2, S0.3, S0.4, S0.5, S0.6, S0.7, S1.1, S1.10, S1.2, S1.3, S1.4, S1.5, S1.6, S1.7, S1.8, S1.9, S2.1, S2.10, S2.11, S2.12, S2.2, S2.3, S2.4, S2.5, S2.6, S2.7, S2.8, S2.9, S3.1, S3.2, S3.3, S3.4, S3.5, S3.6]
 stories_in_progress: []
 stories_blocked: []
 last_commit: '4676fbb'
