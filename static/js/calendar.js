@@ -170,6 +170,8 @@
         if (notesCount) notesCount.textContent = (data.student_notes || '').length;
       }
       if (btnSaveNotes) btnSaveNotes.removeAttribute('disabled');
+      if (rescheduleDate) rescheduleDate.removeAttribute('disabled');
+      if (btnReschedule)  btnReschedule.removeAttribute('disabled');
 
       bsModal.show();
     } catch (e) {
@@ -259,6 +261,42 @@
         await postNotesUpdate(activeScheduledId, modalNotes.value);
       } catch (e) { /* silent */ }
       bsModal.hide();
+    });
+  }
+
+  // ── Reschedule handler ────────────────────────────────────────────────
+  const rescheduleDate = document.getElementById('modal-reschedule-date');
+  const btnReschedule  = document.getElementById('modal-btn-reschedule');
+
+  // Set min date to tomorrow when the modal opens
+  if (modal) {
+    modal.addEventListener('show.bs.modal', () => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      if (rescheduleDate) rescheduleDate.min = tomorrow.toISOString().slice(0, 10);
+    });
+  }
+
+  if (btnReschedule) {
+    btnReschedule.addEventListener('click', async () => {
+      if (!activeScheduledId || !rescheduleDate || !rescheduleDate.value) return;
+      try {
+        const body = new URLSearchParams({ new_date: rescheduleDate.value });
+        const resp = await fetch(`/lessons/${activeScheduledId}/reschedule/`, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          credentials: 'same-origin',
+          body,
+        });
+        if (resp.ok) {
+          bsModal.hide();
+          window.location.reload();
+        }
+      } catch (e) { /* silent */ }
     });
   }
 })();
