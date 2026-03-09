@@ -1,6 +1,9 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils import timezone
 
 import cloudinary.utils
 
@@ -63,8 +66,25 @@ def report_detail_view(request, pk):
             format='pdf',
         )
 
+    share_url = request.build_absolute_uri(
+        reverse('reports:shared_report', kwargs={'token': report.share_token})
+    )
+
     return render(request, 'reports/report_detail.html', {
         'report': report,
         'download_url': download_url,
+        'share_url': share_url,
+    })
+
+
+def token_report_view(request, token):
+    """Public read-only report view accessible via a secure UUID token."""
+    report = get_object_or_404(Report, share_token=token)
+
+    if report.token_expires_at and report.token_expires_at <= timezone.now():
+        return HttpResponseForbidden('This link has expired')
+
+    return render(request, 'reports/shared_report.html', {
+        'report': report,
     })
 
