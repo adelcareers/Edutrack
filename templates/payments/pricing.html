@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block title %}Pricing Plans | EduTrack{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5 mb-5">
+    <div class="col-md-8 text-center">
+        <h1 class="display-4 fw-bold">Simple, transparent pricing</h1>
+        <p class="lead text-muted">Choose the plan that best fits your home education journey.</p>
+    </div>
+</div>
+
+<div class="row row-cols-1 row-cols-md-2 mb-3 text-center justify-content-center">
+    {% for plan in plans %}
+    <div class="col-lg-5">
+        <div class="card mb-4 rounded-3 shadow-sm {% if plan.is_pro %}border-primary{% endif %}">
+            <div class="card-header py-3 {% if plan.is_pro %}text-white bg-primary border-primary{% endif %}">
+                <h4 class="my-0 fw-normal">{{ plan.name }}</h4>
+            </div>
+            <div class="card-body">
+                <h1 class="card-title pricing-card-title">{{ plan.price }}<small class="text-muted fw-light">{{ plan.interval }}</small></h1>
+                <p class="text-muted mt-3">{{ plan.description }}</p>
+                <ul class="list-unstyled mt-3 mb-4 text-start ms-4">
+                    {% for feature in plan.features %}
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i> {{ feature }}</li>
+                    {% endfor %}
+                </ul>
+                <a href="{{ plan.button_link }}" class="w-100 btn btn-lg {{ plan.button_class }}">{{ plan.button_text }}</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
