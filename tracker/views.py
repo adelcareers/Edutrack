@@ -165,3 +165,30 @@ def update_mastery_view(request, scheduled_id):
         'success': True,
         'mastery': log.mastery,
     })
+
+
+@login_required
+@role_required('student')
+@require_POST
+def save_notes_view(request, scheduled_id):
+    """Accept a POST {notes: string} and persist it to LessonLog.student_notes.
+
+    Ownership is verified: the lesson must belong to the authenticated
+    student's child profile.  Notes are capped at 1000 characters.
+    Returns JSON on both success and error.
+    """
+    child = getattr(request.user, 'child_profile', None)
+    sl = get_object_or_404(ScheduledLesson, pk=scheduled_id)
+
+    if child is None or sl.child_id != child.pk:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+
+    notes = request.POST.get('notes', '')
+    if len(notes) > 1000:
+        return JsonResponse({'error': 'notes too long'}, status=400)
+
+    log, _ = LessonLog.objects.get_or_create(scheduled_lesson=sl)
+    log.student_notes = notes
+    log.save()
+
+    return JsonResponse({'success': True, 'student_notes': log.student_notes})
