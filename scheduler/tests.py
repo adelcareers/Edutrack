@@ -516,3 +516,104 @@ class GenerateScheduleTests(TestCase):
     def test_empty_enrolled_subjects_returns_zero(self):
         count = self._run(subjects=[])
         self.assertEqual(count, 0)
+
+
+class GenerateScheduleViewTests(TestCase):
+    """Tests for generate_schedule_view (S1.8)."""
+
+    GENERATE_URL = 'scheduler:generate_schedule'
+
+    def setUp(self):
+        self.parent = _make_parent(username='gen_parent')
+        self.child = _make_child(self.parent, first_name='Grace')
+        # Create 3 curriculum lessons so generate_schedule() has something to work with
+        for n in range(1, 4):
+            Lesson.objects.create(
+                key_stage='KS2',
+                subject_name='Maths',
+                programme_slug='maths-year-5',
+                year='Year 5',
+                unit_slug='algebra',
+                unit_title='Algebra',
+                lesson_number=n,
+                lesson_title=f'Maths Lesson {n}',
+                lesson_url=f'https://classroom.thenational.academy/algebra/{n}',
+            )
+        self.enrolled = EnrolledSubject.objects.create(
+            child=self.child,
+            subject_name='Maths',
+            key_stage='KS2',
+            lessons_per_week=1,
+            colour_hex='#E63946',
+        )
+        self.url = reverse(self.GENERATE_URL, kwargs={'child_id': self.child.pk})
+
+    # ---------- access ----------
+
+    def test_unauthenticated_redirects_to_login(self):
+        response = self.client.get(self.url)
+        self.assertRedirects(response, f'/accounts/login/?next={self.url}')
+
+    def test_student_role_blocked(self):
+        student = User.objects.create_user(username='stu_gen', password='Pass123!')
+        UserProfile.objects.create(user=student, role='student')
+        self.client.force_login(student)
+        response = self.client.get(self.url)
+        self.assertRedirects(response, '/')
+
+    def test_other_parent_gets_403(self):
+        other = _make_parent(username='other_gen')
+        self.client.force_login(other)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 403)
+
+    # ---------- GET ----------
+
+    def test_get_returns_200(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_get_shows_child_name(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self.url)
+        self.assertContains(response, 'Grace')
+
+    def test_get_shows_enrolled_subject(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self.url)
+        self.assertContains(response, 'Maths')
+
+    def test_get_context_has_subject_summaries(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self.url)
+        self.assertIn('subject_summaries', response.context)
+        self.assertEqual(len(response.context['subject_summaries']), 1)
+
+    # ---------- POST ----------
+
+    def test_post_creates_scheduled_lessons(self):
+        self.client.force_login(self.parent)
+        self.client.post(self.url)
+        self.assertGreater(ScheduledLesson.objects.filter(child=self.child).count(), 0)
+
+    def test_post_redirects(self):
+        self.client.force_login(self.parent)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, 302)
+
+    def test_post_success_message_contains_name_and_count(self):
+        self.client.force_login(self.parent)
+        response = self.client.post(self.url, follow=True)
+        msgs = list(response.context['messages'])
+        self.assertEqual(len(msgs), 1)
+        self.assertIn("Grace's schedule is ready", str(msgs[0]))
+        self.assertIn('lessons scheduled across 180 days', str(msgs[0]))
+
+    def test_regenerate_replaces_old_schedule(self):
+        self.client.force_login(self.parent)
+        self.client.post(self.url)
+        count_first = ScheduledLesson.objects.filter(child=self.child).count()
+        self.client.post(self.url)
+        count_second = ScheduledLesson.objects.filter(child=self.child).count()
+        self.assertEqual(count_first, count_second)
