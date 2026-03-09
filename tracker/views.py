@@ -8,7 +8,7 @@ from django.views.decorators.http import require_POST
 
 from accounts.decorators import role_required
 from scheduler.models import ScheduledLesson
-from tracker.models import LessonLog
+from tracker.models import EvidenceFile, LessonLog
 
 
 @login_required
@@ -89,7 +89,7 @@ def lesson_detail_view(request, scheduled_id):
         return JsonResponse({'error': 'forbidden'}, status=403)
 
     log = getattr(sl, 'log', None)
-    evidence_count = sl.evidence_files.count() if hasattr(sl, 'evidence_files') else 0
+    evidence_count = log.evidence_files.count() if log else 0
 
     return JsonResponse({
         'id': sl.pk,
@@ -227,6 +227,55 @@ def reschedule_lesson_view(request, scheduled_id):
     log.save()
 
     return JsonResponse({'success': True, 'new_date': new_date.isoformat()})
+
+
+_ALLOWED_EVIDENCE_TYPES = frozenset({
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+})
+
+
+@login_required
+@role_required('student')
+@require_POST
+def upload_evidence_view(request, scheduled_id):
+    """Accept a multipart POST with a 'file' field and store it on Cloudinary.
+
+    Validates ownership and restricts uploads to images, PDF, .doc, .docx.
+    Creates a LessonLog if one does not yet exist.
+    Returns JSON: {success, file_id, filename, uploaded_at}.
+    """
+    child = getattr(request.user, 'child_profile', None)
+    sl = get_object_or_404(ScheduledLesson, pk=scheduled_id)
+
+    if child is None or sl.child_id != child.pk:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+
+    uploaded_file = request.FILES.get('file')
+    if not uploaded_file:
+        return JsonResponse({'error': 'no file provided'}, status=400)
+
+    content_type = (uploaded_file.content_type or '').split(';')[0].strip().lower()
+    if not (content_type.startswith('image/') or content_type in _ALLOWED_EVIDENCE_TYPES):
+        return JsonResponse({'error': 'invalid file type'}, status=400)
+
+    log, _ = LessonLog.objects.get_or_create(scheduled_lesson=sl)
+    evidence = EvidenceFile.objects.create(
+        lesson_log=log,
+        file=uploaded_file,
+        original_filename=uploaded_file.name,
+        uploaded_by=request.user,
+    )
+
+    return JsonResponse({
+        'success': True,
+        'file_id': evidence.pk,
+        'filename': evidence.original_filename,
+        'uploaded_at': evidence.uploaded_at.isoformat(),
+        'evidence_count': log.evidence_files.count(),
+    })
 
 
 @login_required
