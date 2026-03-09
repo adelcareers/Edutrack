@@ -1,7 +1,9 @@
 """Tests for the tracker app — S2.1 Weekly Calendar View."""
 
 import datetime
+from unittest.mock import patch
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth.models import User
@@ -9,7 +11,19 @@ from django.contrib.auth.models import User
 from accounts.models import UserProfile
 from curriculum.models import Lesson
 from scheduler.models import Child, EnrolledSubject, ScheduledLesson
-from tracker.models import LessonLog
+from tracker.models import EvidenceFile, LessonLog
+
+# Minimal fake Cloudinary upload response used by EvidenceUploadTests.
+_FAKE_CLOUDINARY = {
+    'public_id': 'edutrack_test/fake_evidence',
+    'version': 1234567890,
+    'secure_url': 'https://res.cloudinary.com/test/raw/upload/v1234567890/fake_evidence',
+    'url': 'http://res.cloudinary.com/test/raw/upload/v1234567890/fake_evidence',
+    'resource_type': 'raw',
+    'type': 'upload',
+    'format': 'png',
+    'bytes': 100,
+}
 
 
 # ---------------------------------------------------------------------------
@@ -1095,4 +1109,132 @@ class ParentCalendarTests(TestCase):
         self.client.force_login(self.parent)
         response = self.client.get(self._url(child_id=99999))
         self.assertEqual(response.status_code, 404)
+
+
+class EvidenceUploadTests(TestCase):
+    """Tests for S2.10 upload_evidence_view POST endpoint."""
+
+    UPLOAD_URL = 'tracker:lesson_upload'
+
+    def setUp(self):
+        self.parent = _make_parent(username='ev_parent')
+        self.student = _make_student(username='ev_student')
+        self.child = _make_child(self.parent, student_user=self.student)
+        self.lesson = _make_lesson(title='Evidence Test Lesson')
+        self.enrolled = _make_enrolled_subject(self.child, subject_name='Art')
+        self.monday = datetime.date.fromisocalendar(2026, 17, 1)
+        self.sl = _make_scheduled_lesson(self.child, self.lesson, self.enrolled, self.monday)
+
+    def _url(self, pk=None):
+        return reverse(self.UPLOAD_URL, kwargs={'scheduled_id': pk or self.sl.pk})
+
+    def _post(self, file_name='test.png', content_type='image/png', pk=None):
+        f = SimpleUploadedFile(file_name, b'fake file content', content_type=content_type)
+        return self.client.post(self._url(pk), {'file': f},
+                                HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+
+    # ---------- access ----------
+
+    def test_unauthenticated_redirects(self):
+        response = self._post()
+        self.assertEqual(response.status_code, 302)
+
+    def test_parent_role_blocked(self):
+        self.client.force_login(self.parent)
+        response = self._post()
+        self.assertRedirects(response, '/', fetch_redirect_response=False)
+
+    def test_get_method_not_allowed(self):
+        self.client.force_login(self.student)
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, 405)
+
+    def test_other_student_gets_403(self):
+        other_student = _make_student(username='ev_other')
+        _make_child(self.parent, student_user=other_student)
+        self.client.force_login(other_student)
+        response = self._post()
+        self.assertEqual(response.status_code, 403)
+
+    def test_student_without_child_profile_gets_403(self):
+        bare = User.objects.create_user(username='ev_bare', password='Pass!')
+        UserProfile.objects.create(user=bare, role='student')
+        self.client.force_login(bare)
+        response = self._post()
+        self.assertEqual(response.status_code, 403)
+
+    # ---------- validation ----------
+
+    def test_no_file_returns_400(self):
+        self.client.force_login(self.student)
+        response = self.client.post(self._url(), {},
+                                    HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(response.status_code, 400)
+
+    def test_invalid_type_exe_returns_400(self):
+        self.client.force_login(self.student)
+        response = self._post(file_name='malware.exe',
+                              content_type='application/octet-stream')
+        self.assertEqual(response.status_code, 400)
+
+    # ---------- happy path (Cloudinary upload mocked) ----------
+
+    def test_image_upload_returns_200_success(self):
+        self.client.force_login(self.student)
+        with patch('cloudinary.uploader.upload', return_value=_FAKE_CLOUDINARY):
+            response = self._post()
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['success'])
+
+    def test_pdf_upload_returns_200(self):
+        self.client.force_login(self.student)
+        with patch('cloudinary.uploader.upload', return_value=_FAKE_CLOUDINARY):
+            response = self._post(file_name='doc.pdf', content_type='application/pdf')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['success'])
+
+    def test_creates_lesson_log_when_none(self):
+        self.client.force_login(self.student)
+        self.assertFalse(LessonLog.objects.filter(scheduled_lesson=self.sl).exists())
+        with patch('cloudinary.uploader.upload', return_value=_FAKE_CLOUDINARY):
+            self._post()
+        self.assertTrue(LessonLog.objects.filter(scheduled_lesson=self.sl).exists())
+
+    def test_creates_evidence_file_record(self):
+        self.client.force_login(self.student)
+        with patch('cloudinary.uploader.upload', return_value=_FAKE_CLOUDINARY):
+            self._post()
+        log = LessonLog.objects.get(scheduled_lesson=self.sl)
+        self.assertEqual(log.evidence_files.count(), 1)
+
+    def test_reuses_existing_lesson_log(self):
+        existing_log = LessonLog.objects.create(scheduled_lesson=self.sl)
+        self.client.force_login(self.student)
+        with patch('cloudinary.uploader.upload', return_value=_FAKE_CLOUDINARY):
+            self._post()
+        self.assertEqual(LessonLog.objects.filter(scheduled_lesson=self.sl).count(), 1)
+        existing_log.refresh_from_db()
+        self.assertEqual(existing_log.evidence_files.count(), 1)
+
+    def test_response_contains_evidence_count(self):
+        self.client.force_login(self.student)
+        with patch('cloudinary.uploader.upload', return_value=_FAKE_CLOUDINARY):
+            data = self._post().json()
+        self.assertIn('evidence_count', data)
+        self.assertEqual(data['evidence_count'], 1)
+
+    def test_evidence_count_in_detail_view_reflects_uploads(self):
+        """lesson_detail_view returns correct evidence_count after upload."""
+        log = LessonLog.objects.create(scheduled_lesson=self.sl)
+        with patch('cloudinary.uploader.upload', return_value=_FAKE_CLOUDINARY):
+            EvidenceFile.objects.create(
+                lesson_log=log,
+                file='fake/public_id',
+                original_filename='test.png',
+                uploaded_by=self.student,
+            )
+        self.client.force_login(self.student)
+        response = self.client.get(reverse('tracker:lesson_detail',
+                                           kwargs={'scheduled_id': self.sl.pk}))
+        self.assertEqual(response.json()['evidence_count'], 1)
 
