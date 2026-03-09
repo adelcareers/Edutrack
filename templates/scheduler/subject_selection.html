@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Select Subjects for {{ child.first_name }} — EduTrack{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+
+  <div class="mb-4">
+    <h2 class="fw-bold mb-1">Select subjects for {{ child.first_name }}</h2>
+    <p class="text-muted">
+      Tick each subject you want to include and set how many lessons per week.
+      You need to select at least one subject.
+    </p>
+  </div>
+
+  <form method="post" novalidate aria-label="Subject selection form" id="subject-form">
+    {% csrf_token %}
+
+    {% if grouped %}
+      <div class="accordion mb-4" id="subjectAccordion">
+        {% for key_stage, subjects in grouped.items %}
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="heading-{{ key_stage|slugify }}">
+              <button class="accordion-button" type="button"
+                      data-bs-toggle="collapse"
+                      data-bs-target="#collapse-{{ key_stage|slugify }}"
+                      aria-expanded="true"
+                      aria-controls="collapse-{{ key_stage|slugify }}">
+                {{ key_stage }}
+              </button>
+            </h2>
+            <div id="collapse-{{ key_stage|slugify }}"
+                 class="accordion-collapse collapse show"
+                 aria-labelledby="heading-{{ key_stage|slugify }}"
+                 data-bs-parent="#subjectAccordion">
+              <div class="accordion-body p-0">
+                <table class="table table-hover mb-0">
+                  <tbody>
+                    {% for subject in subjects %}
+                      <tr>
+                        <td class="align-middle ps-3" style="width:2.5rem">
+                          <input
+                            class="form-check-input subject-checkbox"
+                            type="checkbox"
+                            name="subjects"
+                            value="{{ subject.subject_name }}"
+                            id="subj-{{ subject.subject_name|slugify }}"
+                            aria-label="Select {{ subject.subject_name }}"
+                          >
+                        </td>
+                        <td class="align-middle">
+                          <label class="form-check-label fw-semibold mb-0"
+                                 for="subj-{{ subject.subject_name|slugify }}">
+                            {{ subject.subject_name }}
+                          </label>
+                        </td>
+                        <td class="align-middle text-center">
+                          <span class="badge bg-secondary">{{ subject.total_lessons }} lessons</span>
+                        </td>
+                        <td class="align-middle text-end pe-3" style="width:9rem">
+                          <label class="visually-hidden"
+                                 for="pace-{{ subject.subject_name|slugify }}">
+                            Lessons per week for {{ subject.subject_name }}
+                          </label>
+                          <input
+                            type="number"
+                            class="form-control form-control-sm pace-spinner"
+                            id="pace-{{ subject.subject_name|slugify }}"
+                            name="pace_{{ subject.subject_name }}"
+                            value="1" min="1" max="5"
+                            disabled
+                            aria-label="Lessons per week"
+                          >
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="alert alert-warning">
+        No curriculum data found for <strong>{{ child.school_year }}</strong>.
+        Please contact support.
+      </div>
+    {% endif %}
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary btn-lg">
+        <i class="bi bi-check2-circle me-1"></i>Confirm subjects
+      </button>
+      <a href="{% url 'scheduler:child_list' %}" class="btn btn-outline-secondary btn-lg">
+        Cancel
+      </a>
+    </div>
+  </form>
+
+</div>
+{% endblock %}
