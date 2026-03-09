@@ -771,3 +771,116 @@ class LessonMasteryUpdateTests(TestCase):
         self.assertEqual(logs.count(), 1)
         self.assertEqual(logs.first().mastery, 'amber')
 
+
+class LessonNotesTests(TestCase):
+    """Tests for S2.7 save_notes_view POST endpoint."""
+
+    NOTES_URL = 'tracker:lesson_notes'
+
+    def setUp(self):
+        self.parent = _make_parent(username='notes_parent')
+        self.student = _make_student(username='notes_student')
+        self.child = _make_child(self.parent, student_user=self.student)
+        self.lesson = _make_lesson(title='Notes Test Lesson')
+        self.enrolled = _make_enrolled_subject(self.child, subject_name='English')
+        self.monday = datetime.date.fromisocalendar(2026, 14, 1)
+        self.sl = _make_scheduled_lesson(self.child, self.lesson, self.enrolled, self.monday)
+
+    def _url(self, pk=None):
+        return reverse(self.NOTES_URL, kwargs={'scheduled_id': pk or self.sl.pk})
+
+    def _post(self, notes, pk=None):
+        return self.client.post(self._url(pk), {'notes': notes},
+                                HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+
+    # ---------- access ----------
+
+    def test_unauthenticated_redirects(self):
+        response = self._post('hello')
+        self.assertEqual(response.status_code, 302)
+
+    def test_parent_role_blocked(self):
+        self.client.force_login(self.parent)
+        response = self._post('hello')
+        self.assertRedirects(response, '/', fetch_redirect_response=False)
+
+    def test_get_method_not_allowed(self):
+        self.client.force_login(self.student)
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, 405)
+
+    def test_other_student_gets_403(self):
+        other_student = _make_student(username='notes_other')
+        _make_child(self.parent, student_user=other_student)
+        self.client.force_login(other_student)
+        response = self._post('hello')
+        self.assertEqual(response.status_code, 403)
+
+    def test_student_without_child_profile_gets_403(self):
+        bare = User.objects.create_user(username='notes_bare', password='Pass!')
+        UserProfile.objects.create(user=bare, role='student')
+        self.client.force_login(bare)
+        response = self._post('hello')
+        self.assertEqual(response.status_code, 403)
+
+    # ---------- validation ----------
+
+    def test_notes_over_1000_chars_returns_400(self):
+        self.client.force_login(self.student)
+        response = self._post('x' * 1001)
+        self.assertEqual(response.status_code, 400)
+
+    def test_notes_exactly_1000_chars_is_accepted(self):
+        self.client.force_login(self.student)
+        response = self._post('x' * 1000)
+        self.assertEqual(response.status_code, 200)
+
+    def test_empty_notes_is_valid(self):
+        self.client.force_login(self.student)
+        response = self._post('')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['success'])
+
+    # ---------- persistence ----------
+
+    def test_notes_save_to_lesson_log(self):
+        self.client.force_login(self.student)
+        self._post('Great session today!')
+        log = LessonLog.objects.get(scheduled_lesson=self.sl)
+        self.assertEqual(log.student_notes, 'Great session today!')
+
+    def test_creates_lesson_log_when_none_exists(self):
+        self.client.force_login(self.student)
+        self.assertFalse(LessonLog.objects.filter(scheduled_lesson=self.sl).exists())
+        self._post('first note')
+        self.assertTrue(LessonLog.objects.filter(scheduled_lesson=self.sl).exists())
+
+    def test_updates_existing_lesson_log_notes(self):
+        LessonLog.objects.create(scheduled_lesson=self.sl, student_notes='old note')
+        self.client.force_login(self.student)
+        self._post('new note')
+        log = LessonLog.objects.get(scheduled_lesson=self.sl)
+        self.assertEqual(log.student_notes, 'new note')
+
+    def test_second_post_keeps_single_log_row(self):
+        self.client.force_login(self.student)
+        self._post('first')
+        self._post('second')
+        self.assertEqual(LessonLog.objects.filter(scheduled_lesson=self.sl).count(), 1)
+
+    def test_response_contains_student_notes_key(self):
+        self.client.force_login(self.student)
+        data = self._post('test').json()
+        self.assertIn('student_notes', data)
+
+    # ---------- notes appear in lesson detail ----------
+
+    def test_saved_notes_appear_in_detail_response(self):
+        LessonLog.objects.create(
+            scheduled_lesson=self.sl, student_notes='saved note', updated_by=self.student
+        )
+        self.client.force_login(self.student)
+        response = self.client.get(reverse('tracker:lesson_detail',
+                                           kwargs={'scheduled_id': self.sl.pk}))
+        self.assertEqual(response.json()['student_notes'], 'saved note')
+
