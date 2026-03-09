@@ -17,11 +17,30 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path, include
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 
 
 def home(request):
-    """Placeholder homepage view — will be replaced by the parent dashboard once auth is implemented."""
+    """Placeholder homepage view — shown to unauthenticated visitors."""
+    return render(request, 'home.html')
+
+
+def root_redirect(request):
+    """Redirect authenticated users to their role's landing page.
+
+    - parent  → /dashboard/
+    - student → /calendar/  (S2.1)
+    - others / unauthenticated → home page
+    """
+    if request.user.is_authenticated:
+        try:
+            role = request.user.profile.role
+        except AttributeError:
+            role = None
+        if role == 'parent':
+            return redirect('scheduler:parent_dashboard')
+        if role == 'student':
+            return redirect('/calendar/')
     return render(request, 'home.html')
 
 
@@ -29,5 +48,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('accounts.urls')),
     path('', include('scheduler.urls')),
-    path('', home, name='home'),
+    path('', root_redirect, name='home'),
 ]

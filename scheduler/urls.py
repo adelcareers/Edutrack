@@ -6,6 +6,7 @@ from . import views
 app_name = 'scheduler'
 
 urlpatterns = [
+    path('dashboard/', views.parent_dashboard_view, name='parent_dashboard'),
     path('children/', views.child_list_view, name='child_list'),
     path('children/add/', views.add_child_view, name='add_child'),
     path(
