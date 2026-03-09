@@ -12,7 +12,8 @@ from accounts.forms import StudentCreationForm
 from accounts.models import UserProfile
 from curriculum.models import Lesson
 from scheduler.forms import ChildForm
-from scheduler.models import Child, EnrolledSubject
+from scheduler.models import Child, EnrolledSubject, ScheduledLesson
+from scheduler.services import generate_schedule
 
 SUBJECT_COLOUR_PALETTE = [
     '#E63946', '#2A9D8F', '#E9C46A', '#F4A261', '#264653',
@@ -129,6 +130,51 @@ def subject_selection_view(request, child_id):
     return render(request, 'scheduler/subject_selection.html', {
         'child': child,
         'grouped': grouped,
+    })
+
+
+@role_required('parent')
+def generate_schedule_view(request, child_id):
+    """Show a summary of subjects to be scheduled and, on POST, generate the schedule.
+
+    GET: renders a confirmation page listing each enrolled subject with its
+    curriculum lesson count.
+
+    POST: deletes any existing ScheduledLesson rows for this child (idempotent
+    regeneration), calls ``generate_schedule()``, flashes a success message
+    containing the total count, then redirects to the child list.
+    """
+    child = get_object_or_404(Child, pk=child_id)
+
+    if child.parent != request.user:
+        return HttpResponseForbidden("You do not have permission to manage this child.")
+
+    enrolled_subjects = list(child.enrolled_subjects.filter(is_active=True))
+
+    if request.method == 'POST':
+        child.scheduled_lessons.all().delete()
+        count = generate_schedule(child, enrolled_subjects)
+        messages.success(
+            request,
+            f"{child.first_name}'s schedule is ready — {count} lessons scheduled across 180 days.",
+        )
+        return redirect('scheduler:child_list')
+
+    subject_summaries = []
+    for subject in enrolled_subjects:
+        total_lessons = (
+            Lesson.objects
+            .filter(subject_name=subject.subject_name, year=child.school_year)
+            .count()
+        )
+        subject_summaries.append({
+            'subject': subject,
+            'total_lessons': total_lessons,
+        })
+
+    return render(request, 'scheduler/generate_schedule.html', {
+        'child': child,
+        'subject_summaries': subject_summaries,
     })
 
 
