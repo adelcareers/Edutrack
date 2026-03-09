@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 
 from accounts.models import UserProfile
 from curriculum.models import Lesson
-from scheduler.models import Child, EnrolledSubject
+from scheduler.models import Child, EnrolledSubject, ScheduledLesson
 
 
 def _make_parent(username='parent1', password='TestPass123!'):
@@ -426,3 +426,93 @@ class SubjectSelectionPostTests(TestCase):
             'pace_English': '1',
         })
         self.assertEqual(EnrolledSubject.objects.filter(child=self.child).count(), 2)
+
+
+class GenerateScheduleTests(TestCase):
+    """Tests for the generate_schedule() scheduling service (S1.7)."""
+
+    def setUp(self):
+        self.parent = _make_parent(username='sched_parent')
+        self.child = _make_child(self.parent, first_name='Bob')
+        # academic_year_start is 2025-09-01 (Monday)
+        # Create 10 Maths lessons across 2 units for Year 5
+        for unit, unit_title in [('algebra', 'Algebra'), ('fractions', 'Fractions')]:
+            for n in range(1, 6):
+                Lesson.objects.create(
+                    key_stage='KS2',
+                    subject_name='Maths',
+                    programme_slug='maths-year-5',
+                    year='Year 5',
+                    unit_slug=unit,
+                    unit_title=unit_title,
+                    lesson_number=n,
+                    lesson_title=f'{unit_title} Lesson {n}',
+                    lesson_url=f'https://classroom.thenational.academy/{unit}/{n}',
+                )
+        self.subject = EnrolledSubject.objects.create(
+            child=self.child,
+            subject_name='Maths',
+            key_stage='KS2',
+            lessons_per_week=2,
+            colour_hex='#E63946',
+        )
+
+    def _run(self, subjects=None):
+        from scheduler.services import generate_schedule
+        if subjects is None:
+            subjects = [self.subject]
+        return generate_schedule(self.child, subjects)
+
+    def test_returns_integer_count(self):
+        count = self._run()
+        self.assertIsInstance(count, int)
+        self.assertGreater(count, 0)
+
+    def test_count_matches_db_records(self):
+        count = self._run()
+        self.assertEqual(
+            ScheduledLesson.objects.filter(child=self.child).count(), count
+        )
+
+    def test_no_lesson_falls_on_weekend(self):
+        self._run()
+        for sl in ScheduledLesson.objects.filter(child=self.child):
+            self.assertLess(
+                sl.scheduled_date.weekday(), 5,
+                f"{sl.scheduled_date} falls on a weekend",
+            )
+
+    def test_no_subject_exceeds_weekly_pace(self):
+        self._run()
+        from collections import defaultdict
+        week_subject_counts = defaultdict(int)
+        for sl in ScheduledLesson.objects.filter(child=self.child).select_related(
+            'enrolled_subject'
+        ):
+            iso_cal = sl.scheduled_date.isocalendar()
+            key = (iso_cal[0], iso_cal[1], sl.enrolled_subject_id)
+            week_subject_counts[key] += 1
+        for count in week_subject_counts.values():
+            self.assertLessEqual(count, self.subject.lessons_per_week)
+
+    def test_lessons_in_curriculum_order(self):
+        self._run()
+        first_sl = (
+            ScheduledLesson.objects
+            .filter(child=self.child)
+            .select_related('lesson')
+            .order_by('scheduled_date', 'order_on_day')
+            .first()
+        )
+        self.assertIsNotNone(first_sl)
+        self.assertEqual(first_sl.lesson.unit_slug, 'algebra')
+        self.assertEqual(first_sl.lesson.lesson_number, 1)
+
+    def test_total_does_not_exceed_available_lessons(self):
+        count = self._run()
+        # Only 10 Maths lessons exist so at most 10 can be scheduled
+        self.assertLessEqual(count, 10)
+
+    def test_empty_enrolled_subjects_returns_zero(self):
+        count = self._run(subjects=[])
+        self.assertEqual(count, 0)
