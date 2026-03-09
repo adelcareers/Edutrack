@@ -1,5 +1,6 @@
 /* EduTrack — Calendar lesson card click → modal population (S2.4)
-   + AJAX Complete / Skip status update (S2.5) */
+   + AJAX Complete / Skip status update (S2.5)
+   + AJAX Mastery score update with active-state buttons (S2.6) */
 
 (function () {
   'use strict';
@@ -49,6 +50,49 @@
     }
   }
 
+  // ── Post mastery update ──────────────────────────────────────────────────
+  async function postMasteryUpdate(scheduledId, mastery) {
+    const body = new URLSearchParams({ mastery });
+    const resp = await fetch(`/lessons/${scheduledId}/mastery/`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': getCookie('csrftoken'),
+        'X-Requested-With': 'XMLHttpRequest',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      credentials: 'same-origin',
+      body,
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return resp.json();
+  }
+
+  // ── Set active mastery button state ─────────────────────────────────────
+  function setActiveMastery(mastery) {
+    document.querySelectorAll('.mastery-btn').forEach(btn => {
+      btn.classList.toggle('mastery-active', btn.dataset.mastery === mastery);
+    });
+  }
+
+  // ── Update card mastery dot in the calendar grid ─────────────────────────
+  function updateCardMastery(scheduledId, mastery) {
+    const card = document.querySelector(`.lesson-card[data-id="${scheduledId}"]`);
+    if (!card) return;
+    const footer = card.querySelector('.card-footer');
+    if (!footer) return;
+
+    const existing = footer.querySelector('.mastery-dot');
+    if (existing) existing.remove();
+
+    if (mastery && mastery !== 'unset') {
+      const titleMap = { green: 'Mastery: green', amber: 'Mastery: amber', red: 'Mastery: needs work' };
+      const dot = document.createElement('span');
+      dot.className = `mastery-dot ${mastery}`;
+      dot.title = titleMap[mastery] || '';
+      footer.appendChild(dot);
+    }
+  }
+
   // ── Post status update ───────────────────────────────────────────────────
   async function postStatusUpdate(scheduledId, status) {
     const body = new URLSearchParams({ status });
@@ -94,6 +138,9 @@
       // Enable action buttons
       document.querySelectorAll('#modal-btn-complete, #modal-btn-skip, .mastery-btn')
               .forEach(btn => btn.removeAttribute('disabled'));
+
+      // Set active mastery button
+      setActiveMastery(data.mastery);
 
       bsModal.show();
     } catch (e) {
@@ -152,4 +199,19 @@
   });
 
   attachActionButtons();
+
+  // ── Mastery button handlers ───────────────────────────────────────────────
+  document.querySelectorAll('.mastery-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!activeScheduledId) return;
+      const mastery = btn.dataset.mastery;
+      try {
+        const data = await postMasteryUpdate(activeScheduledId, mastery);
+        if (data.success) {
+          setActiveMastery(mastery);
+          updateCardMastery(activeScheduledId, mastery);
+        }
+      } catch (e) { /* silent */ }
+    });
+  });
 })();
