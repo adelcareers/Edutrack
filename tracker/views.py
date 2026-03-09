@@ -192,3 +192,38 @@ def save_notes_view(request, scheduled_id):
     log.save()
 
     return JsonResponse({'success': True, 'student_notes': log.student_notes})
+
+
+@login_required
+@role_required('student')
+@require_POST
+def reschedule_lesson_view(request, scheduled_id):
+    """Accept a POST {new_date: 'YYYY-MM-DD'} and move the lesson to that date.
+
+    Ownership is verified.  new_date must be strictly in the future (> today).
+    Updates ScheduledLesson.scheduled_date and LessonLog.rescheduled_to.
+    Returns JSON on both success and error.
+    """
+    child = getattr(request.user, 'child_profile', None)
+    sl = get_object_or_404(ScheduledLesson, pk=scheduled_id)
+
+    if child is None or sl.child_id != child.pk:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+
+    raw_date = request.POST.get('new_date', '').strip()
+    try:
+        new_date = datetime.date.fromisoformat(raw_date)
+    except ValueError:
+        return JsonResponse({'error': 'invalid date'}, status=400)
+
+    if new_date <= datetime.date.today():
+        return JsonResponse({'error': 'date must be in the future'}, status=400)
+
+    sl.scheduled_date = new_date
+    sl.save()
+
+    log, _ = LessonLog.objects.get_or_create(scheduled_lesson=sl)
+    log.rescheduled_to = new_date
+    log.save()
+
+    return JsonResponse({'success': True, 'new_date': new_date.isoformat()})
