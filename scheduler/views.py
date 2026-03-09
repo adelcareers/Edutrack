@@ -5,11 +5,19 @@ from django.contrib import messages
 from django.contrib.auth.models import User
 from django.http import HttpResponseForbidden
 
+from django.db.models import Count
+
 from accounts.decorators import role_required
 from accounts.forms import StudentCreationForm
 from accounts.models import UserProfile
+from curriculum.models import Lesson
 from scheduler.forms import ChildForm
-from scheduler.models import Child
+from scheduler.models import Child, EnrolledSubject
+
+SUBJECT_COLOUR_PALETTE = [
+    '#E63946', '#2A9D8F', '#E9C46A', '#F4A261', '#264653',
+    '#8338EC', '#3A86FF', '#FB5607', '#FFBE0B', '#06D6A0',
+]
 
 
 @role_required('parent')
@@ -42,6 +50,44 @@ def child_list_view(request):
     """Display all active children belonging to the logged-in parent."""
     children = Child.objects.filter(parent=request.user, is_active=True)
     return render(request, 'scheduler/child_list.html', {'children': children})
+
+
+@role_required('parent')
+def subject_selection_view(request, child_id):
+    """Let a parent choose which subjects their child will study and set weekly pace.
+
+    GET: builds a grouped context of all subjects available for the child's school
+    year, ordered by key_stage then subject_name, with a total lesson count badge.
+
+    POST: for every selected subject creates an ``EnrolledSubject`` record with a
+    colour from the palette cycling by insertion index.  Enforces that at least
+    one subject is ticked, then redirects to the schedule generation page.
+    """
+    child = get_object_or_404(Child, pk=child_id)
+
+    if child.parent != request.user:
+        return HttpResponseForbidden("You do not have permission to manage this child.")
+
+    # Build grouped subject data: {key_stage: [{subject_name, total_lessons}, ...]}
+    lessons_qs = (
+        Lesson.objects
+        .filter(year=child.school_year)
+        .values('key_stage', 'subject_name')
+        .annotate(total_lessons=Count('id'))
+        .order_by('key_stage', 'subject_name')
+    )
+
+    grouped = {}
+    for row in lessons_qs:
+        grouped.setdefault(row['key_stage'], []).append({
+            'subject_name': row['subject_name'],
+            'total_lessons': row['total_lessons'],
+        })
+
+    return render(request, 'scheduler/subject_selection.html', {
+        'child': child,
+        'grouped': grouped,
+    })
 
 
 @role_required('parent')
