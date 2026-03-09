@@ -91,4 +91,6 @@ def generate_schedule(child, enrolled_subjects: List[EnrolledSubject]) -> int:
                 week_counts[subject.id] += 1
                 order += 1
 
-    raise NotImplementedError("Step 4 to be implemented.")
+    # STEP 4: Bulk insert
+    ScheduledLesson.objects.bulk_create(to_create, batch_size=500)
+    return len(to_create)
