@@ -40,6 +40,13 @@
     text-align: center;
     padding-top: 1.5rem;
   }
+  /* Mastery buttons — outline by default, filled when active */
+  .mastery-btn[data-mastery="green"]               { color: #16A34A; border: 1px solid #16A34A; background: transparent; }
+  .mastery-btn[data-mastery="green"].mastery-active  { background: #16A34A; color: #fff; }
+  .mastery-btn[data-mastery="amber"]               { color: #D97706; border: 1px solid #D97706; background: transparent; }
+  .mastery-btn[data-mastery="amber"].mastery-active  { background: #D97706; color: #fff; }
+  .mastery-btn[data-mastery="red"]                 { color: #DC2626; border: 1px solid #DC2626; background: transparent; }
+  .mastery-btn[data-mastery="red"].mastery-active   { background: #DC2626; color: #fff; }
 </style>
 {% endblock %}
 
@@ -122,12 +129,9 @@
         </div>
         <div class="mt-3 d-flex gap-2 align-items-center">
           <span class="small text-muted me-1">Mastery:</span>
-          <button class="btn btn-sm mastery-btn" data-mastery="green" disabled
-                  style="background:#16A34A;color:#fff;">Green</button>
-          <button class="btn btn-sm mastery-btn" data-mastery="amber" disabled
-                  style="background:#D97706;color:#fff;">Amber</button>
-          <button class="btn btn-sm mastery-btn" data-mastery="red" disabled
-                  style="background:#DC2626;color:#fff;">Red</button>
+          <button class="btn btn-sm mastery-btn" data-mastery="green" disabled>Green</button>
+          <button class="btn btn-sm mastery-btn" data-mastery="amber" disabled>Amber</button>
+          <button class="btn btn-sm mastery-btn" data-mastery="red" disabled>Red</button>
         </div>
       </div>
       <div class="modal-footer" id="modal-status-row">
