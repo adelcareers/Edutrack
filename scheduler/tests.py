@@ -1,4 +1,4 @@
-"""Tests for the scheduler app — S1.4: Parent Creates Student Login."""
+"""Tests for the scheduler app — S1.4 & S1.5."""
 
 import datetime
 from django.test import TestCase
@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.contrib.auth.models import User
 
 from accounts.models import UserProfile
+from curriculum.models import Lesson
 from scheduler.models import Child
 
 
@@ -131,3 +132,128 @@ class CreateStudentLoginPostTests(TestCase):
         self.client.logout()
         logged_in = self.client.login(username='alice_student', password='SecurePass99!')
         self.assertTrue(logged_in)
+
+
+# ---------------------------------------------------------------------------
+# S1.5 — Add Child Profile
+# ---------------------------------------------------------------------------
+
+def _make_lesson(year='Year 5', subject='Maths', key_stage='KS2'):
+    """Helper: create a minimal Lesson to populate the school_year dropdown."""
+    return Lesson.objects.create(
+        key_stage=key_stage,
+        subject_name=subject,
+        programme_slug='maths-programme',
+        year=year,
+        unit_slug='unit-1',
+        unit_title='Unit 1',
+        lesson_number=1,
+        lesson_title='Lesson 1',
+        lesson_url='https://example.com/lesson/1',
+    )
+
+
+VALID_CHILD_DATA = {
+    'first_name': 'Alice',
+    'birth_month': 3,
+    'birth_year': 2015,
+    'school_year': 'Year 5',
+    'academic_year_start': '2025-09-01',
+}
+
+
+class AddChildAccessTests(TestCase):
+    """Gate tests: who can reach /children/add/."""
+
+    def setUp(self):
+        self.parent = _make_parent()
+        _make_lesson()  # required for ChildForm.__init__ to build year choices
+        self.url = reverse('scheduler:add_child')
+
+    def test_unauthenticated_redirects_to_login(self):
+        response = self.client.get(self.url)
+        self.assertRedirects(response, f'/accounts/login/?next={self.url}')
+
+    def test_student_role_blocked(self):
+        student_user = User.objects.create_user(username='stu', password='Pass123!')
+        UserProfile.objects.create(user=student_user, role='student')
+        self.client.force_login(student_user)
+        response = self.client.get(self.url)
+        self.assertRedirects(response, '/')
+
+    def test_parent_can_access_page(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'scheduler/add_child.html')
+
+
+class AddChildFormTests(TestCase):
+    """Form submission and validation tests."""
+
+    def setUp(self):
+        self.parent = _make_parent()
+        _make_lesson()
+        self.url = reverse('scheduler:add_child')
+        self.client.force_login(self.parent)
+
+    def test_valid_post_creates_child_linked_to_parent(self):
+        self.client.post(self.url, VALID_CHILD_DATA)
+        child = Child.objects.get(first_name='Alice')
+        self.assertEqual(child.parent, self.parent)
+
+    def test_valid_post_redirects_to_subject_selection(self):
+        response = self.client.post(self.url, VALID_CHILD_DATA)
+        child = Child.objects.get(first_name='Alice')
+        self.assertRedirects(
+            response,
+            f'/children/{child.pk}/subjects/',
+            fetch_redirect_response=False,
+        )
+
+    def test_missing_first_name_shows_error(self):
+        data = {**VALID_CHILD_DATA, 'first_name': ''}
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('first_name', response.context['form'].errors)
+
+    def test_missing_school_year_shows_error(self):
+        data = {**VALID_CHILD_DATA, 'school_year': ''}
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('school_year', response.context['form'].errors)
+
+    def test_school_year_choices_populated_from_lesson_table(self):
+        _make_lesson(year='Year 6')
+        response = self.client.get(self.url)
+        choices = [c[0] for c in response.context['form'].fields['school_year'].choices]
+        self.assertIn('Year 5', choices)
+        self.assertIn('Year 6', choices)
+
+
+class ChildListTests(TestCase):
+    """Tests for the child list page."""
+
+    def setUp(self):
+        self.parent = _make_parent()
+        _make_lesson()
+        self.url = reverse('scheduler:child_list')
+
+    def test_unauthenticated_redirects_to_login(self):
+        response = self.client.get(self.url)
+        self.assertRedirects(response, f'/accounts/login/?next={self.url}')
+
+    def test_parent_sees_only_their_children(self):
+        other_parent = _make_parent(username='parent2')
+        child_mine = _make_child(self.parent, 'Alice')
+        _make_child(other_parent, 'Bob')
+        self.client.force_login(self.parent)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Alice')
+        self.assertNotContains(response, 'Bob')
+
+    def test_empty_state_shows_add_prompt(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self.url)
+        self.assertContains(response, "Add your first child")
