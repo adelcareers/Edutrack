@@ -38,6 +38,13 @@ def add_child_view(request):
 
 
 @role_required('parent')
+def child_list_view(request):
+    """Display all active children belonging to the logged-in parent."""
+    children = Child.objects.filter(parent=request.user, is_active=True)
+    return render(request, 'scheduler/child_list.html', {'children': children})
+
+
+@role_required('parent')
 def create_student_login_view(request, child_id):
     """Allow a parent to create login credentials for one of their children.
 

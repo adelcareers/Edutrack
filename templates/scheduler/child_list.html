@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}My Children — EduTrack{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold mb-0">My children</h2>
+    <a href="{% url 'scheduler:add_child' %}" class="btn btn-primary">
+      <i class="bi bi-plus-circle me-1"></i>Add child
+    </a>
+  </div>
+
+  {% if children %}
+    <div class="row g-3">
+      {% for child in children %}
+        <div class="col-md-6 col-lg-4">
+          <div class="card h-100 shadow-sm">
+            <div class="card-body">
+              <h5 class="card-title fw-bold">{{ child.first_name }}</h5>
+              <p class="text-muted mb-1">Year group: <strong>{{ child.school_year }}</strong></p>
+              <p class="text-muted mb-3">Academic year start: {{ child.academic_year_start|date:"d M Y" }}</p>
+
+              {% if child.student_user %}
+                <span class="badge bg-success mb-2">
+                  <i class="bi bi-person-check me-1"></i>Login: {{ child.student_user.username }}
+                </span>
+              {% else %}
+                <a href="{% url 'scheduler:create_student_login' child.pk %}"
+                   class="btn btn-sm btn-outline-secondary mb-2">
+                  <i class="bi bi-key me-1"></i>Create student login
+                </a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-people display-4 d-block mb-3"></i>
+      <p class="fs-5">You haven't added any children yet.</p>
+      <a href="{% url 'scheduler:add_child' %}" class="btn btn-primary mt-2">
+        Add your first child
+      </a>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}
