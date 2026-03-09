@@ -301,3 +301,116 @@ class CalendarNavigationTests(TestCase):
         self.assertContains(response, today_url)
         self.assertContains(response, 'Today')
 
+
+class SubjectColourCardTests(TestCase):
+    """Tests for S2.3 subject colour cards on the calendar."""
+
+    CALENDAR_WEEK_URL = 'tracker:calendar_week'
+
+    def setUp(self):
+        parent = _make_parent(username='colour_parent')
+        self.student = _make_student(username='colour_student')
+        self.child = _make_child(parent, student_user=self.student)
+        self.lesson = _make_lesson()
+        self.enrolled = _make_enrolled_subject(self.child)
+        # Place lesson on the Monday of ISO week 10, 2026 (2 Mar 2026)
+        self.monday = datetime.date.fromisocalendar(2026, 10, 1)
+        self.sl = _make_scheduled_lesson(self.child, self.lesson, self.enrolled, self.monday)
+        self.client.force_login(self.student)
+
+    def _get(self):
+        return self.client.get(
+            reverse(self.CALENDAR_WEEK_URL, kwargs={'year': 2026, 'week': 10})
+        )
+
+    # ---------- colour variable rendered ----------
+
+    def test_subject_colour_hex_in_style_attribute(self):
+        response = self._get()
+        self.assertContains(response, f'--subject-colour: {self.enrolled.colour_hex}')
+
+    def test_card_header_contains_subject_name(self):
+        response = self._get()
+        self.assertContains(response, self.enrolled.subject_name)
+
+    def test_card_body_contains_lesson_title(self):
+        response = self._get()
+        self.assertContains(response, self.lesson.lesson_title)
+
+    # ---------- no log — no badges, no dots ----------
+
+    def test_no_badge_when_no_log(self):
+        response = self._get()
+        self.assertNotContains(response, 'Complete')
+        self.assertNotContains(response, 'Skipped')
+        self.assertNotContains(response, 'mastery-dot')
+
+    # ---------- status badges ----------
+
+    def test_complete_badge_rendered(self):
+        LessonLog.objects.create(
+            scheduled_lesson=self.sl, status='complete', mastery='unset',
+            updated_by=self.student,
+        )
+        response = self._get()
+        self.assertContains(response, 'Complete')
+
+    def test_skipped_badge_rendered(self):
+        LessonLog.objects.create(
+            scheduled_lesson=self.sl, status='skipped', mastery='unset',
+            updated_by=self.student,
+        )
+        response = self._get()
+        self.assertContains(response, 'Skipped')
+
+    # ---------- mastery dots ----------
+
+    def test_green_mastery_dot_rendered(self):
+        LessonLog.objects.create(
+            scheduled_lesson=self.sl, status='complete', mastery='green',
+            updated_by=self.student,
+        )
+        response = self._get()
+        self.assertContains(response, 'mastery-dot green')
+
+    def test_amber_mastery_dot_rendered(self):
+        LessonLog.objects.create(
+            scheduled_lesson=self.sl, status='complete', mastery='amber',
+            updated_by=self.student,
+        )
+        response = self._get()
+        self.assertContains(response, 'mastery-dot amber')
+
+    def test_red_mastery_dot_rendered(self):
+        LessonLog.objects.create(
+            scheduled_lesson=self.sl, status='complete', mastery='red',
+            updated_by=self.student,
+        )
+        response = self._get()
+        self.assertContains(response, 'mastery-dot red')
+
+    def test_unset_mastery_shows_no_dot(self):
+        LessonLog.objects.create(
+            scheduled_lesson=self.sl, status='complete', mastery='unset',
+            updated_by=self.student,
+        )
+        response = self._get()
+        self.assertNotContains(response, 'mastery-dot')
+
+    # ---------- different subjects get different colours ----------
+
+    def test_two_subjects_have_different_colours(self):
+        lesson2 = _make_lesson(subject='English', title='Grammar', key_stage='KS3')
+        enrolled2 = EnrolledSubject.objects.create(
+            child=self.child,
+            subject_name='English',
+            key_stage='KS3',
+            lessons_per_week=2,
+            colour_hex='#EF4444',
+        )
+        wednesday = self.monday + datetime.timedelta(days=2)
+        _make_scheduled_lesson(self.child, lesson2, enrolled2, wednesday)
+        response = self._get()
+        self.assertContains(response, '--subject-colour: #3B82F6')
+        self.assertContains(response, '--subject-colour: #EF4444')
+
