@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Generate Schedule for {{ child.first_name }} — EduTrack{% endblock %}
+
+{% block content %}
+<div class="container mt-5" style="max-width: 720px;">
+
+  <div class="mb-4">
+    <h2 class="fw-bold mb-1">
+      <i class="bi bi-calendar-check me-2 text-primary"></i>Generate schedule for {{ child.first_name }}
+    </h2>
+    <p class="text-muted">
+      Review the subjects below, then click <strong>Generate Schedule</strong> to distribute
+      all lessons across 180 school days. If a schedule already exists it will be replaced.
+    </p>
+  </div>
+
+  {% if subject_summaries %}
+    <div class="card mb-4">
+      <div class="card-header fw-semibold">
+        Subjects to be scheduled
+      </div>
+      <table class="table table-hover mb-0" aria-label="Subjects summary">
+        <thead class="table-light">
+          <tr>
+            <th scope="col">Subject</th>
+            <th scope="col">Key Stage</th>
+            <th scope="col" class="text-center">Lessons / week</th>
+            <th scope="col" class="text-center">Curriculum lessons</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in subject_summaries %}
+            <tr>
+              <td>
+                <span class="badge rounded-pill me-2"
+                      style="background-color:{{ item.subject.colour_hex }};"
+                      aria-hidden="true">&nbsp;</span>
+                {{ item.subject.subject_name }}
+              </td>
+              <td>{{ item.subject.key_stage }}</td>
+              <td class="text-center">{{ item.subject.lessons_per_week }}</td>
+              <td class="text-center">
+                <span class="badge bg-secondary">{{ item.total_lessons }}</span>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary btn-lg">
+        <i class="bi bi-lightning-fill me-1"></i>Generate Schedule
+      </button>
+      <a href="{% url 'scheduler:child_list' %}" class="btn btn-outline-secondary btn-lg ms-2">
+        Cancel
+      </a>
+    </form>
+
+  {% else %}
+    <div class="alert alert-warning" role="alert">
+      <i class="bi bi-exclamation-triangle me-2"></i>
+      No subjects enrolled for {{ child.first_name }} yet.
+      <a href="{% url 'scheduler:subject_selection' child_id=child.pk %}" class="alert-link">
+        Select subjects first.
+      </a>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}
