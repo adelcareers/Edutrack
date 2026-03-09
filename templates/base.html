@@ -47,8 +47,11 @@
               {% endwith %}
             </li>
           {% endif %}
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'payments:pricing' %}">Pricing</a>
+          </li>
         </ul>
-        <ul class="navbar-nav ms-auto mb-2 mb-lg-0align-items-center">
+        <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-center">
           {% if user.is_authenticated %}
             <li class="nav-item me-2">
               <span class="nav-link text-light">
