@@ -617,3 +617,88 @@ class GenerateScheduleViewTests(TestCase):
         self.client.post(self.url)
         count_second = ScheduledLesson.objects.filter(child=self.child).count()
         self.assertEqual(count_first, count_second)
+
+
+class ParentDashboardTests(TestCase):
+    """Tests for parent_dashboard_view (S1.9)."""
+
+    URL = 'scheduler:parent_dashboard'
+
+    def setUp(self):
+        self.parent = _make_parent(username='dash_parent')
+        self.child = _make_child(self.parent, first_name='Zara')
+        self.url = reverse(self.URL)
+
+    # ---------- access ----------
+
+    def test_unauthenticated_redirects_to_login(self):
+        response = self.client.get(self.url)
+        self.assertRedirects(response, f'/accounts/login/?next={self.url}')
+
+    def test_student_role_blocked(self):
+        student = User.objects.create_user(username='stu_dash', password='Pass123!')
+        UserProfile.objects.create(user=student, role='student')
+        self.client.force_login(student)
+        response = self.client.get(self.url)
+        self.assertRedirects(response, '/', fetch_redirect_response=False)
+
+    # ---------- GET with children ----------
+
+    def test_get_returns_200(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_child_name_appears_on_page(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self.url)
+        self.assertContains(response, 'Zara')
+
+    def test_context_has_summaries(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self.url)
+        self.assertIn('summaries', response.context)
+        self.assertEqual(len(response.context['summaries']), 1)
+
+    def test_summary_has_expected_keys(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self.url)
+        summary = response.context['summaries'][0]
+        for key in ('child', 'total_scheduled', 'total_complete', 'completed_this_week', 'pct_complete'):
+            self.assertIn(key, summary)
+
+    def test_zero_scheduled_shows_zero_stats(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self.url)
+        summary = response.context['summaries'][0]
+        self.assertEqual(summary['total_scheduled'], 0)
+        self.assertEqual(summary['total_complete'], 0)
+        self.assertEqual(summary['pct_complete'], 0)
+
+    def test_parent_sees_only_own_children(self):
+        other_parent = _make_parent(username='other_dash')
+        _make_child(other_parent, first_name='OtherKid')
+        self.client.force_login(self.parent)
+        response = self.client.get(self.url)
+        self.assertEqual(len(response.context['summaries']), 1)
+
+    # ---------- GET empty state ----------
+
+    def test_empty_state_shown_when_no_children(self):
+        parent2 = _make_parent(username='empty_dash')
+        self.client.force_login(parent2)
+        response = self.client.get(self.url)
+        self.assertEqual(len(response.context['summaries']), 0)
+        self.assertContains(response, 'Add your first child')
+
+    # ---------- root redirect ----------
+
+    def test_root_redirects_parent_to_dashboard(self):
+        self.client.force_login(self.parent)
+        response = self.client.get('/')
+        self.assertRedirects(response, self.url)
+
+    def test_root_shows_home_for_unauthenticated(self):
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'home.html')
