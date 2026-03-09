@@ -49,5 +49,6 @@ urlpatterns = [
     path('accounts/', include('accounts.urls')),
     path('', include('scheduler.urls')),
     path('', include('tracker.urls')),
+    path('', include('reports.urls')),
     path('', root_redirect, name='home'),
 ]
