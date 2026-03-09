@@ -227,3 +227,72 @@ def reschedule_lesson_view(request, scheduled_id):
     log.save()
 
     return JsonResponse({'success': True, 'new_date': new_date.isoformat()})
+
+
+@login_required
+@role_required('parent')
+def parent_calendar_view(request, child_id, year=None, week=None):
+    """Read-only weekly calendar for a parent viewing their child's lessons.
+
+    Ownership is verified: the child must belong to the requesting parent.
+    Passes ``is_readonly=True`` so the template hides all action buttons.
+    """
+    from scheduler.models import Child as ChildModel
+    child = get_object_or_404(ChildModel, pk=child_id)
+
+    if child.parent_id != request.user.pk:
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden()
+
+    today = datetime.date.today()
+    iso_year, iso_week, _ = today.isocalendar()
+    if year is None or week is None:
+        year, week = iso_year, iso_week
+
+    monday = datetime.date.fromisocalendar(year, week, 1)
+    friday = monday + datetime.timedelta(days=4)
+
+    lesson_by_date: dict = {}
+    qs = (
+        ScheduledLesson.objects
+        .filter(child=child, scheduled_date__gte=monday, scheduled_date__lte=friday)
+        .select_related('lesson', 'enrolled_subject', 'log')
+    )
+    for sl in qs:
+        lesson_by_date.setdefault(sl.scheduled_date, []).append(sl)
+
+    day_names = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
+    days = {}
+    for i, name in enumerate(day_names):
+        date = monday + datetime.timedelta(days=i)
+        days[name] = {
+            'date': date,
+            'lessons': lesson_by_date.get(date, []),
+        }
+
+    prev_monday = monday - datetime.timedelta(weeks=1)
+    next_monday = monday + datetime.timedelta(weeks=1)
+    prev_y, prev_w, _ = prev_monday.isocalendar()
+    next_y, next_w, _ = next_monday.isocalendar()
+
+    if monday.month == friday.month:
+        week_display = f"{monday.day}\u2013{friday.day} {friday.strftime('%b %Y')}"
+    else:
+        week_display = f"{monday.strftime('%-d %b')}\u2013{friday.strftime('%-d %b %Y')}"
+
+    return render(request, 'tracker/calendar.html', {
+        'days': days,
+        'year': year,
+        'week': week,
+        'today': today,
+        'prev_year': prev_y,
+        'prev_week': prev_w,
+        'next_year': next_y,
+        'next_week': next_w,
+        'today_year': iso_year,
+        'today_week': iso_week,
+        'week_display': week_display,
+        'is_readonly': True,
+        'child_id': child_id,
+        'child_name': child.first_name,
+    })
