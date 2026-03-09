@@ -63,11 +63,23 @@
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
   <h2 class="h4 mb-0">
     <i class="bi bi-calendar3 me-2"></i>My Calendar
-    <small class="text-muted fs-6 ms-2">Week {{ week }}, {{ year }}</small>
+    <small class="text-muted fs-6 ms-2">{{ week_display }}</small>
   </h2>
+  <div class="btn-group" role="group" aria-label="Week navigation">
+    <a href="{% url 'tracker:calendar_week' prev_year prev_week %}"
+       class="btn btn-outline-secondary btn-sm" aria-label="Previous week">
+      &larr; Prev
+    </a>
+    <a href="{% url 'tracker:calendar_week' today_year today_week %}"
+       class="btn btn-outline-primary btn-sm">Today</a>
+    <a href="{% url 'tracker:calendar_week' next_year next_week %}"
+       class="btn btn-outline-secondary btn-sm" aria-label="Next week">
+      Next &rarr;
+    </a>
+  </div>
 </div>
 
 <div class="calendar-grid">
