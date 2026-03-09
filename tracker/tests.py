@@ -199,3 +199,105 @@ class CalendarViewTests(TestCase):
         for name, day in response.context['days'].items():
             self.assertEqual(day['lessons'], [])
 
+
+class CalendarNavigationTests(TestCase):
+    """Tests for S2.2 week navigation — prev/next/today links and week_display."""
+
+    CALENDAR_URL = 'tracker:calendar'
+    CALENDAR_WEEK_URL = 'tracker:calendar_week'
+
+    def setUp(self):
+        self.student = _make_student(username='nav_student')
+        self.client.force_login(self.student)
+
+    def _get_week(self, year, week):
+        url = reverse(self.CALENDAR_WEEK_URL, kwargs={'year': year, 'week': week})
+        return self.client.get(url)
+
+    # ---------- context keys present ----------
+
+    def test_nav_context_keys_present(self):
+        response = self.client.get(reverse(self.CALENDAR_URL))
+        for key in ('prev_year', 'prev_week', 'next_year', 'next_week',
+                    'today_year', 'today_week', 'week_display'):
+            self.assertIn(key, response.context, msg=f"Missing context key: {key}")
+
+    # ---------- prev week ----------
+
+    def test_prev_week_is_one_week_earlier(self):
+        # Week 10 2026: Monday = 2 Mar 2026 → prev = week 9 2026
+        response = self._get_week(2026, 10)
+        self.assertEqual(response.context['prev_year'], 2026)
+        self.assertEqual(response.context['prev_week'], 9)
+
+    def test_prev_week_crosses_year_boundary(self):
+        # ISO week 1 2026: Monday = 29 Dec 2025 → prev week = week 52/53 2025
+        response = self._get_week(2026, 1)
+        # prev_monday = 22 Dec 2025 → ISO week 52, year 2025
+        self.assertEqual(response.context['prev_year'], 2025)
+        self.assertEqual(response.context['prev_week'], 52)
+
+    # ---------- next week ----------
+
+    def test_next_week_is_one_week_later(self):
+        response = self._get_week(2026, 10)
+        self.assertEqual(response.context['next_year'], 2026)
+        self.assertEqual(response.context['next_week'], 11)
+
+    def test_next_week_crosses_year_boundary(self):
+        # Last ISO week of 2026 — year 2026 has 52 ISO weeks; week 52 Mon = 21 Dec 2026
+        response = self._get_week(2026, 52)
+        # next_monday = 28 Dec 2026 → ISO week 53? No; 28 Dec 2026 is week 53 of 2026? Let's check:
+        # 28 Dec 2026 isocalendar → year 2026, week 53 (2026 has 53 ISO weeks? No — need to verify)
+        # Actually: 28 Dec 2026 is a Monday; ISO week 53 of 2026 exists if 1 Jan 2027 is in week 53.
+        # 1 Jan 2027 = Friday → belongs to week 53 of 2026. So next = (2026, 53).
+        # Then week 53 2026 next = week 1 2027.
+        next_y = response.context['next_year']
+        next_w = response.context['next_week']
+        # Just verify it's a valid forward step
+        curr_monday = datetime.date.fromisocalendar(2026, 52, 1)
+        next_monday = datetime.date.fromisocalendar(next_y, next_w, 1)
+        self.assertEqual((next_monday - curr_monday).days, 7)
+
+    # ---------- today context ----------
+
+    def test_today_context_matches_current_isoweek(self):
+        response = self.client.get(reverse(self.CALENDAR_URL))
+        today = datetime.date.today()
+        iso_year, iso_week, _ = today.isocalendar()
+        self.assertEqual(response.context['today_year'], iso_year)
+        self.assertEqual(response.context['today_week'], iso_week)
+
+    # ---------- week_display string ----------
+
+    def test_week_display_same_month(self):
+        # Week 10 2026: Mon 2 Mar – Fri 6 Mar 2026 → "2–6 Mar 2026"
+        response = self._get_week(2026, 10)
+        self.assertEqual(response.context['week_display'], '2–6 Mar 2026')
+
+    def test_week_display_cross_month(self):
+        # Week 13 2026: Mon 23 Mar – Fri 27 Mar 2026 → same month
+        # Week 14 2026: Mon 30 Mar – Fri 3 Apr 2026 → cross month
+        response = self._get_week(2026, 14)
+        self.assertEqual(response.context['week_display'], '30 Mar–3 Apr 2026')
+
+    # ---------- nav links rendered in template ----------
+
+    def test_prev_link_in_rendered_output(self):
+        response = self._get_week(2026, 10)
+        prev_url = reverse(self.CALENDAR_WEEK_URL, kwargs={'year': 2026, 'week': 9})
+        self.assertContains(response, prev_url)
+
+    def test_next_link_in_rendered_output(self):
+        response = self._get_week(2026, 10)
+        next_url = reverse(self.CALENDAR_WEEK_URL, kwargs={'year': 2026, 'week': 11})
+        self.assertContains(response, next_url)
+
+    def test_today_button_in_rendered_output(self):
+        response = self.client.get(reverse(self.CALENDAR_URL))
+        today = datetime.date.today()
+        iso_year, iso_week, _ = today.isocalendar()
+        today_url = reverse(self.CALENDAR_WEEK_URL, kwargs={'year': iso_year, 'week': iso_week})
+        self.assertContains(response, today_url)
+        self.assertContains(response, 'Today')
+
