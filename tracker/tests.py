@@ -884,3 +884,111 @@ class LessonNotesTests(TestCase):
                                            kwargs={'scheduled_id': self.sl.pk}))
         self.assertEqual(response.json()['student_notes'], 'saved note')
 
+
+class LessonRescheduleTests(TestCase):
+    """Tests for S2.8 reschedule_lesson_view POST endpoint."""
+
+    RESCHEDULE_URL = 'tracker:lesson_reschedule'
+
+    def setUp(self):
+        self.parent = _make_parent(username='rsch_parent')
+        self.student = _make_student(username='rsch_student')
+        self.child = _make_child(self.parent, student_user=self.student)
+        self.lesson = _make_lesson(title='Reschedule Test Lesson')
+        self.enrolled = _make_enrolled_subject(self.child, subject_name='Geography')
+        self.monday = datetime.date.fromisocalendar(2026, 15, 1)
+        self.sl = _make_scheduled_lesson(self.child, self.lesson, self.enrolled, self.monday)
+
+    def _url(self, pk=None):
+        return reverse(self.RESCHEDULE_URL, kwargs={'scheduled_id': pk or self.sl.pk})
+
+    def _post(self, new_date, pk=None):
+        return self.client.post(self._url(pk), {'new_date': new_date},
+                                HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+
+    # ---------- access ----------
+
+    def test_unauthenticated_redirects(self):
+        response = self._post('2030-01-01')
+        self.assertEqual(response.status_code, 302)
+
+    def test_parent_role_blocked(self):
+        self.client.force_login(self.parent)
+        response = self._post('2030-01-01')
+        self.assertRedirects(response, '/', fetch_redirect_response=False)
+
+    def test_get_method_not_allowed(self):
+        self.client.force_login(self.student)
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, 405)
+
+    def test_other_student_gets_403(self):
+        other_student = _make_student(username='rsch_other')
+        _make_child(self.parent, student_user=other_student)
+        self.client.force_login(other_student)
+        response = self._post('2030-01-01')
+        self.assertEqual(response.status_code, 403)
+
+    def test_student_without_child_profile_gets_403(self):
+        bare = User.objects.create_user(username='rsch_bare', password='Pass!')
+        UserProfile.objects.create(user=bare, role='student')
+        self.client.force_login(bare)
+        response = self._post('2030-01-01')
+        self.assertEqual(response.status_code, 403)
+
+    # ---------- validation ----------
+
+    def test_past_date_returns_400(self):
+        self.client.force_login(self.student)
+        response = self._post('2000-01-01')
+        self.assertEqual(response.status_code, 400)
+
+    def test_today_date_returns_400(self):
+        self.client.force_login(self.student)
+        today = datetime.date.today().isoformat()
+        response = self._post(today)
+        self.assertEqual(response.status_code, 400)
+
+    def test_invalid_date_format_returns_400(self):
+        self.client.force_login(self.student)
+        response = self._post('not-a-date')
+        self.assertEqual(response.status_code, 400)
+
+    # ---------- happy path ----------
+
+    def test_future_date_returns_200_success(self):
+        self.client.force_login(self.student)
+        response = self._post('2030-06-15')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['success'])
+
+    def test_reschedule_updates_scheduled_lesson_date(self):
+        self.client.force_login(self.student)
+        self._post('2030-06-15')
+        self.sl.refresh_from_db()
+        self.assertEqual(self.sl.scheduled_date, datetime.date(2030, 6, 15))
+
+    def test_reschedule_creates_lesson_log_when_none(self):
+        self.client.force_login(self.student)
+        self.assertFalse(LessonLog.objects.filter(scheduled_lesson=self.sl).exists())
+        self._post('2030-06-15')
+        self.assertTrue(LessonLog.objects.filter(scheduled_lesson=self.sl).exists())
+
+    def test_reschedule_sets_rescheduled_to_on_log(self):
+        self.client.force_login(self.student)
+        self._post('2030-06-15')
+        log = LessonLog.objects.get(scheduled_lesson=self.sl)
+        self.assertEqual(log.rescheduled_to, datetime.date(2030, 6, 15))
+
+    def test_reschedule_updates_existing_log(self):
+        LessonLog.objects.create(scheduled_lesson=self.sl, rescheduled_to=datetime.date(2029, 1, 1))
+        self.client.force_login(self.student)
+        self._post('2030-06-15')
+        log = LessonLog.objects.get(scheduled_lesson=self.sl)
+        self.assertEqual(log.rescheduled_to, datetime.date(2030, 6, 15))
+
+    def test_response_contains_new_date(self):
+        self.client.force_login(self.student)
+        data = self._post('2030-06-15').json()
+        self.assertEqual(data['new_date'], '2030-06-15')
+
