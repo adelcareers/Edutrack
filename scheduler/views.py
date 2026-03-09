@@ -84,6 +84,48 @@ def subject_selection_view(request, child_id):
             'total_lessons': row['total_lessons'],
         })
 
+    if request.method == 'POST':
+        selected_subjects = request.POST.getlist('subjects')
+        if not selected_subjects:
+            messages.error(request, "Please select at least one subject.")
+            return render(request, 'scheduler/subject_selection.html', {
+                'child': child,
+                'grouped': grouped,
+            })
+
+        # Delete any existing enrolments before recreating (idempotent re-submission)
+        child.enrolled_subjects.all().delete()
+
+        to_create = []
+        for index, subject_name in enumerate(selected_subjects):
+            pace_key = f'pace_{subject_name}'
+            try:
+                pace = max(1, min(5, int(request.POST.get(pace_key, 1))))
+            except (ValueError, TypeError):
+                pace = 1
+
+            key_stage = (
+                Lesson.objects
+                .filter(year=child.school_year, subject_name=subject_name)
+                .values_list('key_stage', flat=True)
+                .first() or ''
+            )
+            to_create.append(EnrolledSubject(
+                child=child,
+                subject_name=subject_name,
+                key_stage=key_stage,
+                lessons_per_week=pace,
+                colour_hex=SUBJECT_COLOUR_PALETTE[index % len(SUBJECT_COLOUR_PALETTE)],
+            ))
+
+        EnrolledSubject.objects.bulk_create(to_create)
+        messages.success(
+            request,
+            f"{len(to_create)} subject(s) enrolled for {child.first_name}. "
+            "Ready to generate your schedule!",
+        )
+        return redirect(f'/children/{child.pk}/generate/')
+
     return render(request, 'scheduler/subject_selection.html', {
         'child': child,
         'grouped': grouped,
