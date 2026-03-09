@@ -58,4 +58,13 @@ def generate_schedule(child, enrolled_subjects: List[EnrolledSubject]) -> int:
             school_days.append(current)
         current += timedelta(days=1)
 
-    raise NotImplementedError("Steps 2–4 to be implemented.")
+    # STEP 2: Build lesson queues per subject
+    queues = {}
+    for subject in enrolled_subjects:
+        queues[subject.id] = list(
+            Lesson.objects
+            .filter(subject_name=subject.subject_name, year=child.school_year)
+            .order_by('unit_slug', 'lesson_number')
+        )
+
+    raise NotImplementedError("Steps 3–4 to be implemented.")
