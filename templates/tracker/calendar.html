@@ -118,6 +118,9 @@
             <i class="bi bi-box-arrow-up-right me-1"></i>Open on Oak
           </a>
         </div>
+        <div class="mt-2">
+          <span class="small text-muted">Evidence files: <span id="modal-evidence-count">0</span></span>
+        </div>
         <hr>
         {% if not is_readonly %}
         <div class="d-flex gap-2 flex-wrap">
@@ -150,6 +153,16 @@
           <div class="d-flex gap-2 align-items-center">
             <input type="date" id="modal-reschedule-date" class="form-control form-control-sm" style="max-width:180px" disabled>
             <button id="modal-btn-reschedule" class="btn btn-sm btn-outline-warning" disabled>Move Lesson</button>
+          </div>
+        </div>
+        <hr>
+        <div class="mt-2">
+          <label for="modal-evidence-file" class="small text-muted mb-1 d-block">Upload Evidence</label>
+          <div class="d-flex gap-2 align-items-center flex-wrap">
+            <input type="file" id="modal-evidence-file"
+                   accept="image/*,.pdf,.doc,.docx"
+                   class="form-control form-control-sm" style="max-width:220px" disabled>
+            <button id="modal-btn-upload" class="btn btn-sm btn-outline-info" disabled>Upload</button>
           </div>
         </div>
         {% endif %}
