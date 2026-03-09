@@ -341,8 +341,8 @@ class SubjectColourCardTests(TestCase):
 
     def test_no_badge_when_no_log(self):
         response = self._get()
-        self.assertNotContains(response, 'Complete')
-        self.assertNotContains(response, 'Skipped')
+        # No status-badge rendered when lesson has no log
+        self.assertNotContains(response, 'status-badge')
         self.assertNotContains(response, 'mastery-dot')
 
     # ---------- status badges ----------
@@ -516,4 +516,143 @@ class LessonDetailViewTests(TestCase):
         url = reverse('tracker:calendar_week', kwargs={'year': 2026, 'week': 10})
         response = self.client.get(url)
         self.assertContains(response, f'data-id="{self.sl.pk}"')
+
+
+# ---------------------------------------------------------------------------
+# S2.5 — Mark Lesson Complete or Skip
+# ---------------------------------------------------------------------------
+
+class LessonStatusUpdateTests(TestCase):
+    """Tests for S2.5 update_lesson_status_view POST endpoint."""
+
+    UPDATE_URL = 'tracker:lesson_update'
+
+    def setUp(self):
+        self.parent = _make_parent(username='upd_parent')
+        self.student = _make_student(username='upd_student')
+        self.child = _make_child(self.parent, student_user=self.student)
+        self.lesson = _make_lesson(title='Update Test Lesson')
+        self.enrolled = _make_enrolled_subject(self.child, subject_name='Science')
+        self.monday = datetime.date.fromisocalendar(2026, 12, 1)
+        self.sl = _make_scheduled_lesson(self.child, self.lesson, self.enrolled, self.monday)
+
+    def _url(self, pk=None):
+        return reverse(self.UPDATE_URL, kwargs={'scheduled_id': pk or self.sl.pk})
+
+    def _post(self, status, pk=None):
+        return self.client.post(self._url(pk), {'status': status},
+                                HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+
+    # ---------- access ----------
+
+    def test_unauthenticated_redirects(self):
+        response = self._post('complete')
+        self.assertEqual(response.status_code, 302)
+
+    def test_parent_role_blocked(self):
+        self.client.force_login(self.parent)
+        response = self._post('complete')
+        self.assertRedirects(response, '/', fetch_redirect_response=False)
+
+    def test_get_method_not_allowed(self):
+        self.client.force_login(self.student)
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, 405)
+
+    # ---------- ownership ----------
+
+    def test_other_student_gets_403(self):
+        other_student = User.objects.create_user(username='upd_other_stu', password='Pass!')
+        UserProfile.objects.create(user=other_student, role='student')
+        other_parent = _make_parent(username='upd_other_par')
+        _make_child(other_parent, student_user=other_student, first_name='Other2')
+        self.client.force_login(other_student)
+        response = self._post('complete')
+        self.assertEqual(response.status_code, 403)
+        data = response.json()
+        self.assertEqual(data['error'], 'forbidden')
+
+    def test_student_without_child_profile_gets_403(self):
+        orphan = User.objects.create_user(username='upd_orphan', password='Pass!')
+        UserProfile.objects.create(user=orphan, role='student')
+        self.client.force_login(orphan)
+        response = self._post('complete')
+        self.assertEqual(response.status_code, 403)
+
+    # ---------- invalid status ----------
+
+    def test_invalid_status_returns_400(self):
+        self.client.force_login(self.student)
+        response = self._post('in_progress')
+        self.assertEqual(response.status_code, 400)
+        data = response.json()
+        self.assertEqual(data['error'], 'invalid status')
+
+    def test_empty_status_returns_400(self):
+        self.client.force_login(self.student)
+        response = self._post('')
+        self.assertEqual(response.status_code, 400)
+
+    # ---------- mark complete ----------
+
+    def test_mark_complete_returns_success_json(self):
+        self.client.force_login(self.student)
+        response = self._post('complete')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['status'], 'complete')
+
+    def test_mark_complete_creates_lessonlog(self):
+        self.client.force_login(self.student)
+        self._post('complete')
+        log = LessonLog.objects.get(scheduled_lesson=self.sl)
+        self.assertEqual(log.status, 'complete')
+
+    def test_mark_complete_sets_completed_at(self):
+        self.client.force_login(self.student)
+        self._post('complete')
+        log = LessonLog.objects.get(scheduled_lesson=self.sl)
+        self.assertIsNotNone(log.completed_at)
+
+    # ---------- mark skipped ----------
+
+    def test_mark_skipped_returns_success_json(self):
+        self.client.force_login(self.student)
+        response = self._post('skipped')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['status'], 'skipped')
+
+    def test_mark_skipped_does_not_set_completed_at(self):
+        self.client.force_login(self.student)
+        self._post('skipped')
+        log = LessonLog.objects.get(scheduled_lesson=self.sl)
+        self.assertIsNone(log.completed_at)
+
+    # ---------- idempotency / update existing log ----------
+
+    def test_second_post_updates_existing_log(self):
+        """Posting complete then skipped should update the same LessonLog row."""
+        self.client.force_login(self.student)
+        self._post('complete')
+        self._post('skipped')
+        # Only one LessonLog row should exist
+        logs = LessonLog.objects.filter(scheduled_lesson=self.sl)
+        self.assertEqual(logs.count(), 1)
+        self.assertEqual(logs.first().status, 'skipped')
+
+    # ---------- response JSON shape ----------
+
+    def test_response_contains_message_key(self):
+        self.client.force_login(self.student)
+        data = self._post('complete').json()
+        self.assertIn('message', data)
+
+    def test_skip_response_message(self):
+        self.client.force_login(self.student)
+        data = self._post('skipped').json()
+        self.assertIn('message', data)
+        self.assertIn('skip', data['message'].lower())
 
