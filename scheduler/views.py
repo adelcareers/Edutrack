@@ -1,5 +1,7 @@
 """Views for the scheduler app."""
 
+import datetime
+
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.models import User
@@ -220,4 +222,53 @@ def create_student_login_view(request, child_id):
     return render(request, 'scheduler/create_student_login.html', {
         'form': form,
         'child': child,
+    })
+
+
+@role_required('parent')
+def parent_dashboard_view(request):
+    """Show a dashboard summarising each child's schedule progress.
+
+    For each active child the view computes:
+    - ``total_scheduled`` — total ScheduledLesson rows for the child.
+    - ``completed_this_week`` — lessons with a LessonLog status of 'complete'
+      whose scheduled_date falls in the current ISO week (Mon–Sun).
+    - ``total_complete`` — all completed lessons ever.
+    - ``pct_complete`` — integer percentage of total lessons completed.
+
+    If the parent has no children an empty-state prompt is shown instead.
+    """
+    today = datetime.date.today()
+    # ISO week: Monday of the current week
+    week_start = today - datetime.timedelta(days=today.weekday())
+    week_end = week_start + datetime.timedelta(days=6)
+
+    children = Child.objects.filter(parent=request.user, is_active=True)
+
+    summaries = []
+    for child in children:
+        total_scheduled = child.scheduled_lessons.count()
+        total_complete = child.scheduled_lessons.filter(log__status='complete').count()
+        completed_this_week = (
+            child.scheduled_lessons
+            .filter(
+                scheduled_date__gte=week_start,
+                scheduled_date__lte=week_end,
+                log__status='complete',
+            )
+            .count()
+        )
+        pct_complete = (
+            round(total_complete / total_scheduled * 100) if total_scheduled else 0
+        )
+        summaries.append({
+            'child': child,
+            'total_scheduled': total_scheduled,
+            'total_complete': total_complete,
+            'completed_this_week': completed_this_week,
+            'pct_complete': pct_complete,
+        })
+
+    return render(request, 'scheduler/parent_dashboard.html', {
+        'summaries': summaries,
     })
