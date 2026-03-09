@@ -1,6 +1,7 @@
 /* EduTrack — Calendar lesson card click → modal population (S2.4)
    + AJAX Complete / Skip status update (S2.5)
-   + AJAX Mastery score update with active-state buttons (S2.6) */
+   + AJAX Mastery score update with active-state buttons (S2.6)
+   + AJAX Student Notes save with char counter (S2.7) */
 
 (function () {
   'use strict';
@@ -14,6 +15,9 @@
   const modalUnit  = document.getElementById('modal-unit');
   const modalOak   = document.getElementById('modal-oak-link');
   const modalStatus = document.getElementById('modal-status-text');
+  const modalNotes  = document.getElementById('modal-notes');
+  const notesCount  = document.getElementById('notes-char-count');
+  const btnSaveNotes = document.getElementById('modal-btn-save-notes');
 
   let activeScheduledId = null;
 
@@ -48,6 +52,23 @@
       badge.textContent = label;
       footer.prepend(badge);
     }
+  }
+
+  // ── Post notes save ─────────────────────────────────────────────────────
+  async function postNotesUpdate(scheduledId, notes) {
+    const body = new URLSearchParams({ notes });
+    const resp = await fetch(`/lessons/${scheduledId}/notes/`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': getCookie('csrftoken'),
+        'X-Requested-With': 'XMLHttpRequest',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      credentials: 'same-origin',
+      body,
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return resp.json();
   }
 
   // ── Post mastery update ──────────────────────────────────────────────────
@@ -142,6 +163,14 @@
       // Set active mastery button
       setActiveMastery(data.mastery);
 
+      // Populate notes textarea
+      if (modalNotes) {
+        modalNotes.value = data.student_notes || '';
+        modalNotes.removeAttribute('disabled');
+        if (notesCount) notesCount.textContent = (data.student_notes || '').length;
+      }
+      if (btnSaveNotes) btnSaveNotes.removeAttribute('disabled');
+
       bsModal.show();
     } catch (e) {
       // Silent fail — user can reload if needed
@@ -214,4 +243,22 @@
       } catch (e) { /* silent */ }
     });
   });
+
+  // ── Notes char counter ─────────────────────────────────────────────────
+  if (modalNotes && notesCount) {
+    modalNotes.addEventListener('input', () => {
+      notesCount.textContent = modalNotes.value.length;
+    });
+  }
+
+  // ── Save notes button handler ────────────────────────────────────────────
+  if (btnSaveNotes) {
+    btnSaveNotes.addEventListener('click', async () => {
+      if (!activeScheduledId || !modalNotes) return;
+      try {
+        await postNotesUpdate(activeScheduledId, modalNotes.value);
+      } catch (e) { /* silent */ }
+      bsModal.hide();
+    });
+  }
 })();
