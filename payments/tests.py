@@ -1,5 +1,7 @@
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.contrib.auth.models import User
+from accounts.models import UserProfile
 
 class PricingPageTests(TestCase):
     def test_pricing_page_status_code(self):
@@ -14,4 +16,40 @@ class PricingPageTests(TestCase):
         self.assertContains(response, 'Pro Tier')
         self.assertContains(response, 'Choose Pro')
         self.assertContains(response, '/payments/checkout/')
+
+class CheckoutViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='parent', password='pw')
+        UserProfile.objects.create(user=self.user, role='parent')
+
+    @override_settings(STRIPE_ENABLED=False)
+    def test_checkout_test_mode(self):
+        self.client.login(username='parent', password='pw')
+        response = self.client.get(reverse('payments:checkout'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Test Mode')
+        self.assertContains(response, 'Simulate Payment Success')
+
+    @override_settings(STRIPE_ENABLED=True)
+    def test_checkout_stripe_enabled(self):
+        self.client.login(username='parent', password='pw')
+        response = self.client.get(reverse('payments:checkout'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Stripe Checkout Form Stub')
+
+class SuccessViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='parent', password='pw')
+        UserProfile.objects.create(user=self.user, role='parent', subscription_active=False)
+
+    def test_success_view_activates_subscription(self):
+        self.client.login(username='parent', password='pw')
+        response = self.client.get(reverse('payments:success'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Payment Successful!')
+        
+        # Verify profile was activated
+        self.user.profile.refresh_from_db()
+        self.assertTrue(self.user.profile.subscription_active)
+
 
