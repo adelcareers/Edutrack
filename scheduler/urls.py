@@ -13,4 +13,9 @@ urlpatterns = [
         views.create_student_login_view,
         name='create_student_login',
     ),
+    path(
+        'children/<int:child_id>/subjects/',
+        views.subject_selection_view,
+        name='subject_selection',
+    ),
 ]
