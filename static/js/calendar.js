@@ -18,6 +18,7 @@
   const modalNotes  = document.getElementById('modal-notes');
   const notesCount  = document.getElementById('notes-char-count');
   const btnSaveNotes = document.getElementById('modal-btn-save-notes');
+  const evidenceCount = document.getElementById('modal-evidence-count');
 
   let activeScheduledId = null;
 
@@ -172,6 +173,11 @@
       if (btnSaveNotes) btnSaveNotes.removeAttribute('disabled');
       if (rescheduleDate) rescheduleDate.removeAttribute('disabled');
       if (btnReschedule)  btnReschedule.removeAttribute('disabled');
+      if (evidenceFile)   evidenceFile.removeAttribute('disabled');
+      if (btnUpload)      btnUpload.removeAttribute('disabled');
+
+      // Update evidence count
+      if (evidenceCount) evidenceCount.textContent = data.evidence_count ?? 0;
 
       bsModal.show();
     } catch (e) {
@@ -295,6 +301,36 @@
         if (resp.ok) {
           bsModal.hide();
           window.location.reload();
+        }
+      } catch (e) { /* silent */ }
+    });
+  }
+
+  // ── Evidence upload handler ───────────────────────────────────────────────
+  const evidenceFile = document.getElementById('modal-evidence-file');
+  const btnUpload    = document.getElementById('modal-btn-upload');
+
+  if (btnUpload) {
+    btnUpload.addEventListener('click', async () => {
+      if (!activeScheduledId || !evidenceFile || !evidenceFile.files.length) return;
+      const formData = new FormData();
+      formData.append('file', evidenceFile.files[0]);
+      try {
+        const resp = await fetch(`/lessons/${activeScheduledId}/upload/`, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          credentials: 'same-origin',
+          body: formData,
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.success) {
+            if (evidenceCount) evidenceCount.textContent = data.evidence_count;
+            evidenceFile.value = '';
+          }
         }
       } catch (e) { /* silent */ }
     });
