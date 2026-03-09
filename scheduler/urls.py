@@ -18,4 +18,9 @@ urlpatterns = [
         views.subject_selection_view,
         name='subject_selection',
     ),
+    path(
+        'children/<int:child_id>/generate/',
+        views.generate_schedule_view,
+        name='generate_schedule',
+    ),
 ]
