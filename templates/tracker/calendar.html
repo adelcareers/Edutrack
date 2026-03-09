@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}My Calendar — EduTrack{% endblock %}
+
+{% block extra_css %}
+<style>
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1rem;
+    min-height: 60vh;
+  }
+  @media (max-width: 991px) {
+    .calendar-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  .day-column {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 0.75rem;
+    min-height: 300px;
+  }
+  .day-header {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+  .day-header.today-col {
+    color: var(--bs-primary);
+    border-bottom-color: var(--bs-primary);
+  }
+  .lesson-card {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-left: 4px solid #6c757d;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+  }
+  .subject-label {
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6c757d;
+  }
+  .lesson-title {
+    color: #212529;
+    margin-top: 0.25rem;
+  }
+  .empty-day {
+    color: #adb5bd;
+    font-size: 0.8rem;
+    text-align: center;
+    padding-top: 1.5rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="h4 mb-0">
+    <i class="bi bi-calendar3 me-2"></i>My Calendar
+    <small class="text-muted fs-6 ms-2">Week {{ week }}, {{ year }}</small>
+  </h2>
+</div>
+
+<div class="calendar-grid">
+  {% for name, day in days.items %}
+  <div class="day-column">
+    <div class="day-header {% if day.date == today %}today-col{% endif %}">
+      <div>{{ day.date|date:"l" }}</div>
+      <div class="fw-normal text-muted" style="font-size:0.8rem">{{ day.date|date:"j M Y" }}</div>
+    </div>
+
+    {% if day.lessons %}
+      {% for sl in day.lessons %}
+      <div class="lesson-card">
+        <div class="subject-label">{{ sl.enrolled_subject.subject_name }}</div>
+        <div class="lesson-title">{{ sl.lesson.lesson_title }}</div>
+        {% if sl.log.status == 'complete' %}
+          <span class="badge bg-success mt-1">&#10003; Complete</span>
+        {% elif sl.log.status == 'skipped' %}
+          <span class="badge bg-secondary mt-1">Skipped</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="empty-day">No lessons scheduled</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
