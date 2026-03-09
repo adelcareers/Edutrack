@@ -133,6 +133,16 @@
           <button class="btn btn-sm mastery-btn" data-mastery="amber" disabled>Amber</button>
           <button class="btn btn-sm mastery-btn" data-mastery="red" disabled>Red</button>
         </div>
+        <div class="mt-3">
+          <label for="modal-notes" class="small text-muted mb-1 d-block">My Notes</label>
+          <textarea id="modal-notes" class="form-control form-control-sm" rows="3"
+                    maxlength="1000" placeholder="Add a note about this lesson…" disabled></textarea>
+          <div class="d-flex justify-content-between mt-1">
+            <span class="small text-muted">Optional</span>
+            <span class="small text-muted"><span id="notes-char-count">0</span>/1000</span>
+          </div>
+          <button id="modal-btn-save-notes" class="btn btn-sm btn-outline-secondary mt-2" disabled>Save Notes</button>
+        </div>
       </div>
       <div class="modal-footer" id="modal-status-row">
         <span class="small text-muted" id="modal-status-text"></span>
