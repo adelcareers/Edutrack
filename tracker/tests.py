@@ -1238,3 +1238,133 @@ class EvidenceUploadTests(TestCase):
                                            kwargs={'scheduled_id': self.sl.pk}))
         self.assertEqual(response.json()['evidence_count'], 1)
 
+
+class EvidenceDeleteTests(TestCase):
+    """Tests for S2.11 delete_evidence_view POST endpoint."""
+
+    DELETE_URL = 'tracker:evidence_delete'
+
+    def setUp(self):
+        self.parent = _make_parent(username='del_parent')
+        self.student = _make_student(username='del_student')
+        self.child = _make_child(self.parent, student_user=self.student)
+        self.lesson = _make_lesson(title='Delete Evidence Lesson')
+        self.enrolled = _make_enrolled_subject(self.child, subject_name='Science')
+        self.monday = datetime.date.fromisocalendar(2026, 18, 1)
+        self.sl = _make_scheduled_lesson(self.child, self.lesson, self.enrolled, self.monday)
+        self.log = LessonLog.objects.create(scheduled_lesson=self.sl)
+        self.evidence = EvidenceFile.objects.create(
+            lesson_log=self.log,
+            file='fake/del_public_id',
+            original_filename='to_delete.png',
+            uploaded_by=self.student,
+        )
+
+    def _url(self, file_id=None):
+        return reverse(self.DELETE_URL, kwargs={'file_id': file_id or self.evidence.pk})
+
+    # ---------- access ----------
+
+    def test_unauthenticated_redirects(self):
+        response = self.client.post(self._url())
+        self.assertEqual(response.status_code, 302)
+
+    def test_parent_role_blocked(self):
+        self.client.force_login(self.parent)
+        response = self.client.post(self._url())
+        self.assertRedirects(response, '/', fetch_redirect_response=False)
+
+    def test_get_method_not_allowed(self):
+        self.client.force_login(self.student)
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, 405)
+
+    def test_other_student_gets_403(self):
+        other_student = _make_student(username='del_other')
+        _make_child(self.parent, student_user=other_student)
+        self.client.force_login(other_student)
+        with patch('cloudinary.uploader.destroy', return_value={'result': 'ok'}):
+            response = self.client.post(self._url())
+        self.assertEqual(response.status_code, 403)
+
+    # ---------- happy path ----------
+
+    def test_owner_can_delete_returns_200(self):
+        self.client.force_login(self.student)
+        with patch('cloudinary.uploader.destroy', return_value={'result': 'ok'}):
+            response = self.client.post(self._url())
+        self.assertEqual(response.status_code, 200)
+
+    def test_delete_removes_db_record(self):
+        pk = self.evidence.pk
+        self.client.force_login(self.student)
+        with patch('cloudinary.uploader.destroy', return_value={'result': 'ok'}):
+            self.client.post(self._url())
+        self.assertFalse(EvidenceFile.objects.filter(pk=pk).exists())
+
+    def test_delete_calls_cloudinary_destroy(self):
+        self.client.force_login(self.student)
+        with patch('cloudinary.uploader.destroy', return_value={'result': 'ok'}) as mock_destroy:
+            self.client.post(self._url())
+        mock_destroy.assert_called_once()
+
+    def test_response_contains_success_true(self):
+        self.client.force_login(self.student)
+        with patch('cloudinary.uploader.destroy', return_value={'result': 'ok'}):
+            data = self.client.post(self._url()).json()
+        self.assertTrue(data['success'])
+
+    def test_response_contains_evidence_count(self):
+        self.client.force_login(self.student)
+        with patch('cloudinary.uploader.destroy', return_value={'result': 'ok'}):
+            data = self.client.post(self._url()).json()
+        self.assertIn('evidence_count', data)
+
+    def test_evidence_count_decrements(self):
+        # Add a second file so count goes from 2 → 1
+        second = EvidenceFile.objects.create(
+            lesson_log=self.log,
+            file='fake/second_public_id',
+            original_filename='second.png',
+            uploaded_by=self.student,
+        )
+        self.client.force_login(self.student)
+        with patch('cloudinary.uploader.destroy', return_value={'result': 'ok'}):
+            data = self.client.post(self._url()).json()
+        self.assertEqual(data['evidence_count'], 1)
+        second.delete()  # cleanup
+
+    def test_nonexistent_file_returns_404(self):
+        self.client.force_login(self.student)
+        response = self.client.post(self._url(file_id=99999))
+        self.assertEqual(response.status_code, 404)
+
+    # ---------- lesson_detail evidence_files list ----------
+
+    def test_evidence_files_in_detail_response(self):
+        self.client.force_login(self.student)
+        response = self.client.get(reverse('tracker:lesson_detail',
+                                           kwargs={'scheduled_id': self.sl.pk}))
+        self.assertIn('evidence_files', response.json())
+
+    def test_evidence_files_list_contains_filename(self):
+        self.client.force_login(self.student)
+        response = self.client.get(reverse('tracker:lesson_detail',
+                                           kwargs={'scheduled_id': self.sl.pk}))
+        files = response.json()['evidence_files']
+        self.assertEqual(len(files), 1)
+        self.assertEqual(files[0]['filename'], 'to_delete.png')
+
+    def test_evidence_files_list_empty_when_none(self):
+        # Use a lesson with no log
+        new_lesson = _make_lesson(title='Empty Evidence Lesson')
+        new_sl = _make_scheduled_lesson(
+            self.child, new_lesson, self.enrolled,
+            datetime.date.fromisocalendar(2026, 18, 2),
+        )
+        self.client.force_login(self.student)
+        response = self.client.get(reverse('tracker:lesson_detail',
+                                           kwargs={'scheduled_id': new_sl.pk}))
+        self.assertEqual(response.json()['evidence_files'], [])
+
+
