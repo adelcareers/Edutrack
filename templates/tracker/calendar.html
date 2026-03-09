@@ -33,26 +33,6 @@
     color: var(--bs-primary);
     border-bottom-color: var(--bs-primary);
   }
-  .lesson-card {
-    background: #fff;
-    border: 1px solid #dee2e6;
-    border-left: 4px solid #6c757d;
-    border-radius: 6px;
-    padding: 0.5rem 0.75rem;
-    margin-bottom: 0.5rem;
-    font-size: 0.85rem;
-  }
-  .subject-label {
-    font-weight: 600;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #6c757d;
-  }
-  .lesson-title {
-    color: #212529;
-    margin-top: 0.25rem;
-  }
   .empty-day {
     color: #adb5bd;
     font-size: 0.8rem;
@@ -92,14 +72,16 @@
 
     {% if day.lessons %}
       {% for sl in day.lessons %}
-      <div class="lesson-card">
-        <div class="subject-label">{{ sl.enrolled_subject.subject_name }}</div>
-        <div class="lesson-title">{{ sl.lesson.lesson_title }}</div>
-        {% if sl.log.status == 'complete' %}
-          <span class="badge bg-success mt-1">&#10003; Complete</span>
-        {% elif sl.log.status == 'skipped' %}
-          <span class="badge bg-secondary mt-1">Skipped</span>
-        {% endif %}
+      <div class="lesson-card" style="--subject-colour: {{ sl.enrolled_subject.colour_hex }}">
+        <div class="card-header">{{ sl.enrolled_subject.subject_name }}</div>
+        <div class="card-body">{{ sl.lesson.lesson_title }}</div>
+        <div class="card-footer">
+          {% if sl.log.status == 'complete' %}<span class="badge bg-success">&#10003; Complete</span>{% endif %}
+          {% if sl.log.status == 'skipped' %}<span class="badge bg-secondary">Skipped</span>{% endif %}
+          {% if sl.log.mastery == 'green' %}<span class="mastery-dot green" title="Mastery: green"></span>{% endif %}
+          {% if sl.log.mastery == 'amber' %}<span class="mastery-dot amber" title="Mastery: amber"></span>{% endif %}
+          {% if sl.log.mastery == 'red' %}<span class="mastery-dot red" title="Mastery: needs work"></span>{% endif %}
+        </div>
       </div>
       {% endfor %}
     {% else %}
