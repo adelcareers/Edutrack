@@ -51,14 +51,14 @@ repo_url: 'https://github.com/adelcareers/Edutrack'
 heroku_url: 'https://edutrack-3e8b5606319f.herokuapp.com'
 last_updated: '2026-03-09'
 current_sprint: Sprint 2
-current_story: S2.11
-current_story_title: Evidence File List and Delete
+current_story: S2.12
+current_story_title: Sprint 2 Deployment
 current_story_status: NOT_STARTED
 sprint_0_status: DONE
 sprint_1_status: DONE
 sprint_2_status: IN_PROGRESS
 sprint_3_status: NOT_STARTED
-stories_done: [S0.1, S0.2, S0.3, S0.4, S0.5, S0.6, S0.7, S1.1, S1.2, S1.3, S1.4, S1.5, S1.6, S1.7, S1.8, S1.9, S1.10, S2.1, S2.2, S2.3, S2.4, S2.5, S2.6, S2.7, S2.8, S2.9, S2.10]
+stories_done: [S0.1, S0.2, S0.3, S0.4, S0.5, S0.6, S0.7, S1.1, S1.2, S1.3, S1.4, S1.5, S1.6, S1.7, S1.8, S1.9, S1.10, S2.1, S2.2, S2.3, S2.4, S2.5, S2.6, S2.7, S2.8, S2.9, S2.10, S2.11]
 stories_in_progress: []
 stories_blocked: []
 last_commit: '4676fbb'
@@ -1840,7 +1840,7 @@ epic: E6
 sprint: 2
 priority: P0
 points: 2
-status: NOT_STARTED
+status: DONE
 depends_on: [S2.10]
 ```
 **User Story:** As a student, I can see all uploaded evidence files for a lesson and delete incorrect ones, so that I maintain an accurate portfolio.
