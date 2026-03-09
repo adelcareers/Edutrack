@@ -60,5 +60,55 @@
     </div>
   </div>
 
+  <!-- Share link -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5 class="mb-0">Share with Local Authority</h5>
+    </div>
+    <div class="card-body">
+      <p class="mb-2">Use this secure link to share the report without requiring login.</p>
+      <div class="input-group">
+        <input
+          id="share-url-input"
+          type="text"
+          class="form-control"
+          value="{{ share_url }}"
+          readonly
+        >
+        <button id="copy-share-url" class="btn btn-outline-secondary" type="button">
+          Copy Link
+        </button>
+      </div>
+      <small id="copy-feedback" class="text-success d-none">Copied.</small>
+    </div>
+  </div>
+
 </div>
+
+<script>
+  (function () {
+    var btn = document.getElementById('copy-share-url');
+    var input = document.getElementById('share-url-input');
+    var feedback = document.getElementById('copy-feedback');
+
+    if (!btn || !input || !feedback) {
+      return;
+    }
+
+    btn.addEventListener('click', function () {
+      input.select();
+      input.setSelectionRange(0, input.value.length);
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(input.value).then(function () {
+          feedback.classList.remove('d-none');
+        });
+        return;
+      }
+
+      document.execCommand('copy');
+      feedback.classList.remove('d-none');
+    });
+  })();
+</script>
 {% endblock %}
