@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block title %}Payment Success | EduTrack{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6 text-center">
+        <i class="bi bi-check-circle-fill text-success" style="font-size: 5rem;"></i>
+        <h2 class="mt-4 fw-bold">Payment Successful!</h2>
+        <p class="lead text-muted mt-3">Welcome to the Pro Tier. Your account has been upgraded and all advanced features are now unlocked.</p>
+        
+        <div class="mt-5">
+            <a href="{% url 'scheduler:parent_dashboard' %}" class="btn btn-primary btn-lg px-4">Go to Dashboard</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

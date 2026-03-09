@@ -25,6 +25,10 @@ def create_report_view(request, child_id):
     POST: validates the form; on success generates a PDF, saves the report,
     and redirects to the report detail page.
     """
+    if not request.user.profile.subscription_active:
+        messages.warning(request, 'You need an active subscription to generate reports. Upgrade to Pro.')
+        return redirect('payments:pricing')
+
     child = get_object_or_404(Child, pk=child_id, parent=request.user)
 
     form = ReportForm(request.POST or None)

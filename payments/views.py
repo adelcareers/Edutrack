@@ -51,3 +51,15 @@ def checkout_view(request):
         'stripe_key': settings.STRIPE_PUBLISHABLE_KEY,
     }
     return render(request, 'payments/checkout.html', context)
+
+@login_required
+@role_required('parent')
+def success_view(request):
+    """View to display success message after payment."""
+    # Stub: automatically activate subscription for testing purposes
+    profile = request.user.profile
+    if not profile.subscription_active:
+        profile.subscription_active = True
+        profile.save()
+        
+    return render(request, 'payments/success.html')
