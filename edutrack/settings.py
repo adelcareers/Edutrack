@@ -108,7 +108,7 @@ WSGI_APPLICATION = "edutrack.wsgi.application"
 # environment (loaded via python-decouple), use dj_database_url to parse it.
 # If the variable is present but empty (e.g. `DATABASE_URL=` in .env), fall
 # back to a local sqlite DB so management commands still work locally.
-_db_url = config('DATABASE_URL', default=None)
+_db_url = (config('DATABASE_URL', default=None) or '').strip() or None
 _VALID_DB_SCHEMES = ('postgres://', 'postgresql://', 'postgis://', 'mysql://', 'sqlite://')
 _db_url_valid = bool(_db_url) and any(_db_url.startswith(s) for s in _VALID_DB_SCHEMES)
 if _db_url_valid:
