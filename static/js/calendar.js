@@ -19,6 +19,7 @@
   const notesCount  = document.getElementById('notes-char-count');
   const btnSaveNotes = document.getElementById('modal-btn-save-notes');
   const evidenceCount = document.getElementById('modal-evidence-count');
+  const evidenceList  = document.getElementById('modal-evidence-list');
 
   let activeScheduledId = null;
 
@@ -178,6 +179,7 @@
 
       // Update evidence count
       if (evidenceCount) evidenceCount.textContent = data.evidence_count ?? 0;
+      renderEvidenceList(data.evidence_files || []);
 
       bsModal.show();
     } catch (e) {
@@ -330,6 +332,42 @@
           if (data.success) {
             if (evidenceCount) evidenceCount.textContent = data.evidence_count;
             evidenceFile.value = '';
+            // Append the new file entry to the list
+            if (evidenceList) {
+              const li = document.createElement('li');
+              li.dataset.fileId = data.file_id;
+              li.className = 'd-flex justify-content-between align-items-center py-1';
+              li.innerHTML = `<span class="text-truncate me-2">${data.filename} <span class="text-muted">(just now)</span></span>
+                <button class="btn btn-sm btn-outline-danger btn-delete-evidence py-0 px-1" data-fid="${data.file_id}">&times;</button>`;
+              evidenceList.appendChild(li);
+            }
+          }
+        }
+      } catch (e) { /* silent */ }
+    });
+  }
+  // ── Evidence delete handler ────────────────────────────────────────────
+  if (evidenceList) {
+    evidenceList.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.btn-delete-evidence');
+      if (!btn) return;
+      if (!confirm('Delete this evidence file?')) return;
+      const fid = btn.dataset.fid;
+      try {
+        const resp = await fetch(`/evidence/${fid}/delete/`, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          credentials: 'same-origin',
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.success) {
+            const li = evidenceList.querySelector(`[data-file-id="${fid}"]`);
+            if (li) li.remove();
+            if (evidenceCount) evidenceCount.textContent = data.evidence_count;
           }
         }
       } catch (e) { /* silent */ }
