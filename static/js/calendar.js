@@ -23,6 +23,18 @@
 
   let activeScheduledId = null;
 
+  // ── Modal alert helper ─────────────────────────────────────────────────
+  function showModalAlert(message, type) {
+    const existing = document.getElementById('modal-upload-alert');
+    if (existing) existing.remove();
+    const div = document.createElement('div');
+    div.id = 'modal-upload-alert';
+    div.className = `alert alert-${type} alert-dismissible py-1 px-2 mt-2 mb-0 small`;
+    div.innerHTML = `${message}<button type="button" class="btn-close py-2" data-bs-dismiss="alert"></button>`;
+    const uploadSection = document.getElementById('modal-evidence-file');
+    if (uploadSection) uploadSection.closest('div').after(div);
+  }
+
   // ── CSRF helper ──────────────────────────────────────────────────────────
   function getCookie(name) {
     const value = `; ${document.cookie}`;
@@ -54,6 +66,20 @@
       badge.textContent = label;
       footer.prepend(badge);
     }
+  }
+
+  // ── Render evidence file list in modal ────────────────────────────────────
+  function renderEvidenceList(files) {
+    if (!evidenceList) return;
+    evidenceList.innerHTML = '';
+    files.forEach(f => {
+      const li = document.createElement('li');
+      li.dataset.fileId = f.id;
+      li.className = 'd-flex justify-content-between align-items-center py-1';
+      li.innerHTML = `<span class="text-truncate me-2">${f.filename} <span class="text-muted">(${f.uploaded_at})</span></span>
+        <button class="btn btn-sm btn-outline-danger btn-delete-evidence py-0 px-1" data-fid="${f.id}">&times;</button>`;
+      evidenceList.appendChild(li);
+    });
   }
 
   // ── Post notes save ─────────────────────────────────────────────────────
@@ -314,9 +340,14 @@
 
   if (btnUpload) {
     btnUpload.addEventListener('click', async () => {
-      if (!activeScheduledId || !evidenceFile || !evidenceFile.files.length) return;
+      if (!activeScheduledId || !evidenceFile || !evidenceFile.files.length) {
+        showModalAlert('Please choose a file first.', 'warning');
+        return;
+      }
       const formData = new FormData();
       formData.append('file', evidenceFile.files[0]);
+      btnUpload.disabled = true;
+      btnUpload.textContent = 'Uploading…';
       try {
         const resp = await fetch(`/lessons/${activeScheduledId}/upload/`, {
           method: 'POST',
@@ -327,23 +358,28 @@
           credentials: 'same-origin',
           body: formData,
         });
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data.success) {
-            if (evidenceCount) evidenceCount.textContent = data.evidence_count;
-            evidenceFile.value = '';
-            // Append the new file entry to the list
-            if (evidenceList) {
-              const li = document.createElement('li');
-              li.dataset.fileId = data.file_id;
-              li.className = 'd-flex justify-content-between align-items-center py-1';
-              li.innerHTML = `<span class="text-truncate me-2">${data.filename} <span class="text-muted">(just now)</span></span>
-                <button class="btn btn-sm btn-outline-danger btn-delete-evidence py-0 px-1" data-fid="${data.file_id}">&times;</button>`;
-              evidenceList.appendChild(li);
-            }
+        const data = await resp.json();
+        if (resp.ok && data.success) {
+          if (evidenceCount) evidenceCount.textContent = data.evidence_count;
+          evidenceFile.value = '';
+          if (evidenceList) {
+            const li = document.createElement('li');
+            li.dataset.fileId = data.file_id;
+            li.className = 'd-flex justify-content-between align-items-center py-1';
+            li.innerHTML = `<span class="text-truncate me-2">${data.filename} <span class="text-muted">(${data.uploaded_at})</span></span>
+              <button class="btn btn-sm btn-outline-danger btn-delete-evidence py-0 px-1" data-fid="${data.file_id}">&times;</button>`;
+            evidenceList.appendChild(li);
           }
+          showModalAlert('File uploaded successfully.', 'success');
+        } else {
+          showModalAlert(data.error || 'Upload failed. Please try again.', 'danger');
         }
-      } catch (e) { /* silent */ }
+      } catch (e) {
+        showModalAlert('Upload failed: network error.', 'danger');
+      } finally {
+        btnUpload.disabled = false;
+        btnUpload.textContent = 'Upload';
+      }
     });
   }
   // ── Evidence delete handler ────────────────────────────────────────────

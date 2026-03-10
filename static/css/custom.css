@@ -39,6 +39,11 @@ body {
   font-size: 0.85rem;
   overflow: hidden;
   background: #fff;
+  cursor: pointer;
+}
+.lesson-card:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  border-color: #adb5bd;
 }
 .lesson-card .card-header {
   background-color: var(--subject-colour);

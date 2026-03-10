@@ -16,7 +16,7 @@ class Lesson(models.Model):
     unit_title = models.CharField(max_length=300)
     lesson_number = models.IntegerField()
     lesson_title = models.CharField(max_length=300)
-    lesson_url = models.URLField(max_length=500)
+    lesson_url = models.URLField(max_length=500, unique=True)
 
     class Meta:
         ordering = ['key_stage', 'subject_name', 'unit_slug', 'lesson_number']

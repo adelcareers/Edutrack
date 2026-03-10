@@ -271,18 +271,21 @@ def upload_evidence_view(request, scheduled_id):
         return JsonResponse({'error': 'invalid file type'}, status=400)
 
     log, _ = LessonLog.objects.get_or_create(scheduled_lesson=sl)
-    evidence = EvidenceFile.objects.create(
-        lesson_log=log,
-        file=uploaded_file,
-        original_filename=uploaded_file.name,
-        uploaded_by=request.user,
-    )
+    try:
+        evidence = EvidenceFile.objects.create(
+            lesson_log=log,
+            file=uploaded_file,
+            original_filename=uploaded_file.name,
+            uploaded_by=request.user,
+        )
+    except Exception as exc:
+        return JsonResponse({'success': False, 'error': f'Upload failed: {exc}'}, status=500)
 
     return JsonResponse({
         'success': True,
         'file_id': evidence.pk,
         'filename': evidence.original_filename,
-        'uploaded_at': evidence.uploaded_at.isoformat(),
+        'uploaded_at': evidence.uploaded_at.strftime('%d %b %Y'),
         'evidence_count': log.evidence_files.count(),
     })
 

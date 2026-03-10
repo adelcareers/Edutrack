@@ -22,9 +22,6 @@ from django.core.management.base import BaseCommand, CommandError
 
 from curriculum.models import Lesson
 
-PROGRESS_EVERY = 500
-
-
 class Command(BaseCommand):
     """Load Oak National Academy lesson data from a CSV file into the database."""
 
@@ -44,41 +41,44 @@ class Command(BaseCommand):
         if not os.path.isfile(csv_path):
             raise CommandError(f'File not found: {csv_path}')
 
-        created_count = 0
-        existing_count = 0
+        BATCH_SIZE = 500
+        batch = []
         row_number = 0
 
         self.stdout.write(f'Reading {csv_path} …')
+        self.stdout.flush()
+
+        before_count = Lesson.objects.count()
 
         with open(csv_path, newline='', encoding='utf-8') as fh:
             reader = csv.DictReader(fh)
             for row in reader:
                 row_number += 1
-                _, created = Lesson.objects.get_or_create(
+                batch.append(Lesson(
+                    key_stage=row['key_stage'],
+                    subject_name=row['subject_name'],
+                    programme_slug=row['programme_slug'],
+                    year=row['year'],
+                    unit_slug=row['unit_slug'],
+                    unit_title=row['unit_title'],
+                    lesson_number=int(row['lesson_number']),
+                    lesson_title=row['lesson_title'],
                     lesson_url=row['lesson_url'],
-                    defaults={
-                        'key_stage': row['key_stage'],
-                        'subject_name': row['subject_name'],
-                        'programme_slug': row['programme_slug'],
-                        'year': row['year'],
-                        'unit_slug': row['unit_slug'],
-                        'unit_title': row['unit_title'],
-                        'lesson_number': int(row['lesson_number']),
-                        'lesson_title': row['lesson_title'],
-                    },
-                )
-                if created:
-                    created_count += 1
-                else:
-                    existing_count += 1
-
-                if row_number % PROGRESS_EVERY == 0:
+                ))
+                if len(batch) >= BATCH_SIZE:
+                    Lesson.objects.bulk_create(batch, ignore_conflicts=True)
                     self.stdout.write(f'  … processed {row_number} rows')
+                    self.stdout.flush()
+                    batch = []
 
-        total = created_count + existing_count
+        if batch:
+            Lesson.objects.bulk_create(batch, ignore_conflicts=True)
+
+        after_count = Lesson.objects.count()
+        created_count = after_count - before_count
         self.stdout.write(
             self.style.SUCCESS(
-                f'Seeded: {created_count} created, {existing_count} already existed. '
-                f'Total: {total} lessons.'
+                f'Seeded: {created_count} created, {row_number - created_count} already existed. '
+                f'Total rows in DB: {after_count}.'
             )
         )
