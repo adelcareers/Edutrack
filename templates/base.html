@@ -41,14 +41,12 @@
       flex-shrink: 0;
     }
     .app-navbar .brand-icon {
-      width: 32px; height: 32px;
-      background: #4f46e5;
-      border-radius: 8px;
+      width: 36px; height: 36px;
       display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
     }
-    .app-navbar .brand-icon i { color: #fff; font-size: 1rem; }
 
-    /* centre nav */
+    /* left nav */
     .app-nav-links {
       display: flex;
       align-items: center;
@@ -56,7 +54,7 @@
       list-style: none;
       margin: 0; padding: 0;
       flex: 1;
-      justify-content: center;
+      justify-content: flex-start;
     }
     .app-nav-links .nav-link {
       color: #555;
@@ -150,7 +148,22 @@
 
     <!-- Brand -->
     <a href="{% url 'home' %}" class="brand me-4">
-      <span class="brand-icon"><i class="bi bi-send-fill"></i></span>
+      <span class="brand-icon">
+        <svg width="36" height="36" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="32" cy="32" r="31" fill="none" stroke="#1a1a2e" stroke-width="2.5"/>
+          <!-- trunk -->
+          <rect x="29" y="40" width="6" height="12" rx="2" fill="#1a1a2e"/>
+          <!-- ground mound -->
+          <ellipse cx="32" cy="52" rx="11" ry="4" fill="#1a1a2e"/>
+          <!-- canopy -->
+          <circle cx="32" cy="26" r="13" fill="#1a1a2e"/>
+          <circle cx="21" cy="30" r="9"  fill="#1a1a2e"/>
+          <circle cx="43" cy="30" r="9"  fill="#1a1a2e"/>
+          <circle cx="26" cy="19" r="9"  fill="#1a1a2e"/>
+          <circle cx="38" cy="19" r="9"  fill="#1a1a2e"/>
+          <circle cx="32" cy="15" r="8"  fill="#1a1a2e"/>
+        </svg>
+      </span>
       EduTrack
     </a>
 
