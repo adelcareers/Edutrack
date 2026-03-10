@@ -279,8 +279,8 @@
             {% endif %}
           </div>
 
-          <!-- School Year (optional) -->
-          <div class="mb-4">
+          <!-- School Year -->
+          <div class="mb-3">
             <label for="id_school_year" class="form-label text-muted small">
               School Year <span class="fw-normal">(optional)</span>
             </label>
@@ -292,6 +292,15 @@
                 </option>
               {% endfor %}
             </select>
+          </div>
+
+          <!-- Dynamic subject list (shown once a year is chosen) -->
+          <div id="subjectSection" class="mb-4 d-none">
+            <label class="form-label fw-semibold">
+              Subjects
+              <span class="text-muted fw-normal small ms-1">— tick to enrol</span>
+            </label>
+            <div id="subjectList" class="border rounded p-2" style="max-height:220px;overflow-y:auto;"></div>
           </div>
 
           <div class="d-grid">
@@ -352,7 +361,47 @@
 
 
 {% block extra_js %}
+{{ subjects_by_year_json|json_script:"subjects-by-year-data" }}
 <script>
+// --- Subjects-by-year data ---
+const SUBJECTS_BY_YEAR = JSON.parse(document.getElementById('subjects-by-year-data').textContent);
+
+// --- School year → show subjects ---
+document.getElementById('id_school_year').addEventListener('change', function () {
+  const year = this.value;
+  const section = document.getElementById('subjectSection');
+  const list = document.getElementById('subjectList');
+
+  if (!year || !SUBJECTS_BY_YEAR[year]) {
+    section.classList.add('d-none');
+    list.innerHTML = '';
+    return;
+  }
+
+  const subjects = SUBJECTS_BY_YEAR[year];
+  // Group by key_stage
+  const grouped = {};
+  subjects.forEach(s => {
+    (grouped[s.key_stage] = grouped[s.key_stage] || []).push(s.subject);
+  });
+
+  let html = '';
+  Object.keys(grouped).sort().forEach(ks => {
+    html += `<div class="text-muted small fw-semibold px-1 pt-2 pb-1">${ks}</div>`;
+    grouped[ks].forEach(subject => {
+      const id = 'subj_' + subject.replace(/\s+/g, '_');
+      html += `
+        <div class="form-check px-3 py-1">
+          <input class="form-check-input" type="checkbox" name="subjects"
+                 value="${subject}" id="${id}">
+          <label class="form-check-label" for="${id}">${subject}</label>
+        </div>`;
+    });
+  });
+  list.innerHTML = html;
+  section.classList.remove('d-none');
+});
+
 // --- Photo preview ---
 document.getElementById('id_photo').addEventListener('change', function () {
   const file = this.files[0];
