@@ -12,6 +12,7 @@ class Child(models.Model):
 
     parent = models.ForeignKey(User, on_delete=models.CASCADE, related_name='children')
     first_name = models.CharField(max_length=100)
+    photo = models.ImageField(upload_to='student_photos/', blank=True, null=True)
     birth_month = models.IntegerField(choices=[(i, i) for i in range(1, 13)])
     birth_year = models.IntegerField()
     school_year = models.CharField(max_length=20)

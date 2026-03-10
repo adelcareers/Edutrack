@@ -13,7 +13,7 @@ from accounts.decorators import role_required
 from accounts.forms import StudentCreationForm
 from accounts.models import UserProfile
 from curriculum.models import Lesson
-from scheduler.forms import ChildForm
+from scheduler.forms import ChildForm, NewStudentModalForm
 from scheduler.models import Child, EnrolledSubject, ScheduledLesson
 from scheduler.services import generate_schedule
 
@@ -50,9 +50,63 @@ def add_child_view(request):
 
 @role_required('parent')
 def child_list_view(request):
-    """Display all active children belonging to the logged-in parent."""
+    """Display all active children and handle the 'New Student' modal form."""
     children = Child.objects.filter(parent=request.user, is_active=True)
-    return render(request, 'scheduler/child_list.html', {'children': children})
+    form = NewStudentModalForm()
+    show_modal = False
+
+    if request.method == 'POST' and 'add_student' in request.POST:
+        form = NewStudentModalForm(request.POST, request.FILES)
+        if form.is_valid():
+            today = datetime.date.today()
+            # Academic year starts 1 Sep of the current or most-recent year
+            if today.month >= 9:
+                academic_start = datetime.date(today.year, 9, 1)
+            else:
+                academic_start = datetime.date(today.year - 1, 9, 1)
+
+            school_year = form.cleaned_data.get('school_year') or 'Year 1'
+            child = Child(
+                parent=request.user,
+                first_name=form.cleaned_data['first_name'],
+                school_year=school_year,
+                birth_month=today.month,
+                birth_year=today.year - 10,
+                academic_year_start=academic_start,
+            )
+            if form.cleaned_data.get('photo'):
+                child.photo = form.cleaned_data['photo']
+            child.save()
+            messages.success(
+                request,
+                f"{child.first_name} added! Now select their subjects.",
+            )
+            return redirect('scheduler:subject_selection', child_id=child.pk)
+        else:
+            show_modal = True
+
+    return render(request, 'scheduler/child_list.html', {
+        'children': children,
+        'form': form,
+        'show_modal': show_modal,
+    })
+
+
+@role_required('parent')
+def delete_child_view(request, child_id):
+    """Delete a child after the parent confirms by typing the child's name."""
+    child = get_object_or_404(Child, pk=child_id, parent=request.user)
+
+    if request.method == 'POST':
+        confirm_name = request.POST.get('confirm_name', '').strip()
+        if confirm_name == child.first_name:
+            child_name = child.first_name
+            child.delete()
+            messages.success(request, f"{child_name} has been deleted.")
+        else:
+            messages.error(request, "Name did not match. Student not deleted.")
+
+    return redirect('scheduler:child_list')
 
 
 @role_required('parent')

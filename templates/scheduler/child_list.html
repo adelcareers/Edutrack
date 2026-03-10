@@ -1,51 +1,360 @@
 {% extends "base.html" %}
+{% load static %}
 
-{% block title %}My Children — EduTrack{% endblock %}
+{% block title %}Students — EduTrack{% endblock %}
+
+{% block extra_css %}
+<style>
+  .students-tab-nav {
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 1.75rem;
+  }
+  .students-tab-nav .nav-link {
+    color: #6c757d;
+    font-weight: 500;
+    padding: 0.6rem 1.1rem;
+    border: none;
+    border-bottom: 3px solid transparent;
+    border-radius: 0;
+    margin-bottom: -2px;
+  }
+  .students-tab-nav .nav-link.active {
+    color: #0d6efd;
+    border-bottom-color: #0d6efd;
+    background: none;
+  }
+  .students-tab-nav .nav-link:hover:not(.active) {
+    color: #0d6efd;
+    background: none;
+  }
+  .student-card {
+    border-radius: 12px;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    transition: box-shadow .15s;
+  }
+  .student-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.10); }
+  .student-avatar {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #e8eefe;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .photo-edit-btn {
+    width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    background: #fff;
+    border: 1.5px solid #dee2e6;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .photo-edit-btn:hover { background: #f0f0f0; }
+  #avatarPreviewWrap {
+    width: 96px; height: 96px;
+    border-radius: 50%;
+    background: #5b6af8;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+  #avatarPreviewWrap img { width: 100%; height: 100%; object-fit: cover; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
+<div class="container mt-4">
 
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="fw-bold mb-0">My children</h2>
-    <a href="{% url 'scheduler:add_child' %}" class="btn btn-primary">
-      <i class="bi bi-plus-circle me-1"></i>Add child
-    </a>
+  <!-- Section heading -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="fw-bold mb-0">Students</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newStudentModal">
+      <i class="bi bi-plus me-1"></i>New Student
+    </button>
   </div>
+
+  <!-- Tab navigation -->
+  <ul class="nav students-tab-nav">
+    <li class="nav-item">
+      <a class="nav-link" href="{% url 'scheduler:parent_dashboard' %}">
+        <i class="bi bi-layout-text-sidebar-reverse me-1"></i>Plan
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="#">
+        <i class="bi bi-book me-1"></i>Courses
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link active" href="{% url 'scheduler:child_list' %}">
+        <i class="bi bi-people me-1"></i>Students
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="{% url 'scheduler:parent_dashboard' %}">
+        <i class="bi bi-bar-chart me-1"></i>Grades
+      </a>
+    </li>
+  </ul>
+
+  <!-- Messages -->
+  {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show" role="alert">
+      {{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  {% endfor %}
 
   {% if children %}
     <div class="row g-3">
       {% for child in children %}
         <div class="col-md-6 col-lg-4">
-          <div class="card h-100 shadow-sm">
-            <div class="card-body">
-              <h5 class="card-title fw-bold">{{ child.first_name }}</h5>
-              <p class="text-muted mb-1">Year group: <strong>{{ child.school_year }}</strong></p>
-              <p class="text-muted mb-3">Academic year start: {{ child.academic_year_start|date:"d M Y" }}</p>
+          <div class="card student-card h-100">
+            <div class="card-body p-3">
+
+              <!-- Three-dot overflow menu -->
+              <div class="d-flex justify-content-end mb-1">
+                <div class="dropdown">
+                  <button class="btn btn-link p-0 text-muted" data-bs-toggle="dropdown" aria-label="Student options">
+                    <i class="bi bi-three-dots-vertical fs-5"></i>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                    <li>
+                      <a class="dropdown-item" href="{% url 'scheduler:subject_selection' child_id=child.pk %}">
+                        <i class="bi bi-book me-2 text-secondary"></i>Manage Subjects
+                      </a>
+                    </li>
+                    {% if not child.student_user %}
+                    <li>
+                      <a class="dropdown-item" href="{% url 'scheduler:create_student_login' child_id=child.pk %}">
+                        <i class="bi bi-key me-2 text-secondary"></i>Create Student Login
+                      </a>
+                    </li>
+                    {% endif %}
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                      <button class="dropdown-item text-danger"
+                              data-bs-toggle="modal"
+                              data-bs-target="#deleteStudentModal"
+                              data-child-name="{{ child.first_name }}"
+                              data-delete-url="{% url 'scheduler:delete_child' child_id=child.pk %}">
+                        <i class="bi bi-trash me-2"></i>Delete Student
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              <!-- Avatar + info -->
+              <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="student-avatar flex-shrink-0">
+                  {% if child.photo %}
+                    <img src="{{ child.photo.url }}" alt="{{ child.first_name }}" class="student-avatar" style="border-radius:50%;">
+                  {% else %}
+                    <i class="bi bi-person-fill text-primary fs-3"></i>
+                  {% endif %}
+                </div>
+                <div>
+                  <h5 class="fw-bold mb-0">{{ child.first_name }}</h5>
+                  <span class="text-muted small">{{ child.school_year }}</span>
+                </div>
+              </div>
 
               {% if child.student_user %}
-                <span class="badge bg-success mb-2">
-                  <i class="bi bi-person-check me-1"></i>Login: {{ child.student_user.username }}
+                <span class="badge bg-success-subtle text-success border border-success-subtle mb-2">
+                  <i class="bi bi-person-check me-1"></i>{{ child.student_user.username }}
                 </span>
-              {% else %}
-                <a href="{% url 'scheduler:create_student_login' child.pk %}"
-                   class="btn btn-sm btn-outline-secondary mb-2">
-                  <i class="bi bi-key me-1"></i>Create student login
-                </a>
               {% endif %}
+
+              <!-- Action buttons -->
+              <div class="d-flex gap-2 flex-wrap mt-2">
+                <a href="{% url 'scheduler:subject_selection' child_id=child.pk %}"
+                   class="btn btn-sm btn-outline-primary">
+                  <i class="bi bi-book me-1"></i>Subjects
+                </a>
+                <a href="{% url 'scheduler:generate_schedule' child_id=child.pk %}"
+                   class="btn btn-sm btn-outline-secondary">
+                  <i class="bi bi-lightning me-1"></i>Schedule
+                </a>
+              </div>
+
             </div>
           </div>
         </div>
       {% endfor %}
     </div>
+
   {% else %}
     <div class="text-center py-5 text-muted">
-      <i class="bi bi-people display-4 d-block mb-3"></i>
-      <p class="fs-5">You haven't added any children yet.</p>
-      <a href="{% url 'scheduler:add_child' %}" class="btn btn-primary mt-2">
-        Add your first child
-      </a>
+      <i class="bi bi-people display-3 d-block mb-3"></i>
+      <p class="fs-5 mb-1">No students yet.</p>
+      <p class="small mb-4">Add your first student to start building their schedule.</p>
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newStudentModal">
+        <i class="bi bi-plus me-1"></i>New Student
+      </button>
     </div>
   {% endif %}
 
 </div>
+
+
+<!-- ===================== NEW STUDENT MODAL ===================== -->
+<div class="modal fade {% if show_modal %}show{% endif %}" id="newStudentModal" tabindex="-1"
+     aria-labelledby="newStudentModalLabel" aria-modal="true"
+     {% if show_modal %}style="display:block;"{% endif %}>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold" id="newStudentModalLabel">New Student</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body pt-2">
+        <form method="post" enctype="multipart/form-data" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="add_student" value="1">
+
+          <!-- Avatar photo uploader -->
+          <div class="text-center mb-4">
+            <div class="position-relative d-inline-block">
+              <div id="avatarPreviewWrap">
+                <i class="bi bi-person-fill text-white" style="font-size: 2.5rem;" id="avatarIcon"></i>
+                <img id="avatarPreviewImg" src="" alt="" class="d-none" style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;border-radius:50%;">
+              </div>
+              <label for="id_photo" class="photo-edit-btn position-absolute" style="bottom:2px;right:2px;" title="Upload photo">
+                <i class="bi bi-pencil-square" style="font-size: .85rem;"></i>
+              </label>
+              <input type="file" name="photo" id="id_photo" accept="image/*" class="d-none">
+            </div>
+            <p class="text-muted small mt-2">
+              Click the <i class="bi bi-pencil-square"></i> icon to upload a photo.<br>
+              You can drag &amp; drop or browse your computer.
+            </p>
+          </div>
+
+          <!-- Student Name -->
+          <div class="mb-3">
+            <label for="id_first_name" class="form-label fw-semibold">Student Name</label>
+            <input type="text" name="first_name" id="id_first_name"
+                   class="form-control {% if form.first_name.errors %}is-invalid{% endif %}"
+                   placeholder="Enter student name" required
+                   value="{{ form.first_name.value|default:'' }}">
+            {% if form.first_name.errors %}
+              <div class="invalid-feedback">{{ form.first_name.errors.0 }}</div>
+            {% endif %}
+          </div>
+
+          <!-- School Year (optional) -->
+          <div class="mb-4">
+            <label for="id_school_year" class="form-label text-muted small">
+              School Year <span class="fw-normal">(optional)</span>
+            </label>
+            <select name="school_year" id="id_school_year" class="form-select">
+              {% for value, label in form.fields.school_year.choices %}
+                <option value="{{ value }}"
+                  {% if form.school_year.value == value %}selected{% endif %}>
+                  {{ label }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary btn-lg">
+              Create Student
+            </button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% if show_modal %}<div class="modal-backdrop fade show"></div>{% endif %}
+
+
+<!-- ===================== DELETE STUDENT MODAL ===================== -->
+<div class="modal fade" id="deleteStudentModal" tabindex="-1" aria-labelledby="deleteStudentModalLabel">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+
+      <div class="modal-header border-0 pb-0">
+        <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body text-center px-4 pb-2">
+        <i class="bi bi-exclamation-triangle-fill text-danger fs-1 mb-3 d-block"></i>
+        <h5 class="fw-bold" id="deleteStudentModalLabel">
+          Delete <span id="deleteStudentName"></span>?
+        </h5>
+        <p class="text-muted small">
+          This cannot be undone. All of <strong id="deleteStudentName2"></strong>'s course records,
+          schedules, and submissions will be permanently deleted.
+        </p>
+        <p class="small mb-2">
+          Type <strong class="text-danger" id="deleteConfirmLabel"></strong> to confirm.
+        </p>
+        <input type="text" id="deleteConfirmInput" class="form-control text-center" placeholder="">
+      </div>
+
+      <div class="modal-footer border-0 justify-content-between">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form id="deleteStudentForm" method="post">
+          {% csrf_token %}
+          <input type="hidden" name="confirm_name" id="deleteConfirmHidden">
+          <button type="submit" id="deleteSubmitBtn" class="btn btn-danger" disabled>
+            Yes, Delete Student
+          </button>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
 {% endblock %}
+
+
+{% block extra_js %}
+<script>
+// --- Photo preview ---
+document.getElementById('id_photo').addEventListener('change', function () {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const img = document.getElementById('avatarPreviewImg');
+    const icon = document.getElementById('avatarIcon');
+    img.src = e.target.result;
+    img.classList.remove('d-none');
+    icon.classList.add('d-none');
+  };
+  reader.readAsDataURL(file);
+});
+
+// --- Delete modal population ---
+const deleteModal = document.getElementById('deleteStudentModal');
+deleteModal.addEventListener('show.bs.modal', function (e) {
+  const btn = e.relatedTarget;
+  const name = btn.getAttribute('data-child-name');
+  const url  = btn.getAttribute('data-delete-url');
+
+  document.getElementById('deleteStudentName').textContent  = name;
+  document.getElementById('deleteStudentName2').textContent = name;
+  document.getElementById('deleteConfirmLabel').textContent = name;
+  document.getElementById('deleteStudentForm').action = url;
+  document.getElementById('deleteConfirmInput').value = '';
+  document.getElementById('deleteConfirmHidden').value = '';
+  document.getElementById('deleteSubmitBtn').disabled = true;
+});
+
+document.getElementById('deleteConfirmInput').addEventListener('input', function () {
+  const expected = document.getElementById('deleteStudentName').textContent;
+  document.getElementById('deleteConfirmHidden').value = this.value;
+  document.getElementById('deleteSubmitBtn').disabled = (this.value !== expected);
+});
+</script>
+{% endblock %}
+
