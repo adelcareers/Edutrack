@@ -112,10 +112,19 @@ def child_list_view(request):
             'pct_complete': pct_complete,
         })
 
+    # Distinct years in natural order for the modal dropdown
+    raw_years = Lesson.objects.values_list('year', flat=True).distinct()
+    school_years = sorted(
+        set(raw_years),
+        key=lambda y: int(y.split()[-1]) if y.split()[-1].isdigit() else 99,
+    )
+
     return render(request, 'scheduler/child_list.html', {
         'summaries': summaries,
         'form': form,
         'show_modal': show_modal,
+        'school_years': school_years,
+        'selected_year': request.POST.get('school_year', '') if show_modal else '',
     })
 
 

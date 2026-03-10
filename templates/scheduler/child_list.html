@@ -283,17 +283,14 @@
               <div class="col-md-5">
                 <label for="id_school_year" class="form-label fw-semibold">School Year</label>
                 <select name="school_year" id="id_school_year"
-                        class="form-select form-select-lg {% if form.school_year.errors %}is-invalid{% endif %}">
-                  {% for value, label in form.fields.school_year.choices %}
-                    <option value="{{ value }}"
-                      {% if form.school_year.value == value %}selected{% endif %}>
-                      {{ label }}
+                        class="form-select form-select-lg">
+                  <option value="">— Select year —</option>
+                  {% for year in school_years %}
+                    <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>
+                      {{ year }}
                     </option>
                   {% endfor %}
                 </select>
-                {% if form.school_year.errors %}
-                  <div class="invalid-feedback">{{ form.school_year.errors.0 }}</div>
-                {% endif %}
               </div>
             </div>
 
