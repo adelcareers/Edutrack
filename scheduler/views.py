@@ -51,6 +51,10 @@ def add_child_view(request):
 @role_required('parent')
 def child_list_view(request):
     """Display all active children and handle the 'New Student' modal form."""
+    today = datetime.date.today()
+    week_start = today - datetime.timedelta(days=today.weekday())
+    week_end = week_start + datetime.timedelta(days=6)
+
     children = Child.objects.filter(parent=request.user, is_active=True)
     form = NewStudentModalForm()
     show_modal = False
@@ -58,8 +62,6 @@ def child_list_view(request):
     if request.method == 'POST' and 'add_student' in request.POST:
         form = NewStudentModalForm(request.POST, request.FILES)
         if form.is_valid():
-            today = datetime.date.today()
-            # Academic year starts 1 Sep of the current or most-recent year
             if today.month >= 9:
                 academic_start = datetime.date(today.year, 9, 1)
             else:
@@ -85,8 +87,33 @@ def child_list_view(request):
         else:
             show_modal = True
 
+    # Build per-child progress summaries
+    summaries = []
+    for child in children:
+        total_scheduled = child.scheduled_lessons.count()
+        total_complete = child.scheduled_lessons.filter(log__status='complete').count()
+        completed_this_week = (
+            child.scheduled_lessons
+            .filter(
+                scheduled_date__gte=week_start,
+                scheduled_date__lte=week_end,
+                log__status='complete',
+            )
+            .count()
+        )
+        pct_complete = (
+            round(total_complete / total_scheduled * 100) if total_scheduled else 0
+        )
+        summaries.append({
+            'child': child,
+            'total_scheduled': total_scheduled,
+            'total_complete': total_complete,
+            'completed_this_week': completed_this_week,
+            'pct_complete': pct_complete,
+        })
+
     return render(request, 'scheduler/child_list.html', {
-        'children': children,
+        'summaries': summaries,
         'form': form,
         'show_modal': show_modal,
     })
