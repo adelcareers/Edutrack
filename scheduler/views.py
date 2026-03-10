@@ -25,42 +25,12 @@ SUBJECT_COLOUR_PALETTE = [
 
 @role_required('parent')
 def child_list_view(request):
-    """Display all active children and handle the 'New Student' modal form."""
+    """Display all active children for the parent."""
     today = datetime.date.today()
     week_start = today - datetime.timedelta(days=today.weekday())
     week_end = week_start + datetime.timedelta(days=6)
 
     children = Child.objects.filter(parent=request.user, is_active=True)
-    form = NewStudentModalForm()
-    show_modal = False
-
-    if request.method == 'POST' and 'add_student' in request.POST:
-        form = NewStudentModalForm(request.POST, request.FILES)
-        if form.is_valid():
-            if today.month >= 9:
-                academic_start = datetime.date(today.year, 9, 1)
-            else:
-                academic_start = datetime.date(today.year - 1, 9, 1)
-
-            school_year = form.cleaned_data['school_year']
-            child = Child(
-                parent=request.user,
-                first_name=form.cleaned_data['first_name'],
-                school_year=school_year,
-                birth_month=today.month,
-                birth_year=today.year - 10,
-                academic_year_start=academic_start,
-            )
-            if form.cleaned_data.get('photo'):
-                child.photo = form.cleaned_data['photo']
-            child.save()
-            messages.success(
-                request,
-                f"{child.first_name} added! Now select their subjects.",
-            )
-            return redirect('scheduler:subject_selection', child_id=child.pk)
-        else:
-            show_modal = True
 
     # Build per-child progress summaries
     summaries = []
@@ -87,19 +57,8 @@ def child_list_view(request):
             'pct_complete': pct_complete,
         })
 
-    # Distinct years in natural order for the modal dropdown
-    raw_years = Lesson.objects.values_list('year', flat=True).distinct()
-    school_years = sorted(
-        set(raw_years),
-        key=lambda y: int(y.split()[-1]) if y.split()[-1].isdigit() else 99,
-    )
-
     return render(request, 'scheduler/child_list.html', {
         'summaries': summaries,
-        'form': form,
-        'show_modal': show_modal,
-        'school_years': school_years,
-        'selected_year': request.POST.get('school_year', '') if show_modal else '',
     })
 
 
@@ -287,6 +246,56 @@ def create_student_login_view(request, child_id):
     return render(request, 'scheduler/create_student_login.html', {
         'form': form,
         'child': child,
+    })
+
+
+@role_required('parent')
+def child_new_view(request):
+    """Inline new-student form — same layout as child_detail but for creation."""
+    raw_years = Lesson.objects.values_list('year', flat=True).distinct()
+    school_years = sorted(
+        set(raw_years),
+        key=lambda y: int(y.split()[-1]) if y.split()[-1].isdigit() else 99,
+    )
+
+    errors = {}
+    form_data = {}
+
+    if request.method == 'POST':
+        first_name = request.POST.get('first_name', '').strip()
+        school_year = request.POST.get('school_year', '').strip()
+        form_data = {'first_name': first_name, 'school_year': school_year}
+
+        if not first_name:
+            errors['first_name'] = 'Student name is required.'
+        if not school_year:
+            errors['school_year'] = 'School year is required.'
+
+        if not errors:
+            today = datetime.date.today()
+            academic_start = (
+                datetime.date(today.year, 9, 1)
+                if today.month >= 9
+                else datetime.date(today.year - 1, 9, 1)
+            )
+            child = Child(
+                parent=request.user,
+                first_name=first_name,
+                school_year=school_year,
+                birth_month=today.month,
+                birth_year=today.year - 10,
+                academic_year_start=academic_start,
+            )
+            if request.FILES.get('photo'):
+                child.photo = request.FILES['photo']
+            child.save()
+            messages.success(request, f"{child.first_name} added! Now set up their account and courses.")
+            return redirect('scheduler:child_detail', child_id=child.pk)
+
+    return render(request, 'scheduler/child_new.html', {
+        'school_years': school_years,
+        'errors': errors,
+        'form_data': form_data,
     })
 
 

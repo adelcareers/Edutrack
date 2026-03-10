@@ -84,9 +84,9 @@
   <!-- Section heading -->
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2 class="fw-bold mb-0">Students</h2>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newStudentModal">
+    <a href="{% url 'scheduler:child_new' %}" class="btn btn-primary">
       <i class="bi bi-plus me-1"></i>New Student
-    </button>
+    </a>
   </div>
 
   <!-- Messages -->
@@ -215,91 +215,13 @@
       <i class="bi bi-people display-3 d-block mb-3"></i>
       <p class="fs-5 mb-1">No students yet.</p>
       <p class="small mb-4">Add your first student to start building their schedule.</p>
-      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newStudentModal">
+      <a href="{% url 'scheduler:child_new' %}" class="btn btn-primary">
         <i class="bi bi-plus me-1"></i>New Student
-      </button>
+      </a>
     </div>
   {% endif %}
 
 </div>
-
-
-<!-- ===================== NEW STUDENT MODAL ===================== -->
-<div class="modal fade {% if show_modal %}show{% endif %}" id="newStudentModal" tabindex="-1"
-     aria-labelledby="newStudentModalLabel" aria-modal="true"
-     {% if show_modal %}style="display:block;"{% endif %}>
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content border-0 shadow">
-
-      <div class="modal-header border-bottom-0 pb-0">
-        <h5 class="modal-title fw-bold" id="newStudentModalLabel">New Student</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-
-      <div class="modal-body pt-3 pb-2">
-        <form method="post" enctype="multipart/form-data" novalidate id="newStudentForm">
-          {% csrf_token %}
-          <input type="hidden" name="add_student" value="1">
-
-          <div class="d-flex align-items-start gap-4">
-
-            <!-- Avatar -->
-            <div class="flex-shrink-0">
-              <div class="position-relative">
-                <div id="avatarPreviewWrap">
-                  <i class="bi bi-person-fill text-white" style="font-size: 2.5rem;" id="avatarIcon"></i>
-                  <img id="avatarPreviewImg" src="" alt="" class="d-none"
-                       style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;border-radius:50%;">
-                </div>
-                <label for="id_photo" class="photo-edit-btn position-absolute" style="bottom:2px;right:2px;" title="Upload photo">
-                  <i class="bi bi-pencil-square" style="font-size: .85rem;"></i>
-                </label>
-                <input type="file" name="photo" id="id_photo" accept="image/*" class="d-none">
-              </div>
-            </div>
-
-            <!-- Fields -->
-            <div class="flex-grow-1 row g-3">
-              <div class="col-md-7">
-                <label for="id_first_name" class="form-label fw-semibold">
-                  Student Name <span class="text-muted fw-normal fst-italic">(Required)</span>
-                </label>
-                <input type="text" name="first_name" id="id_first_name"
-                       class="form-control form-control-lg {% if form.first_name.errors %}is-invalid{% endif %}"
-                       placeholder="Enter student name" required
-                       value="{{ form.first_name.value|default:'' }}">
-                {% if form.first_name.errors %}
-                  <div class="invalid-feedback">{{ form.first_name.errors.0 }}</div>
-                {% endif %}
-              </div>
-              <div class="col-md-5">
-                <label for="id_school_year" class="form-label fw-semibold">School Year</label>
-                <select name="school_year" id="id_school_year"
-                        class="form-select form-select-lg">
-                  <option value="">— Select year —</option>
-                  {% for year in school_years %}
-                    <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>
-                      {{ year }}
-                    </option>
-                  {% endfor %}
-                </select>
-              </div>
-            </div>
-
-          </div>
-
-        </form>
-      </div>
-
-      <div class="modal-footer border-top-0">
-        <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
-        <button type="submit" form="newStudentForm" class="btn btn-primary px-4">Add Student</button>
-      </div>
-
-    </div>
-  </div>
-</div>
-{% if show_modal %}<div class="modal-backdrop fade show"></div>{% endif %}
 
 
 <!-- ===================== DELETE STUDENT MODAL ===================== -->
@@ -344,24 +266,8 @@
 
 {% endblock %}
 
-
 {% block extra_js %}
 <script>
-// --- Photo preview ---
-document.getElementById('id_photo').addEventListener('change', function () {
-  const file = this.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function (e) {
-    const img = document.getElementById('avatarPreviewImg');
-    const icon = document.getElementById('avatarIcon');
-    img.src = e.target.result;
-    img.classList.remove('d-none');
-    icon.classList.add('d-none');
-  };
-  reader.readAsDataURL(file);
-});
-
 // --- Delete modal population ---
 const deleteModal = document.getElementById('deleteStudentModal');
 deleteModal.addEventListener('show.bs.modal', function (e) {

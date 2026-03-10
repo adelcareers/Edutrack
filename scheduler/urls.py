@@ -11,6 +11,7 @@ urlpatterns = [
     # /dashboard/ kept as a redirect so any old bookmarks still work
     path('dashboard/', RedirectView.as_view(pattern_name='scheduler:child_list', permanent=True), name='parent_dashboard'),
     path('children/', views.child_list_view, name='child_list'),
+    path('children/new/', views.child_new_view, name='child_new'),
     path(
         'children/<int:child_id>/',
         views.child_detail_view,

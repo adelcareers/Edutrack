@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}New Student — EduTrack{% endblock %}
+{% block nav_students %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  body { background: #f8f9fb; }
+
+  .back-link {
+    color: #6c757d;
+    font-size: 0.9rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 1.25rem;
+  }
+  .back-link:hover { color: #0d6efd; }
+
+  .detail-card {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.05);
+    margin-bottom: 1.25rem;
+  }
+  .detail-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem 0.5rem;
+  }
+  .detail-card-header h5 { font-weight: 700; margin: 0; font-size: 1.05rem; }
+  .detail-card-body { padding: 0.75rem 1.25rem 1.25rem; }
+
+  .avatar-wrap { position: relative; width: 88px; height: 88px; flex-shrink: 0; }
+  .avatar-circle {
+    width: 88px; height: 88px;
+    border-radius: 50%;
+    background: #5b6af8;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    font-size: 2rem; font-weight: 700; color: #fff;
+  }
+  .avatar-circle img { width: 100%; height: 100%; object-fit: cover; }
+  .avatar-edit-label {
+    position: absolute; bottom: 2px; right: 2px;
+    width: 28px; height: 28px;
+    background: #fff;
+    border: 1.5px solid #dee2e6;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,.15);
+    transition: background .15s;
+  }
+  .avatar-edit-label:hover { background: #f0f4ff; }
+</style>
+{% endblock %}
+
+{% block messages_block %}{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 860px;">
+
+  <a href="{% url 'scheduler:child_list' %}" class="back-link">
+    <i class="bi bi-chevron-left"></i> All students
+  </a>
+
+  {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show" role="alert">
+      {{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  {% endfor %}
+
+  <!-- Student Information card -->
+  <div class="detail-card">
+    <div class="detail-card-header">
+      <h5>Student Information</h5>
+    </div>
+    <div class="detail-card-body">
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div class="d-flex gap-4 align-items-start flex-wrap">
+
+          <!-- Avatar -->
+          <div class="avatar-wrap">
+            <div class="avatar-circle" id="avatarCircle">
+              <i class="bi bi-person-fill" id="avatarIcon" style="font-size: 2.2rem;"></i>
+              <img src="" alt="" id="avatarImg" style="display:none;">
+            </div>
+            <label class="avatar-edit-label" for="id_photo_new" title="Upload photo">
+              <i class="bi bi-pencil-fill" style="font-size: 0.7rem; color: #555;"></i>
+            </label>
+            <input type="file" id="id_photo_new" name="photo" accept="image/*" class="d-none">
+          </div>
+
+          <!-- Fields -->
+          <div class="flex-grow-1 row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" style="font-size: 0.9rem;">
+                Student Name <span class="text-muted fw-normal">(Required)</span>
+              </label>
+              <input type="text" name="first_name"
+                     class="form-control{% if errors.first_name %} is-invalid{% endif %}"
+                     value="{{ form_data.first_name|default:'' }}"
+                     placeholder="Enter student name" required autofocus>
+              {% if errors.first_name %}
+                <div class="invalid-feedback">{{ errors.first_name }}</div>
+              {% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" style="font-size: 0.9rem;">School Year</label>
+              <select name="school_year"
+                      class="form-select{% if errors.school_year %} is-invalid{% endif %}">
+                <option value="">— Select year —</option>
+                {% for yr in school_years %}
+                  <option value="{{ yr }}" {% if yr == form_data.school_year %}selected{% endif %}>{{ yr }}</option>
+                {% endfor %}
+              </select>
+              {% if errors.school_year %}
+                <div class="invalid-feedback">{{ errors.school_year }}</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-3">
+          <a href="{% url 'scheduler:child_list' %}" class="btn btn-outline-secondary px-4">Cancel</a>
+          <button type="submit" class="btn btn-primary px-4">Add Student</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.getElementById('id_photo_new').addEventListener('change', function () {
+    const file = this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const img = document.getElementById('avatarImg');
+      const icon = document.getElementById('avatarIcon');
+      img.src = e.target.result;
+      img.style.display = 'block';
+      icon.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  });
+</script>
+{% endblock %}
