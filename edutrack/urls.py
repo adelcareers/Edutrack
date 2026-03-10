@@ -38,7 +38,7 @@ def root_redirect(request):
         except AttributeError:
             role = None
         if role == 'parent':
-            return redirect('scheduler:parent_dashboard')
+            return redirect('scheduler:child_list')
         if role == 'student':
             return redirect('/calendar/')
     return render(request, 'home.html')

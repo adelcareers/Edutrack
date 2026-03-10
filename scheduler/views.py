@@ -13,7 +13,7 @@ from accounts.decorators import role_required
 from accounts.forms import StudentCreationForm
 from accounts.models import UserProfile
 from curriculum.models import Lesson
-from scheduler.forms import ChildForm, NewStudentModalForm
+from scheduler.forms import NewStudentModalForm
 from scheduler.models import Child, EnrolledSubject, ScheduledLesson
 from scheduler.services import generate_schedule
 
@@ -21,31 +21,6 @@ SUBJECT_COLOUR_PALETTE = [
     '#E63946', '#2A9D8F', '#E9C46A', '#F4A261', '#264653',
     '#8338EC', '#3A86FF', '#FB5607', '#FFBE0B', '#06D6A0',
 ]
-
-
-@role_required('parent')
-def add_child_view(request):
-    """Allow a parent to add a child's profile.
-
-    On successful submission the parent is forwarded to the subject selection
-    page for the newly created child so the onboarding flow continues without
-    interruption.
-    """
-    if request.method == 'POST':
-        form = ChildForm(request.POST)
-        if form.is_valid():
-            child = form.save(commit=False)
-            child.parent = request.user
-            child.save()
-            messages.success(
-                request,
-                f"{child.first_name} added! Now select their subjects.",
-            )
-            return redirect(f'/children/{child.pk}/subjects/')
-    else:
-        form = ChildForm()
-
-    return render(request, 'scheduler/add_child.html', {'form': form})
 
 
 @role_required('parent')
@@ -315,50 +290,4 @@ def create_student_login_view(request, child_id):
     })
 
 
-@role_required('parent')
-def parent_dashboard_view(request):
-    """Show a dashboard summarising each child's schedule progress.
 
-    For each active child the view computes:
-    - ``total_scheduled`` — total ScheduledLesson rows for the child.
-    - ``completed_this_week`` — lessons with a LessonLog status of 'complete'
-      whose scheduled_date falls in the current ISO week (Mon–Sun).
-    - ``total_complete`` — all completed lessons ever.
-    - ``pct_complete`` — integer percentage of total lessons completed.
-
-    If the parent has no children an empty-state prompt is shown instead.
-    """
-    today = datetime.date.today()
-    # ISO week: Monday of the current week
-    week_start = today - datetime.timedelta(days=today.weekday())
-    week_end = week_start + datetime.timedelta(days=6)
-
-    children = Child.objects.filter(parent=request.user, is_active=True)
-
-    summaries = []
-    for child in children:
-        total_scheduled = child.scheduled_lessons.count()
-        total_complete = child.scheduled_lessons.filter(log__status='complete').count()
-        completed_this_week = (
-            child.scheduled_lessons
-            .filter(
-                scheduled_date__gte=week_start,
-                scheduled_date__lte=week_end,
-                log__status='complete',
-            )
-            .count()
-        )
-        pct_complete = (
-            round(total_complete / total_scheduled * 100) if total_scheduled else 0
-        )
-        summaries.append({
-            'child': child,
-            'total_scheduled': total_scheduled,
-            'total_complete': total_complete,
-            'completed_this_week': completed_this_week,
-            'pct_complete': pct_complete,
-        })
-
-    return render(request, 'scheduler/parent_dashboard.html', {
-        'summaries': summaries,
-    })

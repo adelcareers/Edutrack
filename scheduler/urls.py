@@ -5,10 +5,12 @@ from . import views
 
 app_name = 'scheduler'
 
+from django.views.generic import RedirectView
+
 urlpatterns = [
-    path('dashboard/', views.parent_dashboard_view, name='parent_dashboard'),
+    # /dashboard/ kept as a redirect so any old bookmarks still work
+    path('dashboard/', RedirectView.as_view(pattern_name='scheduler:child_list', permanent=True), name='parent_dashboard'),
     path('children/', views.child_list_view, name='child_list'),
-    path('children/add/', views.add_child_view, name='add_child'),
     path(
         'children/<int:child_id>/delete/',
         views.delete_child_view,
