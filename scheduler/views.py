@@ -1,7 +1,6 @@
 """Views for the scheduler app."""
 
 import datetime
-import json
 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
@@ -60,22 +59,6 @@ def child_list_view(request):
     form = NewStudentModalForm()
     show_modal = False
 
-    # Pre-load subjects grouped by year for the modal JS filter.
-    # Structure: {"Year 5": [{"subject": "Art", "key_stage": "KS2"}, ...], ...}
-    subjects_qs = (
-        Lesson.objects
-        .values('year', 'key_stage', 'subject_name')
-        .distinct()
-        .order_by('year', 'key_stage', 'subject_name')
-    )
-    subjects_by_year = {}
-    for row in subjects_qs:
-        subjects_by_year.setdefault(row['year'], []).append({
-            'subject': row['subject_name'],
-            'key_stage': row['key_stage'],
-        })
-    subjects_by_year_json = json.dumps(subjects_by_year)
-
     if request.method == 'POST' and 'add_student' in request.POST:
         form = NewStudentModalForm(request.POST, request.FILES)
         if form.is_valid():
@@ -84,7 +67,7 @@ def child_list_view(request):
             else:
                 academic_start = datetime.date(today.year - 1, 9, 1)
 
-            school_year = form.cleaned_data.get('school_year') or 'Year 1'
+            school_year = form.cleaned_data['school_year']
             child = Child(
                 parent=request.user,
                 first_name=form.cleaned_data['first_name'],
@@ -96,38 +79,11 @@ def child_list_view(request):
             if form.cleaned_data.get('photo'):
                 child.photo = form.cleaned_data['photo']
             child.save()
-
-            # Enrol any subjects ticked in the modal
-            selected_subjects = request.POST.getlist('subjects')
-            if selected_subjects:
-                # Build a lookup: subject_name -> key_stage from the pre-loaded data
-                subject_meta = {
-                    row['subject_name']: row['key_stage']
-                    for row in Lesson.objects
-                    .filter(year=school_year)
-                    .values('subject_name', 'key_stage')
-                    .distinct()
-                }
-                for idx, subject_name in enumerate(selected_subjects):
-                    EnrolledSubject.objects.create(
-                        child=child,
-                        subject_name=subject_name,
-                        key_stage=subject_meta.get(subject_name, ''),
-                        lessons_per_week=1,
-                        colour_hex=SUBJECT_COLOUR_PALETTE[idx % len(SUBJECT_COLOUR_PALETTE)],
-                    )
-                messages.success(
-                    request,
-                    f"{child.first_name} added with {len(selected_subjects)} subject(s). "
-                    f"Review and generate their schedule.",
-                )
-                return redirect('scheduler:generate_schedule', child_id=child.pk)
-            else:
-                messages.success(
-                    request,
-                    f"{child.first_name} added! Now select their subjects.",
-                )
-                return redirect('scheduler:subject_selection', child_id=child.pk)
+            messages.success(
+                request,
+                f"{child.first_name} added! Now select their subjects.",
+            )
+            return redirect('scheduler:subject_selection', child_id=child.pk)
         else:
             show_modal = True
 
@@ -160,7 +116,6 @@ def child_list_view(request):
         'summaries': summaries,
         'form': form,
         'show_modal': show_modal,
-        'subjects_by_year_json': subjects_by_year_json,
     })
 
 

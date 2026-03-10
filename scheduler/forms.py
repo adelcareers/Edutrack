@@ -43,13 +43,14 @@ class ChildForm(forms.ModelForm):
         )
 
 
-class NewStudentModalForm(forms.Form):
-    """Simplified form used in the 'New Student' modal on the child list page.
+def _sorted_years():
+    """Return curriculum years in natural order: Year 1 … Year 11."""
+    raw = Lesson.objects.values_list('year', flat=True).distinct()
+    return sorted(raw, key=lambda y: int(y.split()[-1]) if y.split()[-1].isdigit() else 99)
 
-    Only exposes the fields shown in the UI: name, optional school year, and
-    an optional photo.  Other Child fields (birth details, academic year start)
-    are defaulted automatically in the view.
-    """
+
+class NewStudentModalForm(forms.Form):
+    """Form for the 'New Student' modal: name, school year, and optional photo."""
 
     first_name = forms.CharField(
         max_length=100,
@@ -62,7 +63,7 @@ class NewStudentModalForm(forms.Form):
     )
     school_year = forms.ChoiceField(
         label='School Year',
-        required=False,
+        required=True,
         widget=forms.Select(attrs={'class': 'form-select'}),
     )
     photo = forms.ImageField(
@@ -73,7 +74,7 @@ class NewStudentModalForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        years = sorted(Lesson.objects.values_list('year', flat=True).distinct())
+        years = _sorted_years()
         self.fields['school_year'].choices = (
-            [('', '— optional —')] + [(y, y) for y in years]
+            [('', '— Select year —')] + [(y, y) for y in years]
         )
