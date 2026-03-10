@@ -2,6 +2,7 @@
 {% load static %}
 
 {% block title %}Students — EduTrack{% endblock %}
+{% block nav_students %}active{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -75,6 +76,27 @@
 </style>
 {% endblock %}
 
+{% block subnav %}
+<div class="app-subnav">
+  <ul class="nav">
+    <li class="nav-item">
+      <a class="nav-link" href="#"><i class="bi bi-layout-text-sidebar-reverse"></i> Plan</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="#"><i class="bi bi-book"></i> Courses</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link active" href="{% url 'scheduler:child_list' %}"><i class="bi bi-people"></i> Students</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="#"><i class="bi bi-bar-chart-line"></i> Gradebooks</a>
+    </li>
+  </ul>
+</div>
+{% endblock %}
+
+{% block messages_block %}{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
 
@@ -85,30 +107,6 @@
       <i class="bi bi-plus me-1"></i>New Student
     </button>
   </div>
-
-  <!-- Tab navigation -->
-  <ul class="nav students-tab-nav">
-    <li class="nav-item">
-      <a class="nav-link" href="#">
-        <i class="bi bi-layout-text-sidebar-reverse me-1"></i>Plan
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link" href="#">
-        <i class="bi bi-book me-1"></i>Courses
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link active" href="{% url 'scheduler:child_list' %}">
-        <i class="bi bi-people me-1"></i>Students
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link" href="#">
-        <i class="bi bi-bar-chart me-1"></i>Grades
-      </a>
-    </li>
-  </ul>
 
   <!-- Messages -->
   {% for msg in messages %}
