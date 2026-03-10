@@ -290,4 +290,62 @@ def create_student_login_view(request, child_id):
     })
 
 
+@role_required('parent')
+def child_detail_view(request, child_id):
+    """Student detail page: edit info, create login, view enrolled courses."""
+    child = get_object_or_404(Child, pk=child_id, parent=request.user)
+
+    raw_years = Lesson.objects.values_list('year', flat=True).distinct()
+    school_years = sorted(
+        set(raw_years),
+        key=lambda y: int(y.split()[-1]) if y.split()[-1].isdigit() else 99,
+    )
+
+    info_errors = {}
+    login_form = StudentCreationForm()
+
+    if request.method == 'POST':
+        if 'save_student' in request.POST:
+            first_name = request.POST.get('first_name', '').strip()
+            school_year = request.POST.get('school_year', '').strip()
+            if not first_name:
+                info_errors['first_name'] = 'Student name is required.'
+            if not school_year:
+                info_errors['school_year'] = 'School year is required.'
+            if not info_errors:
+                child.first_name = first_name
+                child.school_year = school_year
+                if request.FILES.get('photo'):
+                    child.photo = request.FILES['photo']
+                child.save()
+                messages.success(request, f"{child.first_name} updated successfully.")
+                return redirect('scheduler:child_detail', child_id=child.pk)
+
+        elif 'create_login' in request.POST:
+            if child.student_user is not None:
+                messages.info(request, f"{child.first_name} already has login credentials.")
+                return redirect('scheduler:child_detail', child_id=child.pk)
+            login_form = StudentCreationForm(request.POST)
+            if login_form.is_valid():
+                username = login_form.cleaned_data['username']
+                password = login_form.cleaned_data['password1']
+                student_user = User.objects.create_user(username=username, password=password)
+                UserProfile.objects.create(user=student_user, role='student')
+                child.student_user = student_user
+                child.save()
+                messages.success(request, f"Login created for {child.first_name}.")
+                return redirect('scheduler:child_detail', child_id=child.pk)
+
+    enrolled_subjects = child.enrolled_subjects.filter(is_active=True)
+    total_days_attended = child.scheduled_lessons.filter(log__status='complete').count()
+
+    return render(request, 'scheduler/child_detail.html', {
+        'child': child,
+        'school_years': school_years,
+        'login_form': login_form,
+        'info_errors': info_errors,
+        'enrolled_subjects': enrolled_subjects,
+        'total_days_attended': total_days_attended,
+    })
+
 
