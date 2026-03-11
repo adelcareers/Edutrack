@@ -75,22 +75,40 @@ def generate_schedule(child, enrolled_subjects: List[EnrolledSubject]) -> int:
         days = {int(d) for d in parts if d.isdigit() and 0 <= int(d) <= 4}
         subject_days[subject.id] = days if days else {0, 1, 2, 3, 4}
 
-    # STEP 3: Distribute using per-subject days-of-week rules
+    # STEP 3: Compute slots-per-day per subject.
+    # For subjects with lessons_per_week <= len(days), each selected day gets
+    # at most 1 slot (distributed round-robin: first `extra` days get 1 extra).
+    # For subjects with lessons_per_week > len(days), some days get multiple
+    # slots using integer division + remainder.
+    slots_per_day = {}  # {subject.id: {weekday_int: n_slots}}
+    for subject in enrolled_subjects:
+        days_list = sorted(subject_days[subject.id])
+        if not days_list:
+            days_list = [0, 1, 2, 3, 4]
+        lpw = subject.lessons_per_week
+        base, extra = divmod(lpw, len(days_list))
+        sdict = {}
+        for i, d in enumerate(days_list):
+            sdict[d] = base + (1 if i < extra else 0)
+        slots_per_day[subject.id] = sdict
+
+    # STEP 4: Distribute using slots-per-day rules
     to_create = []
-    week_counts = {s.id: 0 for s in enrolled_subjects}
+    # Track how many slots have been filled for this subject on *this* particular weekday
+    # across the current ISO week.  Reset each new week.
+    week_day_counts = {s.id: {} for s in enrolled_subjects}
     current_week = school_days[0].isocalendar()[1]
 
     for day in school_days:
         if day.isocalendar()[1] != current_week:
-            week_counts = {s.id: 0 for s in enrolled_subjects}
+            week_day_counts = {s.id: {} for s in enrolled_subjects}
             current_week = day.isocalendar()[1]
         order = 0
         for subject in enrolled_subjects:
-            if (
-                day.weekday() in subject_days[subject.id]
-                and week_counts[subject.id] < subject.lessons_per_week
-                and queues[subject.id]
-            ):
+            wd = day.weekday()
+            allowed = slots_per_day[subject.id].get(wd, 0)
+            used = week_day_counts[subject.id].get(wd, 0)
+            while used < allowed and queues[subject.id]:
                 lesson = queues[subject.id].pop(0)
                 to_create.append(ScheduledLesson(
                     child=child,
@@ -99,8 +117,9 @@ def generate_schedule(child, enrolled_subjects: List[EnrolledSubject]) -> int:
                     scheduled_date=day,
                     order_on_day=order,
                 ))
-                week_counts[subject.id] += 1
+                used += 1
                 order += 1
+            week_day_counts[subject.id][wd] = used
 
     # STEP 4: Bulk insert
     ScheduledLesson.objects.bulk_create(to_create, batch_size=500)

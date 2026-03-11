@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Edit Schedule for {{ child.first_name }} — EduTrack{% endblock %}
+
+{% block nav_students %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+.date-group-header {
+  background: #f1f5f9;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #334155;
+  padding: 0.45rem 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+.schedule-table td, .schedule-table th { vertical-align: middle; font-size: 0.88rem; padding: 0.45rem 0.7rem; }
+.swatch-dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
+.action-form { display:inline; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width:960px;">
+
+  <a href="{% url 'scheduler:child_detail' child_id=child.pk %}"
+     class="text-decoration-none text-muted small d-inline-flex align-items-center gap-1 mb-3">
+    <i class="bi bi-arrow-left"></i> Back to {{ child.first_name }}'s profile
+  </a>
+
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+    <div>
+      <h2 class="fw-bold mb-1">Schedule for {{ child.first_name }}</h2>
+      <p class="text-muted mb-0">{{ total }} lesson{{ total|pluralize }} scheduled</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{% url 'scheduler:generate_schedule' child_id=child.pk %}"
+         class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-lightning me-1"></i>Re-generate
+      </a>
+      {% if total %}
+      <form method="post" class="action-form"
+            onsubmit="return confirm('Clear the entire schedule for {{ child.first_name }}?')">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="clear_all">
+        <button type="submit" class="btn btn-outline-danger btn-sm">
+          <i class="bi bi-trash me-1"></i>Clear all
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags }} alert-dismissible fade show" role="alert">
+      {{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  {% if enrolled_subjects %}
+  <!-- Filter / quick remove by subject -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header fw-semibold py-2 px-3" style="background:#f8fafc; font-size:.85rem;">
+      Remove all lessons for a subject
+    </div>
+    <div class="card-body p-3 d-flex flex-wrap gap-2">
+      {% for es in enrolled_subjects %}
+      <form method="post" class="action-form"
+            onsubmit="return confirm('Remove all {{ es.subject_name }} lessons from the schedule?')">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete_subject">
+        <input type="hidden" name="enrolled_subject_id" value="{{ es.pk }}">
+        <button type="submit" class="btn btn-sm" style="background:{{ es.colour_hex }}22; border:1px solid {{ es.colour_hex }}; color:#1e293b;">
+          <span class="swatch-dot me-1" style="background:{{ es.colour_hex }};"></span>
+          {{ es.subject_name }}
+        </button>
+      </form>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if grouped_schedule %}
+  <div class="card shadow-sm">
+    <table class="table schedule-table mb-0">
+      <thead style="background:#1e293b; color:#fff; position:sticky; top:0;">
+        <tr>
+          <th>Date</th>
+          <th>Subject</th>
+          <th>Lesson</th>
+          <th style="width:9rem;">Reschedule</th>
+          <th style="width:4rem;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for group in grouped_schedule %}
+        <tr>
+          <td colspan="5" class="date-group-header">
+            {{ group.date|date:"l, j N Y" }}
+          </td>
+        </tr>
+        {% for sl in group.lessons %}
+        <tr>
+          <td class="text-muted">{{ sl.scheduled_date|date:"d M" }}</td>
+          <td>
+            <span class="swatch-dot me-1" style="background:{{ sl.enrolled_subject.colour_hex }};"></span>
+            {{ sl.enrolled_subject.subject_name }}
+          </td>
+          <td>
+            {% if sl.lesson.lesson_url and not sl.lesson.lesson_url|slice:":7" == "custom:" %}
+              <a href="{{ sl.lesson.lesson_url }}" target="_blank" rel="noopener noreferrer"
+                 class="text-decoration-none">
+                {{ sl.lesson.lesson_title }}
+                <i class="bi bi-box-arrow-up-right ms-1 text-muted" style="font-size:.75rem;"></i>
+              </a>
+            {% else %}
+              {{ sl.lesson.lesson_title }}
+            {% endif %}
+          </td>
+          <td>
+            <form method="post" class="action-form d-flex gap-1 align-items-center">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="move_lesson">
+              <input type="hidden" name="lesson_id" value="{{ sl.pk }}">
+              <input type="date" name="new_date" class="form-control form-control-sm"
+                     style="width:8.5rem;"
+                     value="{{ sl.scheduled_date|date:'Y-m-d' }}"
+                     aria-label="New date">
+              <button type="submit" class="btn btn-sm btn-outline-secondary" title="Move to this date">
+                <i class="bi bi-check2"></i>
+              </button>
+            </form>
+          </td>
+          <td class="text-end">
+            <form method="post" class="action-form"
+                  onsubmit="return confirm('Remove this lesson from the schedule?')">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="delete_lesson">
+              <input type="hidden" name="lesson_id" value="{{ sl.pk }}">
+              <button type="submit" class="btn btn-sm btn-link text-danger p-0" title="Remove lesson">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% else %}
+  <div class="alert alert-info">
+    No lessons scheduled yet.
+    <a href="{% url 'scheduler:generate_schedule' child_id=child.pk %}">Generate a schedule</a>
+    to get started.
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

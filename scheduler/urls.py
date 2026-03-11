@@ -38,8 +38,18 @@ urlpatterns = [
         name='custom_subject',
     ),
     path(
+        'children/<int:child_id>/subjects/days/',
+        views.schedule_days_view,
+        name='schedule_days',
+    ),
+    path(
         'children/<int:child_id>/generate/',
         views.generate_schedule_view,
         name='generate_schedule',
+    ),
+    path(
+        'children/<int:child_id>/schedule/',
+        views.schedule_edit_view,
+        name='schedule_edit',
     ),
 ]

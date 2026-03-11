@@ -11,15 +11,17 @@
 .scheduling-grid td:first-child { padding-left: 1rem; }
 .scheduling-grid td:last-child  { padding-right: 1rem; }
 .scheduling-grid .swatch-cell   { width: 2.2rem; text-align: center; }
-.scheduling-grid .day-cell      { text-align: center; }
 .lesson-badge { font-size: 0.72rem; padding: 0.2rem 0.5rem; border-radius: 999px; white-space: nowrap; }
 .ks-header { background: #EEF2FF; color: #3730A3; font-size: 0.72rem; font-weight: 700;
              text-transform: uppercase; letter-spacing: 0.06em; padding: 0.35rem 1rem; }
+.lpw-input { width: 4.5rem; text-align: center; }
+.lpw-warn  { font-size: 0.72rem; color: #d97706; display: none; }
+.subject-row.subject-selected td { background: #F0FDF4; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container py-4" style="max-width:900px;">
+<div class="container py-4" style="max-width:860px;">
 
   <!-- Back link -->
   <a href="{% url 'scheduler:child_list' %}" class="text-decoration-none text-muted small d-inline-flex align-items-center gap-1 mb-3">
@@ -29,8 +31,8 @@
   <div class="mb-4">
     <h2 class="fw-bold mb-1">Select subjects for {{ child.first_name }}</h2>
     <p class="text-muted mb-0">
-      Tick a subject to include it, then choose which days of the week to teach it.
-      You need to select at least one subject.
+      Tick each subject you want to include and set how many lessons per week.
+      You'll choose which days on the next step.
     </p>
   </div>
 
@@ -48,24 +50,20 @@
 
     {% if grouped %}
       <div class="card shadow-sm mb-4">
-        <table class="table scheduling-grid mb-0" aria-label="Subject scheduling grid">
+        <table class="table scheduling-grid mb-0" aria-label="Subject selection grid">
           <thead>
-            <tr>
-              <th style="width:2.5rem;"></th>   {# Select checkbox #}
-              <th style="width:2.2rem;"></th>   {# Colour swatch #}
+            <tr style="background:#1e293b; color:#fff;">
+              <th style="width:2.5rem;"></th>
+              <th style="width:2.2rem;"></th>
               <th>Subject</th>
-              <th style="width:6.5rem;">Lessons</th>
-              <th class="day-col">Mon</th>
-              <th class="day-col">Tue</th>
-              <th class="day-col">Wed</th>
-              <th class="day-col">Thu</th>
-              <th class="day-col">Fri</th>
+              <th style="width:7rem;">Lessons in curriculum</th>
+              <th style="width:8rem; text-align:center;">Lessons / week</th>
             </tr>
           </thead>
           <tbody>
             {% for ks, subjects in grouped.items %}
               <tr>
-                <td colspan="9" class="ks-header">{{ ks }}</td>
+                <td colspan="5" class="ks-header">{{ ks }}</td>
               </tr>
               {% for subject in subjects %}
               <tr class="subject-row" data-subject="{{ subject.subject_name|slugify }}">
@@ -91,7 +89,7 @@
 
                 {# Subject name #}
                 <td>
-                  <label class="fw-semibold mb-0 stretched-link-label"
+                  <label class="fw-semibold mb-0"
                          for="subj-{{ subject.subject_name|slugify }}">
                     {{ subject.subject_name }}
                     {% if subject.is_custom %}
@@ -103,24 +101,24 @@
                 {# Lesson count badge #}
                 <td>
                   <span class="badge bg-dark bg-opacity-75 lesson-badge">
-                    {{ subject.total_lessons }} lessons
+                    {{ subject.total_lessons }}
                   </span>
                 </td>
 
-                {# Mon–Fri checkboxes #}
-                {% for day_val, day_name in day_choices %}
-                <td class="day-cell">
+                {# Lessons per week input #}
+                <td class="text-center">
                   <input
-                    class="form-check-input day-cb"
-                    type="checkbox"
-                    name="days_{{ subject.subject_name }}"
-                    value="{{ day_val }}"
-                    id="day-{{ subject.subject_name|slugify }}-{{ day_val }}"
-                    aria-label="{{ day_name }} for {{ subject.subject_name }}"
+                    type="number"
+                    class="form-control form-control-sm lpw-input mx-auto lpw-field"
+                    name="lpw_{{ subject.subject_name }}"
+                    value="3"
+                    min="1"
+                    max="10"
                     disabled
+                    aria-label="Lessons per week for {{ subject.subject_name }}"
                   >
+                  <div class="lpw-warn mt-1">That's a lot — check this is right!</div>
                 </td>
-                {% endfor %}
 
               </tr>
               {% endfor %}
@@ -143,7 +141,7 @@
       <div class="d-flex gap-2">
         <a href="{% url 'scheduler:child_list' %}" class="btn btn-outline-secondary">Cancel</a>
         <button type="submit" class="btn btn-primary px-4">
-          <i class="bi bi-check2-circle me-1"></i>Confirm subjects
+          Next: choose days <i class="bi bi-arrow-right ms-1"></i>
         </button>
       </div>
     </div>
@@ -156,30 +154,23 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   document.querySelectorAll('.subject-checkbox').forEach(function (checkbox) {
-    var slug   = checkbox.closest('tr').dataset.subject;
-    var dayCbs = document.querySelectorAll(`input.day-cb[name^="days_"][id*="${slug}-"]`);
+    var row    = checkbox.closest('tr');
+    var lpwIn  = row.querySelector('.lpw-field');
+    var lpwWarn = row.querySelector('.lpw-warn');
 
-    function sync() {
-      dayCbs.forEach(function (cb) {
-        cb.disabled = !checkbox.checked;
-        // Pre-check all days whenever the subject is first selected
-        if (checkbox.checked && !cb.dataset.userTouched) {
-          cb.checked = true;
-        }
-        if (!checkbox.checked) {
-          cb.checked = false;
-          delete cb.dataset.userTouched;
-        }
-      });
-      checkbox.closest('tr').classList.toggle('subject-selected', checkbox.checked);
+    function syncRow() {
+      lpwIn.disabled = !checkbox.checked;
+      row.classList.toggle('subject-selected', checkbox.checked);
+      if (!checkbox.checked) lpwWarn.style.display = 'none';
     }
 
-    dayCbs.forEach(function (cb) {
-      cb.addEventListener('change', function () { cb.dataset.userTouched = '1'; });
+    lpwIn.addEventListener('input', function () {
+      var v = parseInt(this.value, 10);
+      lpwWarn.style.display = (checkbox.checked && !isNaN(v) && v > 7) ? 'block' : 'none';
     });
 
-    checkbox.addEventListener('change', sync);
-    sync();
+    checkbox.addEventListener('change', syncRow);
+    syncRow();
   });
 });
 </script>

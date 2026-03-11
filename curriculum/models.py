@@ -23,6 +23,10 @@ class Lesson(models.Model):
         User, null=True, blank=True, on_delete=models.SET_NULL,
         related_name='custom_lessons'
     )
+    custom_group = models.ForeignKey(
+        'scheduler.CustomSubjectGroup', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='lessons'
+    )
 
     class Meta:
         ordering = ['key_stage', 'subject_name', 'unit_slug', 'lesson_number']

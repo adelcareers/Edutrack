@@ -5,6 +5,30 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 DAYS_DEFAULT = '0,1,2,3,4'
 
 
+class CustomSubjectGroup(models.Model):
+    """Groups custom lessons created by a parent under a named subject.
+
+    When a parent adds lessons manually or via CSV, all lessons in that
+    batch are linked back to one of these groups for easy management
+    (bulk delete, rename, etc.).
+    """
+
+    parent = models.ForeignKey(
+        'auth.User', on_delete=models.CASCADE, related_name='custom_subject_groups'
+    )
+    subject_name = models.CharField(max_length=100)
+    year = models.CharField(max_length=20)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['subject_name']
+        verbose_name = 'Custom Subject Group'
+        verbose_name_plural = 'Custom Subject Groups'
+
+    def __str__(self):
+        return f'{self.subject_name} ({self.year}) — {self.parent.username}'
+
+
 class Child(models.Model):
     """A home-educated child registered by a parent user.
 
@@ -44,7 +68,7 @@ class EnrolledSubject(models.Model):
     subject_name = models.CharField(max_length=100)
     key_stage = models.CharField(max_length=10)
     lessons_per_week = models.IntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)]
+        validators=[MinValueValidator(1), MaxValueValidator(10)]
     )
     colour_hex = models.CharField(max_length=7)
     # Comma-separated weekday ints (0=Mon … 4=Fri) that this subject is taught on.
