@@ -313,11 +313,7 @@
                   <div class="invalid-feedback">{{ login_form.errors.password1|join:", " }}</div>
                 {% endif %}
               </div>
-              {% if login_form.errors.password2 %}
-                <div class="col-12">
-                  <div class="text-danger small">{{ login_form.errors.password2|join:", " }}</div>
-                </div>
-              {% endif %}
+
             </div>
             <div class="text-end mt-3">
               <button type="submit" class="btn btn-primary px-4">Create Student Login</button>

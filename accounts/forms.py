@@ -59,10 +59,6 @@ class StudentCreationForm(forms.Form):
         label="Password",
         widget=forms.PasswordInput,
     )
-    password2 = forms.CharField(
-        label="Confirm password",
-        widget=forms.PasswordInput,
-    )
 
     def clean_username(self):
         """Ensure the username is not already taken."""
@@ -70,12 +66,4 @@ class StudentCreationForm(forms.Form):
         if User.objects.filter(username=username).exists():
             raise forms.ValidationError("This username is already taken.")
         return username
-
-    def clean(self):
-        """Validate that both password fields match."""
-        cleaned_data = super().clean()
-        p1 = cleaned_data.get("password1")
-        p2 = cleaned_data.get("password2")
-        if p1 and p2 and p1 != p2:
-            self.add_error("password2", "Passwords do not match.")
         return cleaned_data

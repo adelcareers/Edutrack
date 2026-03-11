@@ -105,16 +105,6 @@ class CreateStudentLoginPostTests(TestCase):
         self.assertTrue(form.errors)
         self.assertIn('username', form.errors)
 
-    def test_mismatched_passwords_shows_error(self):
-        response = self.client.post(self.url, {
-            'username': 'alice_student',
-            'password1': 'SecurePass99!',
-            'password2': 'DifferentPass!',
-        })
-        self.assertEqual(response.status_code, 200)
-        form = response.context['form']
-        self.assertIn('password2', form.errors)
-
     def test_child_with_existing_student_user_redirects(self):
         existing = User.objects.create_user(username='existing_stu', password='Pass123!')
         UserProfile.objects.create(user=existing, role='student')
