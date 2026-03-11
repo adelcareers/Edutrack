@@ -33,6 +33,11 @@ urlpatterns = [
         name='subject_selection',
     ),
     path(
+        'children/<int:child_id>/subjects/custom/',
+        views.custom_subject_view,
+        name='custom_subject',
+    ),
+    path(
         'children/<int:child_id>/generate/',
         views.generate_schedule_view,
         name='generate_schedule',

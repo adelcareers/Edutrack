@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 
 
 class Lesson(models.Model):
@@ -17,6 +18,11 @@ class Lesson(models.Model):
     lesson_number = models.IntegerField()
     lesson_title = models.CharField(max_length=300)
     lesson_url = models.URLField(max_length=500, unique=True)
+    is_custom = models.BooleanField(default=False, db_index=True)
+    created_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='custom_lessons'
+    )
 
     class Meta:
         ordering = ['key_stage', 'subject_name', 'unit_slug', 'lesson_number']

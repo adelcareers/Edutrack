@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 
+DAYS_DEFAULT = '0,1,2,3,4'
+
 
 class Child(models.Model):
     """A home-educated child registered by a parent user.
@@ -45,6 +47,10 @@ class EnrolledSubject(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(5)]
     )
     colour_hex = models.CharField(max_length=7)
+    # Comma-separated weekday ints (0=Mon … 4=Fri) that this subject is taught on.
+    days_of_week = models.CharField(max_length=20, default='0,1,2,3,4')
+    # When set, lessons are pulled from this year rather than child.school_year.
+    source_year = models.CharField(max_length=20, blank=True, default='')
     is_active = models.BooleanField(default=True)
 
     class Meta:

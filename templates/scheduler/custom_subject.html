@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}Add Custom Subject for {{ child.first_name }} — EduTrack{% endblock %}
+
+{% block nav_students %}active{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 720px;">
+
+  <!-- Back link -->
+  <a href="{% url 'scheduler:subject_selection' child_id=child.pk %}"
+     class="text-decoration-none text-muted small d-inline-flex align-items-center gap-1 mb-3">
+    <i class="bi bi-arrow-left"></i> Back to subject selection
+  </a>
+
+  <h2 class="fw-bold mb-1">Add custom subject for {{ child.first_name }}</h2>
+  <p class="text-muted mb-4">
+    Choose how you'd like to create your custom subject and its lessons.
+  </p>
+
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags }} alert-dismissible fade show" role="alert">
+      {{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <!-- Tab navigation -->
+  <ul class="nav nav-tabs mb-0" id="customSubjectTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="import-tab" data-bs-toggle="tab"
+              data-bs-target="#import-pane" type="button" role="tab"
+              aria-controls="import-pane" aria-selected="true">
+        <i class="bi bi-arrow-repeat me-1"></i>Import from year
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="manual-tab" data-bs-toggle="tab"
+              data-bs-target="#manual-pane" type="button" role="tab"
+              aria-controls="manual-pane" aria-selected="false">
+        <i class="bi bi-pencil me-1"></i>Enter manually
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="csv-tab" data-bs-toggle="tab"
+              data-bs-target="#csv-pane" type="button" role="tab"
+              aria-controls="csv-pane" aria-selected="false">
+        <i class="bi bi-filetype-csv me-1"></i>Upload CSV
+      </button>
+    </li>
+  </ul>
+
+  <div class="card border-top-0 rounded-top-0 shadow-sm">
+    <div class="card-body p-4">
+      <div class="tab-content" id="customSubjectTabsContent">
+
+        <!-- ── TAB 1: Import from another year ─────────────────────────── -->
+        <div class="tab-pane fade show active" id="import-pane" role="tabpanel" aria-labelledby="import-tab">
+          <p class="text-muted small mb-3">
+            Copy an existing curriculum subject from a different year group into
+            <strong>{{ child.first_name }}</strong>'s schedule. The original lessons
+            stay in that year's curriculum — a cross-year link is created for scheduling.
+          </p>
+          <form method="post" novalidate>
+            {% csrf_token %}
+            <input type="hidden" name="tab" value="import_year">
+            <div class="row g-3">
+              <div class="col-md-5">
+                <label for="source_year" class="form-label fw-semibold">Year group</label>
+                <select name="source_year" id="source_year" class="form-select" required>
+                  <option value="">— Select year —</option>
+                  {% for yr in all_years %}
+                    <option value="{{ yr }}">{{ yr }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-7">
+                <label for="import_subject_name" class="form-label fw-semibold">Subject</label>
+                <select name="import_subject_name" id="import_subject_name" class="form-select" required disabled>
+                  <option value="">— Select year first —</option>
+                </select>
+              </div>
+            </div>
+            <div class="mt-4 d-flex gap-2">
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-arrow-repeat me-1"></i>Import subject
+              </button>
+              <a href="{% url 'scheduler:subject_selection' child_id=child.pk %}"
+                 class="btn btn-outline-secondary">Cancel</a>
+            </div>
+          </form>
+        </div>
+
+        <!-- ── TAB 2: Manual entry ─────────────────────────────────────── -->
+        <div class="tab-pane fade" id="manual-pane" role="tabpanel" aria-labelledby="manual-tab">
+          <p class="text-muted small mb-3">
+            Type a subject name and list each lesson title — one per line.
+            These lessons will be added to {{ child.first_name }}'s
+            <strong>{{ child_year }}</strong> curriculum.
+          </p>
+          <form method="post" novalidate>
+            {% csrf_token %}
+            <input type="hidden" name="tab" value="manual">
+            <div class="mb-3">
+              <label for="manual_subject_name" class="form-label fw-semibold">Subject name</label>
+              <input type="text" name="manual_subject_name" id="manual_subject_name"
+                     class="form-control" placeholder="e.g. Latin, Philosophy, Coding" required>
+            </div>
+            <div class="mb-3">
+              <label for="lesson_titles" class="form-label fw-semibold">
+                Lesson titles
+                <span class="text-muted fw-normal">— one per line</span>
+              </label>
+              <textarea name="lesson_titles" id="lesson_titles" class="form-control"
+                        rows="8" placeholder="Introduction to the topic&#10;Key vocabulary&#10;Deep dive 1&#10;…" required></textarea>
+              <div class="form-text" id="line-count">0 lessons</div>
+            </div>
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>Create subject
+              </button>
+              <a href="{% url 'scheduler:subject_selection' child_id=child.pk %}"
+                 class="btn btn-outline-secondary">Cancel</a>
+            </div>
+          </form>
+        </div>
+
+        <!-- ── TAB 3: CSV upload ───────────────────────────────────────── -->
+        <div class="tab-pane fade" id="csv-pane" role="tabpanel" aria-labelledby="csv-tab">
+          <p class="text-muted small mb-3">
+            Upload a CSV file with your lesson list. Required column:
+            <code>lesson_title</code>. Optional: <code>unit_title</code>, <code>lesson_url</code>.
+            Blank rows are skipped automatically.
+          </p>
+          <!-- CSV template download (static inline) -->
+          <div class="alert alert-light border d-flex align-items-center gap-2 py-2 mb-3">
+            <i class="bi bi-download text-primary"></i>
+            <a href="#" id="csv-template-download" class="small">
+              Download CSV template
+            </a>
+          </div>
+          <form method="post" enctype="multipart/form-data" novalidate>
+            {% csrf_token %}
+            <input type="hidden" name="tab" value="csv">
+            <div class="mb-3">
+              <label for="csv_subject_name" class="form-label fw-semibold">Subject name</label>
+              <input type="text" name="csv_subject_name" id="csv_subject_name"
+                     class="form-control" placeholder="e.g. Art History, Music Theory" required>
+            </div>
+            <div class="mb-3">
+              <label for="csv_file" class="form-label fw-semibold">CSV file</label>
+              <input type="file" name="csv_file" id="csv_file"
+                     class="form-control" accept=".csv,text/csv" required>
+            </div>
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-cloud-upload me-1"></i>Upload & create
+              </button>
+              <a href="{% url 'scheduler:subject_selection' child_id=child.pk %}"
+                 class="btn btn-outline-secondary">Cancel</a>
+            </div>
+          </form>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── Import tab: populate subject select when year changes ──────────────────
+const yearSubjects = {{ year_subjects_json }};
+
+document.getElementById('source_year').addEventListener('change', function () {
+  const subjects = yearSubjects[this.value] || [];
+  const sel = document.getElementById('import_subject_name');
+  sel.innerHTML = '<option value="">— Select subject —</option>';
+  subjects.forEach(function (s) {
+    const opt = document.createElement('option');
+    opt.value = s;
+    opt.textContent = s;
+    sel.appendChild(opt);
+  });
+  sel.disabled = subjects.length === 0;
+});
+
+// ── Manual tab: live line counter ──────────────────────────────────────────
+document.getElementById('lesson_titles').addEventListener('input', function () {
+  const count = this.value.split('\n').filter(l => l.trim()).length;
+  document.getElementById('line-count').textContent =
+    count === 1 ? '1 lesson' : count + ' lessons';
+});
+
+// ── CSV template download (generates inline) ──────────────────────────────
+document.getElementById('csv-template-download').addEventListener('click', function (e) {
+  e.preventDefault();
+  const csv = 'lesson_title,unit_title,lesson_url\n' +
+              'Introduction to the topic,Unit 1,\n' +
+              'Key vocabulary,Unit 1,\n' +
+              'Deep dive 1,Unit 2,\n';
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), { href: url, download: 'lessons_template.csv' });
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+</script>
+{% endblock %}

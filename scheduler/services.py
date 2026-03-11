@@ -61,13 +61,21 @@ def generate_schedule(child, enrolled_subjects: List[EnrolledSubject]) -> int:
     # STEP 2: Build lesson queues per subject
     queues = {}
     for subject in enrolled_subjects:
+        lesson_year = subject.source_year if subject.source_year else child.school_year
         queues[subject.id] = list(
             Lesson.objects
-            .filter(subject_name=subject.subject_name, year=child.school_year)
+            .filter(subject_name=subject.subject_name, year=lesson_year)
             .order_by('unit_slug', 'lesson_number')
         )
 
-    # STEP 3: Distribute round-robin with weekly pace limits
+    # Parse days-of-week sets per subject (0=Mon … 4=Fri)
+    subject_days = {}
+    for subject in enrolled_subjects:
+        parts = subject.days_of_week.split(',') if subject.days_of_week else []
+        days = {int(d) for d in parts if d.isdigit() and 0 <= int(d) <= 4}
+        subject_days[subject.id] = days if days else {0, 1, 2, 3, 4}
+
+    # STEP 3: Distribute using per-subject days-of-week rules
     to_create = []
     week_counts = {s.id: 0 for s in enrolled_subjects}
     current_week = school_days[0].isocalendar()[1]
@@ -78,8 +86,11 @@ def generate_schedule(child, enrolled_subjects: List[EnrolledSubject]) -> int:
             current_week = day.isocalendar()[1]
         order = 0
         for subject in enrolled_subjects:
-            if (week_counts[subject.id] < subject.lessons_per_week
-                    and queues[subject.id]):
+            if (
+                day.weekday() in subject_days[subject.id]
+                and week_counts[subject.id] < subject.lessons_per_week
+                and queues[subject.id]
+            ):
                 lesson = queues[subject.id].pop(0)
                 to_create.append(ScheduledLesson(
                     child=child,

@@ -1,6 +1,10 @@
 """Views for the scheduler app."""
 
+import csv
 import datetime
+import io
+import json
+import uuid
 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
@@ -79,37 +83,77 @@ def delete_child_view(request, child_id):
     return redirect('scheduler:child_list')
 
 
+def _build_subject_groups(child, user):
+    """Return grouped subject data with preview colours for ``subject_selection_view``.
+
+    Includes curriculum subjects for the child's school year plus any custom
+    subjects created by the parent.  A palette colour is pre-assigned to every
+    subject so the grid can show swatches before the form is submitted.
+
+    Returns a dict:  {key_stage: [{subject_name, total_lessons, preview_colour, is_custom, source_year}]}
+    """
+    # Standard curriculum subjects for this year
+    lessons_qs = (
+        Lesson.objects
+        .filter(year=child.school_year, is_custom=False)
+        .values('key_stage', 'subject_name')
+        .annotate(total_lessons=Count('id'))
+        .order_by('key_stage', 'subject_name')
+    )
+
+    # Custom subjects created by this parent for this year
+    custom_qs = (
+        Lesson.objects
+        .filter(is_custom=True, created_by=user, year=child.school_year)
+        .values('subject_name')
+        .annotate(total_lessons=Count('id'))
+        .order_by('subject_name')
+    )
+
+    grouped = {}
+    colour_index = 0
+
+    for row in lessons_qs:
+        grouped.setdefault(row['key_stage'], []).append({
+            'subject_name': row['subject_name'],
+            'total_lessons': row['total_lessons'],
+            'preview_colour': SUBJECT_COLOUR_PALETTE[colour_index % len(SUBJECT_COLOUR_PALETTE)],
+            'is_custom': False,
+            'source_year': '',
+        })
+        colour_index += 1
+
+    for row in custom_qs:
+        grouped.setdefault('Custom', []).append({
+            'subject_name': row['subject_name'],
+            'total_lessons': row['total_lessons'],
+            'preview_colour': SUBJECT_COLOUR_PALETTE[colour_index % len(SUBJECT_COLOUR_PALETTE)],
+            'is_custom': True,
+            'source_year': '',
+        })
+        colour_index += 1
+
+    return grouped
+
+
 @role_required('parent')
 def subject_selection_view(request, child_id):
-    """Let a parent choose which subjects their child will study and set weekly pace.
+    """Let a parent choose subjects and assign days of the week for each.
 
-    GET: builds a grouped context of all subjects available for the child's school
-    year, ordered by key_stage then subject_name, with a total lesson count badge.
+    GET: renders the scheduling grid — a table of all available subjects
+    (curriculum + custom) with Mon–Fri day-checkboxes per row and a
+    pre-assigned colour swatch.
 
-    POST: for every selected subject creates an ``EnrolledSubject`` record with a
-    colour from the palette cycling by insertion index.  Enforces that at least
-    one subject is ticked, then redirects to the schedule generation page.
+    POST: for each selected subject reads the ``days_<name>`` checkbox list,
+    derives ``lessons_per_week`` from the number of chosen days, creates an
+    ``EnrolledSubject`` and redirects to the schedule generation page.
     """
     child = get_object_or_404(Child, pk=child_id)
 
     if child.parent != request.user:
         return HttpResponseForbidden("You do not have permission to manage this child.")
 
-    # Build grouped subject data: {key_stage: [{subject_name, total_lessons}, ...]}
-    lessons_qs = (
-        Lesson.objects
-        .filter(year=child.school_year)
-        .values('key_stage', 'subject_name')
-        .annotate(total_lessons=Count('id'))
-        .order_by('key_stage', 'subject_name')
-    )
-
-    grouped = {}
-    for row in lessons_qs:
-        grouped.setdefault(row['key_stage'], []).append({
-            'subject_name': row['subject_name'],
-            'total_lessons': row['total_lessons'],
-        })
+    grouped = _build_subject_groups(child, request.user)
 
     if request.method == 'POST':
         selected_subjects = request.POST.getlist('subjects')
@@ -118,31 +162,47 @@ def subject_selection_view(request, child_id):
             return render(request, 'scheduler/subject_selection.html', {
                 'child': child,
                 'grouped': grouped,
+                'day_choices': [(0, 'Mon'), (1, 'Tue'), (2, 'Wed'), (3, 'Thu'), (4, 'Fri')],
             })
 
         # Delete any existing enrolments before recreating (idempotent re-submission)
         child.enrolled_subjects.all().delete()
 
+        # Flatten all subjects in order to replicate the colour index
+        all_subjects_ordered = [
+            s['subject_name']
+            for subjects in grouped.values()
+            for s in subjects
+        ]
+
         to_create = []
-        for index, subject_name in enumerate(selected_subjects):
-            pace_key = f'pace_{subject_name}'
-            try:
-                pace = max(1, min(5, int(request.POST.get(pace_key, 1))))
-            except (ValueError, TypeError):
-                pace = 1
+        for subject_name in selected_subjects:
+            raw_days = request.POST.getlist(f'days_{subject_name}')
+            # Keep only valid weekday ints 0-4
+            days = sorted({int(d) for d in raw_days if d.isdigit() and 0 <= int(d) <= 4})
+            if not days:
+                days = [0, 1, 2, 3, 4]  # default to all weekdays if none ticked
+            days_str = ','.join(str(d) for d in days)
+            pace = len(days)
 
             key_stage = (
                 Lesson.objects
                 .filter(year=child.school_year, subject_name=subject_name)
                 .values_list('key_stage', flat=True)
-                .first() or ''
+                .first() or 'Custom'
+            )
+            palette_index = (
+                all_subjects_ordered.index(subject_name)
+                if subject_name in all_subjects_ordered
+                else len(to_create)
             )
             to_create.append(EnrolledSubject(
                 child=child,
                 subject_name=subject_name,
                 key_stage=key_stage,
                 lessons_per_week=pace,
-                colour_hex=SUBJECT_COLOUR_PALETTE[index % len(SUBJECT_COLOUR_PALETTE)],
+                days_of_week=days_str,
+                colour_hex=SUBJECT_COLOUR_PALETTE[palette_index % len(SUBJECT_COLOUR_PALETTE)],
             ))
 
         EnrolledSubject.objects.bulk_create(to_create)
@@ -156,6 +216,7 @@ def subject_selection_view(request, child_id):
     return render(request, 'scheduler/subject_selection.html', {
         'child': child,
         'grouped': grouped,
+        'day_choices': [(0, 'Mon'), (1, 'Tue'), (2, 'Wed'), (3, 'Thu'), (4, 'Fri')],
     })
 
 
@@ -358,3 +419,170 @@ def child_detail_view(request, child_id):
     })
 
 
+@role_required('parent')
+def custom_subject_view(request, child_id):
+    """Three-path custom subject creator: import from another year, manual entry, or CSV.
+
+    All three POST paths bulk-create ``Lesson`` rows with ``is_custom=True`` and
+    ``created_by=request.user``, then redirect to the subject selection page so the
+    parent can enrol the newly created subject immediately.
+    """
+    child = get_object_or_404(Child, pk=child_id, parent=request.user)
+
+    # Distinct year groups from the curriculum (for the import-from-year tab)
+    raw_years = Lesson.objects.filter(is_custom=False).values_list('year', flat=True).distinct()
+    all_years = sorted(
+        set(raw_years),
+        key=lambda y: int(y.split()[-1]) if y.split()[-1].isdigit() else 99,
+    )
+
+    # Subjects available per year (for JS to populate the subject select in the import tab)
+    year_subjects = {}
+    for yr in all_years:
+        year_subjects[yr] = sorted(
+            Lesson.objects
+            .filter(year=yr, is_custom=False)
+            .values_list('subject_name', flat=True)
+            .distinct()
+        )
+
+    if request.method == 'POST':
+        tab = request.POST.get('tab', '')
+
+        # ── TAB 1: Import from another year ───────────────────────────────────
+        if tab == 'import_year':
+            source_year = request.POST.get('source_year', '').strip()
+            subject_name = request.POST.get('import_subject_name', '').strip()
+            if not source_year or not subject_name:
+                messages.error(request, 'Please select a year group and subject to import.')
+            else:
+                lesson_count = Lesson.objects.filter(
+                    year=source_year, subject_name=subject_name, is_custom=False
+                ).count()
+                if lesson_count == 0:
+                    messages.error(request, f'No lessons found for "{subject_name}" in {source_year}.')
+                else:
+                    # Ensure there isn't already a custom record; create a
+                    # single placeholder lesson that points to this source year.
+                    display_name = f'{subject_name} (from {source_year})'
+                    placeholder_url = f'custom://import/{uuid.uuid4()}'
+                    Lesson.objects.get_or_create(
+                        lesson_url=placeholder_url,
+                        defaults=dict(
+                            key_stage='Custom',
+                            subject_name=display_name,
+                            programme_slug='custom',
+                            year=child.school_year,
+                            unit_slug='import',
+                            unit_title='Imported',
+                            lesson_number=1,
+                            lesson_title=f'Import placeholder for {display_name}',
+                            is_custom=True,
+                            created_by=request.user,
+                        ),
+                    )
+                    # Tag the enrolled subject with source_year so the
+                    # scheduler pulls lessons from the right year.
+                    EnrolledSubject.objects.update_or_create(
+                        child=child, subject_name=display_name,
+                        defaults=dict(
+                            key_stage='Custom',
+                            lessons_per_week=1,
+                            days_of_week='0,1,2,3,4',
+                            source_year=source_year,
+                            colour_hex=SUBJECT_COLOUR_PALETTE[
+                                child.enrolled_subjects.count() % len(SUBJECT_COLOUR_PALETTE)
+                            ],
+                            is_active=True,
+                        ),
+                    )
+                    messages.success(
+                        request,
+                        f'"{display_name}" imported — now choose its days and confirm.'
+                    )
+                    return redirect('scheduler:subject_selection', child_id=child.pk)
+
+        # ── TAB 2: Manual entry ───────────────────────────────────────────────
+        elif tab == 'manual':
+            subject_name = request.POST.get('manual_subject_name', '').strip()
+            raw_titles = request.POST.get('lesson_titles', '').strip()
+            titles = [t.strip() for t in raw_titles.splitlines() if t.strip()]
+            if not subject_name:
+                messages.error(request, 'Please enter a subject name.')
+            elif not titles:
+                messages.error(request, 'Please enter at least one lesson title.')
+            else:
+                to_create = []
+                for i, title in enumerate(titles, start=1):
+                    to_create.append(Lesson(
+                        key_stage='Custom',
+                        subject_name=subject_name,
+                        programme_slug='custom',
+                        year=child.school_year,
+                        unit_slug='manual',
+                        unit_title=subject_name,
+                        lesson_number=i,
+                        lesson_title=title,
+                        lesson_url=f'custom://manual/{uuid.uuid4()}',
+                        is_custom=True,
+                        created_by=request.user,
+                    ))
+                Lesson.objects.bulk_create(to_create)
+                messages.success(
+                    request,
+                    f'{len(to_create)} lessons created for "{subject_name}". '
+                    'Now choose its days and confirm.'
+                )
+                return redirect('scheduler:subject_selection', child_id=child.pk)
+
+        # ── TAB 3: CSV upload ─────────────────────────────────────────────────
+        elif tab == 'csv':
+            subject_name = request.POST.get('csv_subject_name', '').strip()
+            csv_file = request.FILES.get('csv_file')
+            if not subject_name:
+                messages.error(request, 'Please enter a subject name.')
+            elif not csv_file:
+                messages.error(request, 'Please upload a CSV file.')
+            else:
+                try:
+                    decoded = csv_file.read().decode('utf-8-sig')
+                    reader = csv.DictReader(io.StringIO(decoded))
+                    to_create = []
+                    for i, row in enumerate(reader, start=1):
+                        title = (row.get('lesson_title') or '').strip()
+                        unit = (row.get('unit_title') or subject_name).strip()
+                        custom_url = (row.get('lesson_url') or '').strip() or f'custom://csv/{uuid.uuid4()}'
+                        if not title:
+                            continue  # skip blank rows silently
+                        to_create.append(Lesson(
+                            key_stage='Custom',
+                            subject_name=subject_name,
+                            programme_slug='custom',
+                            year=child.school_year,
+                            unit_slug='csv',
+                            unit_title=unit,
+                            lesson_number=i,
+                            lesson_title=title,
+                            lesson_url=custom_url,
+                            is_custom=True,
+                            created_by=request.user,
+                        ))
+                    if not to_create:
+                        messages.error(request, 'No valid rows found in the CSV. Check the lesson_title column.')
+                    else:
+                        Lesson.objects.bulk_create(to_create, ignore_conflicts=True)
+                        messages.success(
+                            request,
+                            f'{len(to_create)} lessons created from CSV for "{subject_name}". '
+                            'Now choose its days and confirm.'
+                        )
+                        return redirect('scheduler:subject_selection', child_id=child.pk)
+                except Exception:
+                    messages.error(request, 'Could not parse the CSV. Make sure it has a lesson_title column.')
+
+    return render(request, 'scheduler/custom_subject.html', {
+        'child': child,
+        'all_years': all_years,
+        'year_subjects_json': json.dumps(year_subjects),
+        'child_year': child.school_year,
+    })

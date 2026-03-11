@@ -1,85 +1,132 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Select Subjects for {{ child.first_name }} — EduTrack{% endblock %}
 
+{% block nav_students %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+.scheduling-grid th, .scheduling-grid td { vertical-align: middle; padding: 0.6rem 0.5rem; }
+.scheduling-grid td:first-child { padding-left: 1rem; }
+.scheduling-grid td:last-child  { padding-right: 1rem; }
+.scheduling-grid .swatch-cell   { width: 2.2rem; text-align: center; }
+.scheduling-grid .day-cell      { text-align: center; }
+.lesson-badge { font-size: 0.72rem; padding: 0.2rem 0.5rem; border-radius: 999px; white-space: nowrap; }
+.ks-header { background: #EEF2FF; color: #3730A3; font-size: 0.72rem; font-weight: 700;
+             text-transform: uppercase; letter-spacing: 0.06em; padding: 0.35rem 1rem; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-5">
+<div class="container py-4" style="max-width:900px;">
+
+  <!-- Back link -->
+  <a href="{% url 'scheduler:child_list' %}" class="text-decoration-none text-muted small d-inline-flex align-items-center gap-1 mb-3">
+    <i class="bi bi-arrow-left"></i> All students
+  </a>
 
   <div class="mb-4">
     <h2 class="fw-bold mb-1">Select subjects for {{ child.first_name }}</h2>
-    <p class="text-muted">
-      Tick each subject you want to include and set how many lessons per week.
+    <p class="text-muted mb-0">
+      Tick a subject to include it, then choose which days of the week to teach it.
       You need to select at least one subject.
     </p>
   </div>
 
-  <form method="post" novalidate aria-label="Subject selection form" id="subject-form">
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags }} alert-dismissible fade show" role="alert">
+      {{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="post" novalidate id="subject-form">
     {% csrf_token %}
 
     {% if grouped %}
-      <div class="accordion mb-4" id="subjectAccordion">
-        {% for key_stage, subjects in grouped.items %}
-          <div class="accordion-item">
-            <h2 class="accordion-header" id="heading-{{ key_stage|slugify }}">
-              <button class="accordion-button" type="button"
-                      data-bs-toggle="collapse"
-                      data-bs-target="#collapse-{{ key_stage|slugify }}"
-                      aria-expanded="true"
-                      aria-controls="collapse-{{ key_stage|slugify }}">
-                {{ key_stage }}
-              </button>
-            </h2>
-            <div id="collapse-{{ key_stage|slugify }}"
-                 class="accordion-collapse collapse show"
-                 aria-labelledby="heading-{{ key_stage|slugify }}"
-                 data-bs-parent="#subjectAccordion">
-              <div class="accordion-body p-0">
-                <table class="table table-hover mb-0">
-                  <tbody>
-                    {% for subject in subjects %}
-                      <tr>
-                        <td class="align-middle ps-3" style="width:2.5rem">
-                          <input
-                            class="form-check-input subject-checkbox"
-                            type="checkbox"
-                            name="subjects"
-                            value="{{ subject.subject_name }}"
-                            id="subj-{{ subject.subject_name|slugify }}"
-                            aria-label="Select {{ subject.subject_name }}"
-                          >
-                        </td>
-                        <td class="align-middle">
-                          <label class="form-check-label fw-semibold mb-0"
-                                 for="subj-{{ subject.subject_name|slugify }}">
-                            {{ subject.subject_name }}
-                          </label>
-                        </td>
-                        <td class="align-middle text-center">
-                          <span class="badge bg-secondary">{{ subject.total_lessons }} lessons</span>
-                        </td>
-                        <td class="align-middle text-end pe-3" style="width:9rem">
-                          <label class="visually-hidden"
-                                 for="pace-{{ subject.subject_name|slugify }}">
-                            Lessons per week for {{ subject.subject_name }}
-                          </label>
-                          <input
-                            type="number"
-                            class="form-control form-control-sm pace-spinner"
-                            id="pace-{{ subject.subject_name|slugify }}"
-                            name="pace_{{ subject.subject_name }}"
-                            value="1" min="1" max="5"
-                            disabled
-                            aria-label="Lessons per week"
-                          >
-                        </td>
-                      </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        {% endfor %}
+      <div class="card shadow-sm mb-4">
+        <table class="table scheduling-grid mb-0" aria-label="Subject scheduling grid">
+          <thead>
+            <tr>
+              <th style="width:2.5rem;"></th>   {# Select checkbox #}
+              <th style="width:2.2rem;"></th>   {# Colour swatch #}
+              <th>Subject</th>
+              <th style="width:6.5rem;">Lessons</th>
+              <th class="day-col">Mon</th>
+              <th class="day-col">Tue</th>
+              <th class="day-col">Wed</th>
+              <th class="day-col">Thu</th>
+              <th class="day-col">Fri</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ks, subjects in grouped.items %}
+              <tr>
+                <td colspan="9" class="ks-header">{{ ks }}</td>
+              </tr>
+              {% for subject in subjects %}
+              <tr class="subject-row" data-subject="{{ subject.subject_name|slugify }}">
+
+                {# Select checkbox #}
+                <td class="text-center">
+                  <input
+                    class="form-check-input subject-checkbox"
+                    type="checkbox"
+                    name="subjects"
+                    value="{{ subject.subject_name }}"
+                    id="subj-{{ subject.subject_name|slugify }}"
+                    aria-label="Select {{ subject.subject_name }}"
+                  >
+                </td>
+
+                {# Colour swatch #}
+                <td class="swatch-cell">
+                  <span class="subject-colour-swatch"
+                        style="background:{{ subject.preview_colour }};"
+                        aria-hidden="true"></span>
+                </td>
+
+                {# Subject name #}
+                <td>
+                  <label class="fw-semibold mb-0 stretched-link-label"
+                         for="subj-{{ subject.subject_name|slugify }}">
+                    {{ subject.subject_name }}
+                    {% if subject.is_custom %}
+                      <span class="badge bg-secondary ms-1" style="font-size:.65rem;">Custom</span>
+                    {% endif %}
+                  </label>
+                </td>
+
+                {# Lesson count badge #}
+                <td>
+                  <span class="badge bg-dark bg-opacity-75 lesson-badge">
+                    {{ subject.total_lessons }} lessons
+                  </span>
+                </td>
+
+                {# Mon–Fri checkboxes #}
+                {% for day_val, day_name in day_choices %}
+                <td class="day-cell">
+                  <input
+                    class="form-check-input day-cb"
+                    type="checkbox"
+                    name="days_{{ subject.subject_name }}"
+                    value="{{ day_val }}"
+                    id="day-{{ subject.subject_name|slugify }}-{{ day_val }}"
+                    aria-label="{{ day_name }} for {{ subject.subject_name }}"
+                    disabled
+                  >
+                </td>
+                {% endfor %}
+
+              </tr>
+              {% endfor %}
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     {% else %}
       <div class="alert alert-warning">
@@ -88,34 +135,53 @@
       </div>
     {% endif %}
 
-    <div class="d-flex gap-2">
-      <button type="submit" class="btn btn-primary btn-lg">
-        <i class="bi bi-check2-circle me-1"></i>Confirm subjects
-      </button>
-      <a href="{% url 'scheduler:child_list' %}" class="btn btn-outline-secondary btn-lg">
-        Cancel
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <a href="{% url 'scheduler:custom_subject' child_id=child.pk %}"
+         class="btn btn-outline-secondary">
+        <i class="bi bi-plus-circle me-1"></i>Add custom subject
       </a>
+      <div class="d-flex gap-2">
+        <a href="{% url 'scheduler:child_list' %}" class="btn btn-outline-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary px-4">
+          <i class="bi bi-check2-circle me-1"></i>Confirm subjects
+        </button>
+      </div>
     </div>
-  </form>
 
+  </form>
 </div>
 
+{% block extra_js %}
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.subject-checkbox').forEach(function (checkbox) {
-      var row = checkbox.closest('tr');
-      var spinner = row.querySelector('.pace-spinner');
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.subject-checkbox').forEach(function (checkbox) {
+    var slug   = checkbox.closest('tr').dataset.subject;
+    var dayCbs = document.querySelectorAll(`input.day-cb[name^="days_"][id*="${slug}-"]`);
 
-      function sync() {
-        spinner.disabled = !checkbox.checked;
-        if (!checkbox.checked) {
-          spinner.value = 1;
+    function sync() {
+      dayCbs.forEach(function (cb) {
+        cb.disabled = !checkbox.checked;
+        // Pre-check all days whenever the subject is first selected
+        if (checkbox.checked && !cb.dataset.userTouched) {
+          cb.checked = true;
         }
-      }
+        if (!checkbox.checked) {
+          cb.checked = false;
+          delete cb.dataset.userTouched;
+        }
+      });
+      checkbox.closest('tr').classList.toggle('subject-selected', checkbox.checked);
+    }
 
-      checkbox.addEventListener('change', sync);
-      sync();
+    dayCbs.forEach(function (cb) {
+      cb.addEventListener('change', function () { cb.dataset.userTouched = '1'; });
     });
+
+    checkbox.addEventListener('change', sync);
+    sync();
   });
+});
 </script>
+{% endblock %}
+{% endblock %}
 {% endblock %}
