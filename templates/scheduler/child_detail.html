@@ -193,6 +193,11 @@
               <i class="bi bi-calendar3-week me-2 text-secondary"></i>Edit Schedule
             </a>
           </li>
+          <li>
+            <a class="dropdown-item" href="{% url 'tracker:parent_calendar' child_id=child.pk %}">
+              <i class="bi bi-calendar3 me-2 text-secondary"></i>View Calendar
+            </a>
+          </li>
           <li><hr class="dropdown-divider"></li>
           <li>
             <button class="dropdown-item text-danger"
@@ -346,6 +351,11 @@
               <li>
                 <a class="dropdown-item" href="{% url 'scheduler:schedule_edit' child_id=child.pk %}">
                   <i class="bi bi-calendar3-week me-2 text-secondary"></i>Edit Schedule
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="{% url 'tracker:parent_calendar' child_id=child.pk %}">
+                  <i class="bi bi-calendar3 me-2 text-secondary"></i>View Calendar
                 </a>
               </li>
             </ul>

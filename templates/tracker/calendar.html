@@ -195,6 +195,30 @@
     {{ week_display }}
   </div>
 
+  {% if is_readonly and siblings and siblings|length > 1 %}
+  <!-- Child switcher dropdown — only shown when parent has multiple children -->
+  <div class="dropdown">
+    <button class="cal-action-btn dropdown-toggle" data-bs-toggle="dropdown">
+      <i class="bi bi-person"></i> {{ child_name }}
+    </button>
+    <ul class="dropdown-menu shadow-sm" style="font-size:0.85rem;">
+      {% for sibling in siblings %}
+      <li>
+        <a class="dropdown-item {% if sibling.pk == child_id %}fw-bold{% endif %}"
+           href="{% url 'tracker:parent_calendar' child_id=sibling.pk %}">
+          {{ sibling.first_name }}
+          {% if sibling.pk == child_id %}<i class="bi bi-check2 ms-1 text-primary"></i>{% endif %}
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% elif is_readonly %}
+  <span class="cal-date-range" style="color:#6b7280;">
+    <i class="bi bi-person"></i> {{ child_name }}
+  </span>
+  {% endif %}
+
   <div class="cal-toolbar-right">
     <!-- Filters -->
     <div class="dropdown">

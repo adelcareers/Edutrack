@@ -15,6 +15,7 @@ urlpatterns = [
     path('lessons/<int:scheduled_id>/reschedule/', views.reschedule_lesson_view, name='lesson_reschedule'),
     path('lessons/<int:scheduled_id>/upload/', views.upload_evidence_view, name='lesson_upload'),
     path('evidence/<int:file_id>/delete/', views.delete_evidence_view, name='evidence_delete'),
+    path('parent/calendar/', views.parent_calendar_home_view, name='parent_calendar_home'),
     path('parent/calendar/<int:child_id>/', views.parent_calendar_view, name='parent_calendar'),
     path('parent/calendar/<int:child_id>/<int:year>/<int:week>/', views.parent_calendar_view, name='parent_calendar_week'),
     path('parent/calendar/<int:child_id>/export.ics', views.parent_export_ical_view, name='parent_export_ical'),

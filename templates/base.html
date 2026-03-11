@@ -178,7 +178,8 @@
         </li>
         {% if role == 'parent' or role == 'student' %}
         <li>
-          <a class="nav-link {% block nav_calendar %}{% endblock %}" href="{% url 'tracker:calendar' %}">
+          <a class="nav-link {% block nav_calendar %}{% endblock %}"
+             href="{% if role == 'parent' %}{% url 'tracker:parent_calendar_home' %}{% else %}{% url 'tracker:calendar' %}{% endif %}">
             <i class="bi bi-calendar3"></i>Calendar
           </a>
         </li>

@@ -201,6 +201,10 @@
                    class="btn btn-sm btn-outline-secondary">
                   <i class="bi bi-lightning me-1"></i>Schedule
                 </a>
+                <a href="{% url 'tracker:parent_calendar' child_id=child.pk %}"
+                   class="btn btn-sm btn-outline-info">
+                  <i class="bi bi-calendar3 me-1"></i>Calendar
+                </a>
               </div>
 
             </div>

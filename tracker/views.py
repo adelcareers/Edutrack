@@ -355,6 +355,19 @@ def delete_evidence_view(request, file_id):
 
 @login_required
 @role_required('parent')
+def parent_calendar_home_view(request):
+    """Redirect a parent to their first active child's calendar, or to
+    the child list if they have no children yet."""
+    from scheduler.models import Child as ChildModel
+    from django.urls import reverse
+    child = ChildModel.objects.filter(parent=request.user, is_active=True).first()
+    if child:
+        return redirect(reverse('tracker:parent_calendar', kwargs={'child_id': child.pk}))
+    return redirect('scheduler:child_list')
+
+
+@login_required
+@role_required('parent')
 def parent_calendar_view(request, child_id, year=None, week=None):
     """Read-only weekly calendar for a parent viewing their child's lessons.
 
@@ -373,10 +386,14 @@ def parent_calendar_view(request, child_id, year=None, week=None):
     if year is None or week is None:
         year, week = iso_year, iso_week
 
+    from scheduler.models import Child as ChildModel
+    siblings = list(ChildModel.objects.filter(parent=request.user, is_active=True))
+
     ctx = _build_calendar_context(
         child, year, week, today,
         is_readonly=True, child_id=child_id, child_name=child.first_name,
     )
+    ctx['siblings'] = siblings
     return render(request, 'tracker/calendar.html', ctx)
 
 
