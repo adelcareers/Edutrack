@@ -90,14 +90,14 @@ def _build_subject_groups(child, user):
     subjects created by the parent.  A palette colour is pre-assigned to every
     subject so the grid can show swatches before the form is submitted.
 
-    Returns a dict:  {key_stage: [{subject_name, total_lessons, preview_colour, is_custom, source_year}]}
+    Returns a dict:  {key_stage: [{subject_name, total_lessons, total_units, preview_colour, is_custom}]}
     """
     # Standard curriculum subjects for this year
     lessons_qs = (
         Lesson.objects
         .filter(year=child.school_year, is_custom=False)
         .values('key_stage', 'subject_name')
-        .annotate(total_lessons=Count('id'))
+        .annotate(total_lessons=Count('id'), total_units=Count('unit_slug', distinct=True))
         .order_by('key_stage', 'subject_name')
     )
 
@@ -106,7 +106,7 @@ def _build_subject_groups(child, user):
         Lesson.objects
         .filter(is_custom=True, created_by=user, year=child.school_year)
         .values('subject_name')
-        .annotate(total_lessons=Count('id'))
+        .annotate(total_lessons=Count('id'), total_units=Count('unit_slug', distinct=True))
         .order_by('subject_name')
     )
 
@@ -117,9 +117,9 @@ def _build_subject_groups(child, user):
         grouped.setdefault(row['key_stage'], []).append({
             'subject_name': row['subject_name'],
             'total_lessons': row['total_lessons'],
+            'total_units': row['total_units'],
             'preview_colour': SUBJECT_COLOUR_PALETTE[colour_index % len(SUBJECT_COLOUR_PALETTE)],
             'is_custom': False,
-            'source_year': '',
         })
         colour_index += 1
 
@@ -127,9 +127,9 @@ def _build_subject_groups(child, user):
         grouped.setdefault('Custom', []).append({
             'subject_name': row['subject_name'],
             'total_lessons': row['total_lessons'],
+            'total_units': row['total_units'],
             'preview_colour': SUBJECT_COLOUR_PALETTE[colour_index % len(SUBJECT_COLOUR_PALETTE)],
             'is_custom': True,
-            'source_year': '',
         })
         colour_index += 1
 
@@ -138,14 +138,13 @@ def _build_subject_groups(child, user):
 
 @role_required('parent')
 def subject_selection_view(request, child_id):
-    """Step 1 of 2: let a parent pick subjects and set lessons-per-week.
+    """Step 1 of 2: parent picks subjects; lessons-per-week is set on the next page.
 
-    GET: renders a table of all available subjects (curriculum + custom)
-    with a lessons-per-week number input per row.
+    GET: flat table of all subjects sorted by lesson count (desc).
+    Sortable client-side by name, units, or lessons.
 
-    POST: for each selected subject reads the ``lpw_<name>`` input,
-    clamps it to 1–10, creates an ``EnrolledSubject`` with a default
-    days_of_week of Mon–Fri, then redirects to the day-assignment step.
+    POST: creates ``EnrolledSubject`` rows with default lessons_per_week=3
+    (overridden on the day-assignment page), then redirects there.
     """
     child = get_object_or_404(Child, pk=child_id)
 
@@ -158,29 +157,28 @@ def subject_selection_view(request, child_id):
         selected_subjects = request.POST.getlist('subjects')
         if not selected_subjects:
             messages.error(request, "Please select at least one subject.")
+            subjects = sorted(
+                [s for ks_subjects in grouped.values() for s in ks_subjects],
+                key=lambda s: s['total_lessons'],
+                reverse=True,
+            )
             return render(request, 'scheduler/subject_selection.html', {
                 'child': child,
-                'grouped': grouped,
+                'subjects': subjects,
             })
 
         # Delete any existing enrolments before recreating
         child.enrolled_subjects.all().delete()
 
-        # Flatten all subjects in order to replicate the colour index
+        # Flatten all subjects in palette order (key_stage alpha, subject alpha)
         all_subjects_ordered = [
             s['subject_name']
-            for subjects in grouped.values()
-            for s in subjects
+            for ks_subjects in grouped.values()
+            for s in ks_subjects
         ]
 
         to_create = []
         for subject_name in selected_subjects:
-            raw_lpw = request.POST.get(f'lpw_{subject_name}', '3')
-            try:
-                pace = max(1, min(10, int(raw_lpw)))
-            except (ValueError, TypeError):
-                pace = 3
-
             key_stage = (
                 Lesson.objects
                 .filter(year=child.school_year, subject_name=subject_name)
@@ -196,7 +194,7 @@ def subject_selection_view(request, child_id):
                 child=child,
                 subject_name=subject_name,
                 key_stage=key_stage,
-                lessons_per_week=pace,
+                lessons_per_week=3,  # default; overridden in step 2
                 days_of_week='0,1,2,3,4',  # default; overridden in step 2
                 colour_hex=SUBJECT_COLOUR_PALETTE[palette_index % len(SUBJECT_COLOUR_PALETTE)],
             ))
@@ -204,9 +202,14 @@ def subject_selection_view(request, child_id):
         EnrolledSubject.objects.bulk_create(to_create)
         return redirect('scheduler:schedule_days', child_id=child.pk)
 
+    subjects = sorted(
+        [s for ks_subjects in grouped.values() for s in ks_subjects],
+        key=lambda s: s['total_lessons'],
+        reverse=True,
+    )
     return render(request, 'scheduler/subject_selection.html', {
         'child': child,
-        'grouped': grouped,
+        'subjects': subjects,
     })
 
 
@@ -257,13 +260,14 @@ def generate_schedule_view(request, child_id):
 
 @role_required('parent')
 def schedule_days_view(request, child_id):
-    """Step 2 of 2: assign days of the week to each enrolled subject.
+    """Step 2 of 2: set lessons-per-week and assign days for each enrolled subject.
 
-    GET: shows a table of the enrolled subjects with Mon–Fri checkboxes.
-    All days are pre-ticked as a sensible default.
+    GET: table showing each enrolled subject with curriculum stats,
+    a lessons-per-week number input, and Mon–Fri day checkboxes.
 
-    POST: reads ``days_<id>`` checkbox lists, updates each ``EnrolledSubject``
-    ``days_of_week``, then redirects to the generate-schedule confirmation.
+    POST: reads ``lpw_<pk>`` (lessons per week) and ``days_<pk>`` checkboxes,
+    updates both fields on each ``EnrolledSubject``, then redirects to the
+    generate-schedule confirmation.
     """
     child = get_object_or_404(Child, pk=child_id)
 
@@ -284,21 +288,41 @@ def schedule_days_view(request, child_id):
             if not days:
                 days = day_choices_vals
             subject.days_of_week = ','.join(str(d) for d in days)
-            subject.save(update_fields=['days_of_week'])
+
+            raw_lpw = request.POST.get(f'lpw_{subject.pk}', '')
+            if raw_lpw:
+                try:
+                    subject.lessons_per_week = max(1, min(10, int(raw_lpw)))
+                except (ValueError, TypeError):
+                    pass
+
+            subject.save(update_fields=['days_of_week', 'lessons_per_week'])
 
         return redirect('scheduler:generate_schedule', child_id=child.pk)
 
     day_choices = [(0, 'Mon'), (1, 'Tue'), (2, 'Wed'), (3, 'Thu'), (4, 'Fri')]
 
-    # Build pre-checked state per subject
+    # Fetch curriculum stats for each enrolled subject
+    subject_names = [s.subject_name for s in enrolled_subjects]
+    stats_qs = (
+        Lesson.objects
+        .filter(year=child.school_year, subject_name__in=subject_names)
+        .values('subject_name')
+        .annotate(total_lessons=Count('id'), total_units=Count('unit_slug', distinct=True))
+    )
+    stats_by_name = {row['subject_name']: row for row in stats_qs}
+
     subject_rows = []
     for subject in enrolled_subjects:
         checked = {int(d) for d in subject.days_of_week.split(',') if d.isdigit()}
         if not checked:
             checked = {0, 1, 2, 3, 4}
+        stats = stats_by_name.get(subject.subject_name, {'total_lessons': 0, 'total_units': 0})
         subject_rows.append({
             'subject': subject,
             'checked_days': checked,
+            'total_lessons': stats['total_lessons'],
+            'total_units': stats['total_units'],
         })
 
     return render(request, 'scheduler/schedule_days.html', {

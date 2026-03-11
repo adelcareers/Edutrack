@@ -140,6 +140,7 @@ class CreateStudentLoginPostTests(TestCase):
 
 def _make_lesson(year='Year 5', subject='Maths', key_stage='KS2'):
     """Helper: create a minimal Lesson to populate the school_year dropdown."""
+    import uuid
     return Lesson.objects.create(
         key_stage=key_stage,
         subject_name=subject,
@@ -149,7 +150,7 @@ def _make_lesson(year='Year 5', subject='Maths', key_stage='KS2'):
         unit_title='Unit 1',
         lesson_number=1,
         lesson_title='Lesson 1',
-        lesson_url='https://example.com/lesson/1',
+        lesson_url=f'https://example.com/lesson/{uuid.uuid4()}',
     )
 
 
@@ -163,12 +164,12 @@ VALID_CHILD_DATA = {
 
 
 class AddChildAccessTests(TestCase):
-    """Gate tests: who can reach /children/add/."""
+    """Gate tests: who can reach /children/new/."""
 
     def setUp(self):
         self.parent = _make_parent()
-        _make_lesson()  # required for ChildForm.__init__ to build year choices
-        self.url = reverse('scheduler:add_child')
+        _make_lesson()  # required to populate school_years dropdown
+        self.url = reverse('scheduler:child_new')
 
     def test_unauthenticated_redirects_to_login(self):
         response = self.client.get(self.url)
@@ -185,7 +186,7 @@ class AddChildAccessTests(TestCase):
         self.client.force_login(self.parent)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'scheduler/add_child.html')
+        self.assertTemplateUsed(response, 'scheduler/child_new.html')
 
 
 class AddChildFormTests(TestCase):
@@ -194,7 +195,7 @@ class AddChildFormTests(TestCase):
     def setUp(self):
         self.parent = _make_parent()
         _make_lesson()
-        self.url = reverse('scheduler:add_child')
+        self.url = reverse('scheduler:child_new')
         self.client.force_login(self.parent)
 
     def test_valid_post_creates_child_linked_to_parent(self):
@@ -207,7 +208,7 @@ class AddChildFormTests(TestCase):
         child = Child.objects.get(first_name='Alice')
         self.assertRedirects(
             response,
-            f'/children/{child.pk}/subjects/',
+            f'/children/{child.pk}/',
             fetch_redirect_response=False,
         )
 
@@ -215,20 +216,20 @@ class AddChildFormTests(TestCase):
         data = {**VALID_CHILD_DATA, 'first_name': ''}
         response = self.client.post(self.url, data)
         self.assertEqual(response.status_code, 200)
-        self.assertIn('first_name', response.context['form'].errors)
+        self.assertIn('first_name', response.context['errors'])
 
     def test_missing_school_year_shows_error(self):
         data = {**VALID_CHILD_DATA, 'school_year': ''}
         response = self.client.post(self.url, data)
         self.assertEqual(response.status_code, 200)
-        self.assertIn('school_year', response.context['form'].errors)
+        self.assertIn('school_year', response.context['errors'])
 
     def test_school_year_choices_populated_from_lesson_table(self):
         _make_lesson(year='Year 6')
         response = self.client.get(self.url)
-        choices = [c[0] for c in response.context['form'].fields['school_year'].choices]
-        self.assertIn('Year 5', choices)
-        self.assertIn('Year 6', choices)
+        school_years = response.context['school_years']
+        self.assertIn('Year 5', school_years)
+        self.assertIn('Year 6', school_years)
 
 
 class ChildListTests(TestCase):
@@ -256,7 +257,7 @@ class ChildListTests(TestCase):
     def test_empty_state_shows_add_prompt(self):
         self.client.force_login(self.parent)
         response = self.client.get(self.url)
-        self.assertContains(response, "Add your first child")
+        self.assertContains(response, "Add your first student")
 
 
 # ---------------------------------------------------------------------------
@@ -340,9 +341,11 @@ class SubjectSelectionGetTests(TestCase):
 
     def test_grouped_context_has_correct_keys(self):
         response = self.client.get(self.url)
-        grouped = response.context['grouped']
-        self.assertIn('KS2', grouped)
-        self.assertIn('KS3', grouped)
+        subjects = response.context['subjects']
+        key_stages = {s['is_custom'] for s in subjects}  # sanity check context exists
+        subject_names = [s['subject_name'] for s in subjects]
+        self.assertIn('Maths', subject_names)
+        self.assertIn('Science', subject_names)
 
 
 class SubjectSelectionPostTests(TestCase):
@@ -363,25 +366,23 @@ class SubjectSelectionPostTests(TestCase):
     def test_valid_post_creates_enrolled_subjects(self):
         self.client.post(self.url, {
             'subjects': ['Maths', 'English'],
-            'pace_Maths': '2',
-            'pace_English': '1',
         })
         self.assertEqual(EnrolledSubject.objects.filter(child=self.child).count(), 2)
 
-    def test_lessons_per_week_stored_correctly(self):
+    def test_lessons_per_week_defaults_to_3(self):
+        # Step 1 no longer accepts lpw — it always defaults to 3 (set on page 2)
         self.client.post(self.url, {
             'subjects': ['Maths'],
-            'pace_Maths': '3',
         })
         es = EnrolledSubject.objects.get(child=self.child, subject_name='Maths')
         self.assertEqual(es.lessons_per_week, 3)
 
     def test_colour_hex_assigned_from_palette(self):
         from scheduler.views import SUBJECT_COLOUR_PALETTE
+        # Post in alphabetical order (English before Maths) to match the
+        # palette index order produced by _build_subject_groups.
         self.client.post(self.url, {
-            'subjects': ['Maths', 'English'],
-            'pace_Maths': '1',
-            'pace_English': '1',
+            'subjects': ['English', 'Maths'],
         })
         colours = list(
             EnrolledSubject.objects.filter(child=self.child)
@@ -395,8 +396,6 @@ class SubjectSelectionPostTests(TestCase):
         from scheduler.views import SUBJECT_COLOUR_PALETTE
         self.client.post(self.url, {
             'subjects': ['Maths', 'English'],
-            'pace_Maths': '1',
-            'pace_English': '1',
         })
         colours = list(
             EnrolledSubject.objects.filter(child=self.child)
@@ -407,23 +406,20 @@ class SubjectSelectionPostTests(TestCase):
     def test_valid_post_redirects_to_generate(self):
         response = self.client.post(self.url, {
             'subjects': ['Maths'],
-            'pace_Maths': '1',
         })
         self.assertRedirects(
             response,
-            f'/children/{self.child.pk}/generate/',
+            f'/children/{self.child.pk}/subjects/days/',
             fetch_redirect_response=False,
         )
 
     def test_resubmission_replaces_previous_enrolments(self):
         # First submission
-        self.client.post(self.url, {'subjects': ['Maths'], 'pace_Maths': '1'})
+        self.client.post(self.url, {'subjects': ['Maths']})
         self.assertEqual(EnrolledSubject.objects.filter(child=self.child).count(), 1)
         # Re-submit with a different selection
         self.client.post(self.url, {
             'subjects': ['Maths', 'English'],
-            'pace_Maths': '2',
-            'pace_English': '1',
         })
         self.assertEqual(EnrolledSubject.objects.filter(child=self.child).count(), 2)
 
@@ -620,9 +616,9 @@ class GenerateScheduleViewTests(TestCase):
 
 
 class ParentDashboardTests(TestCase):
-    """Tests for parent_dashboard_view (S1.9)."""
+    """Tests for child_list_view (was parent_dashboard_view, S1.9)."""
 
-    URL = 'scheduler:parent_dashboard'
+    URL = 'scheduler:child_list'
 
     def setUp(self):
         self.parent = _make_parent(username='dash_parent')
@@ -689,7 +685,7 @@ class ParentDashboardTests(TestCase):
         self.client.force_login(parent2)
         response = self.client.get(self.url)
         self.assertEqual(len(response.context['summaries']), 0)
-        self.assertContains(response, 'Add your first child')
+        self.assertContains(response, 'Add your first student')
 
     # ---------- root redirect ----------
 

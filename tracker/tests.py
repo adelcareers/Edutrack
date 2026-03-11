@@ -55,6 +55,7 @@ def _make_child(parent, student_user=None, first_name='Sam'):
 
 
 def _make_lesson(subject='Maths', title='Counting', key_stage='KS3'):
+    import uuid
     return Lesson.objects.create(
         key_stage=key_stage,
         subject_name=subject,
@@ -64,7 +65,7 @@ def _make_lesson(subject='Maths', title='Counting', key_stage='KS3'):
         unit_title='Number',
         lesson_number=1,
         lesson_title=title,
-        lesson_url='https://example.com/lesson',
+        lesson_url=f'https://example.com/lesson/{uuid.uuid4()}',
     )
 
 

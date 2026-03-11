@@ -7,23 +7,28 @@
 
 {% block extra_css %}
 <style>
-.scheduling-grid th, .scheduling-grid td { vertical-align: middle; padding: 0.6rem 0.5rem; }
+.scheduling-grid th, .scheduling-grid td { vertical-align: middle; padding: 0.6rem 0.75rem; }
 .scheduling-grid td:first-child { padding-left: 1rem; }
 .scheduling-grid td:last-child  { padding-right: 1rem; }
-.scheduling-grid .swatch-cell   { width: 2.2rem; text-align: center; }
-.lesson-badge { font-size: 0.72rem; padding: 0.2rem 0.5rem; border-radius: 999px; white-space: nowrap; }
-.ks-header { background: #EEF2FF; color: #3730A3; font-size: 0.72rem; font-weight: 700;
-             text-transform: uppercase; letter-spacing: 0.06em; padding: 0.35rem 1rem; }
-.lpw-input { width: 4.5rem; text-align: center; }
-.lpw-warn  { font-size: 0.72rem; color: #d97706; display: none; }
+.swatch-cell   { width: 2.2rem; text-align: center; }
+.num-col       { width: 7rem; text-align: right; }
+.ks-badge      { font-size: 0.65rem; font-weight: 600; padding: 0.15rem 0.45rem;
+                 border-radius: 999px; margin-left: 0.3rem; vertical-align: middle;
+                 background: #EEF2FF; color: #3730A3; }
 .subject-row.subject-selected td { background: #F0FDF4; }
+.sort-btn.active { font-weight: 600; }
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { text-decoration: underline; }
+th.sortable .sort-icon { font-size: 0.7rem; margin-left: 0.25rem; opacity: 0.6; }
+th.sortable.sorted-asc .sort-icon::after  { content: '▲'; }
+th.sortable.sorted-desc .sort-icon::after { content: '▼'; }
+th.sortable:not(.sorted-asc):not(.sorted-desc) .sort-icon::after { content: '⇅'; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container py-4" style="max-width:860px;">
 
-  <!-- Back link -->
   <a href="{% url 'scheduler:child_list' %}" class="text-decoration-none text-muted small d-inline-flex align-items-center gap-1 mb-3">
     <i class="bi bi-arrow-left"></i> All students
   </a>
@@ -31,8 +36,7 @@
   <div class="mb-4">
     <h2 class="fw-bold mb-1">Select subjects for {{ child.first_name }}</h2>
     <p class="text-muted mb-0">
-      Tick each subject you want to include and set how many lessons per week.
-      You'll choose which days on the next step.
+      Tick each subject you want to include. You'll set lessons per week and teaching days on the next step.
     </p>
   </div>
 
@@ -48,80 +52,59 @@
   <form method="post" novalidate id="subject-form">
     {% csrf_token %}
 
-    {% if grouped %}
+    {% if subjects %}
       <div class="card shadow-sm mb-4">
-        <table class="table scheduling-grid mb-0" aria-label="Subject selection grid">
+        <table class="table scheduling-grid mb-0" id="subjects-table" aria-label="Subject selection">
           <thead>
             <tr style="background:#1e293b; color:#fff;">
               <th style="width:2.5rem;"></th>
-              <th style="width:2.2rem;"></th>
-              <th>Subject</th>
-              <th style="width:7rem;">Lessons in curriculum</th>
-              <th style="width:8rem; text-align:center;">Lessons / week</th>
+              <th class="swatch-cell"></th>
+              <th class="sortable" data-col="name">Subject<span class="sort-icon"></span></th>
+              <th class="sortable num-col" data-col="units" style="text-align:right;">Units<span class="sort-icon"></span></th>
+              <th class="sortable num-col sorted-desc" data-col="lessons" style="text-align:right;">Lessons<span class="sort-icon"></span></th>
             </tr>
           </thead>
-          <tbody>
-            {% for ks, subjects in grouped.items %}
-              <tr>
-                <td colspan="5" class="ks-header">{{ ks }}</td>
-              </tr>
-              {% for subject in subjects %}
-              <tr class="subject-row" data-subject="{{ subject.subject_name|slugify }}">
+          <tbody id="subjects-tbody">
+            {% for subject in subjects %}
+            <tr class="subject-row"
+                data-name="{{ subject.subject_name|lower }}"
+                data-units="{{ subject.total_units }}"
+                data-lessons="{{ subject.total_lessons }}">
 
-                {# Select checkbox #}
-                <td class="text-center">
-                  <input
-                    class="form-check-input subject-checkbox"
-                    type="checkbox"
-                    name="subjects"
-                    value="{{ subject.subject_name }}"
-                    id="subj-{{ subject.subject_name|slugify }}"
-                    aria-label="Select {{ subject.subject_name }}"
-                  >
-                </td>
+              <td class="text-center">
+                <input
+                  class="form-check-input subject-checkbox"
+                  type="checkbox"
+                  name="subjects"
+                  value="{{ subject.subject_name }}"
+                  id="subj-{{ subject.subject_name|slugify }}"
+                  aria-label="Select {{ subject.subject_name }}"
+                >
+              </td>
 
-                {# Colour swatch #}
-                <td class="swatch-cell">
-                  <span class="subject-colour-swatch"
-                        style="background:{{ subject.preview_colour }};"
-                        aria-hidden="true"></span>
-                </td>
+              <td class="swatch-cell">
+                <span class="subject-colour-swatch"
+                      style="background:{{ subject.preview_colour }};"
+                      aria-hidden="true"></span>
+              </td>
 
-                {# Subject name #}
-                <td>
-                  <label class="fw-semibold mb-0"
-                         for="subj-{{ subject.subject_name|slugify }}">
-                    {{ subject.subject_name }}
-                    {% if subject.is_custom %}
-                      <span class="badge bg-secondary ms-1" style="font-size:.65rem;">Custom</span>
-                    {% endif %}
-                  </label>
-                </td>
+              <td>
+                <label class="fw-semibold mb-0" for="subj-{{ subject.subject_name|slugify }}">
+                  {{ subject.subject_name }}
+                  {% if subject.is_custom %}
+                    <span class="badge bg-secondary ms-1" style="font-size:.65rem;">Custom</span>
+                  {% endif %}
+                </label>
+              </td>
 
-                {# Lesson count badge #}
-                <td>
-                  <span class="badge bg-dark bg-opacity-75 lesson-badge">
-                    {{ subject.total_lessons }}
-                  </span>
-                </td>
+              <td class="text-end text-muted">{{ subject.total_units }}</td>
+              <td class="text-end">
+                <span class="badge bg-dark bg-opacity-75" style="font-size:0.72rem; padding:0.2rem 0.5rem; border-radius:999px;">
+                  {{ subject.total_lessons }} lessons
+                </span>
+              </td>
 
-                {# Lessons per week input #}
-                <td class="text-center">
-                  <input
-                    type="number"
-                    class="form-control form-control-sm lpw-input mx-auto lpw-field"
-                    name="lpw_{{ subject.subject_name }}"
-                    value="3"
-                    min="1"
-                    max="10"
-                    disabled
-                    aria-label="Lessons per week for {{ subject.subject_name }}"
-                  >
-                  <div class="lpw-warn mt-1">That's a lot — check this is right!</div>
-                </td>
-
-              </tr>
-              {% endfor %}
+            </tr>
             {% endfor %}
           </tbody>
         </table>
@@ -153,24 +136,46 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-  document.querySelectorAll('.subject-checkbox').forEach(function (checkbox) {
-    var row    = checkbox.closest('tr');
-    var lpwIn  = row.querySelector('.lpw-field');
-    var lpwWarn = row.querySelector('.lpw-warn');
+  // Highlight selected rows
+  document.querySelectorAll('.subject-checkbox').forEach(function (cb) {
+    function sync() { cb.closest('tr').classList.toggle('subject-selected', cb.checked); }
+    cb.addEventListener('change', sync);
+    sync();
+  });
 
-    function syncRow() {
-      lpwIn.disabled = !checkbox.checked;
-      row.classList.toggle('subject-selected', checkbox.checked);
-      if (!checkbox.checked) lpwWarn.style.display = 'none';
-    }
+  // Client-side column sorting
+  var tbody  = document.getElementById('subjects-tbody');
+  var headers = document.querySelectorAll('#subjects-table th.sortable');
 
-    lpwIn.addEventListener('input', function () {
-      var v = parseInt(this.value, 10);
-      lpwWarn.style.display = (checkbox.checked && !isNaN(v) && v > 7) ? 'block' : 'none';
+  headers.forEach(function (th) {
+    th.addEventListener('click', function () {
+      var col = th.dataset.col;
+      var isDesc = th.classList.contains('sorted-desc');
+
+      // Reset all headers
+      headers.forEach(function (h) {
+        h.classList.remove('sorted-asc', 'sorted-desc');
+      });
+
+      // Toggle direction
+      var dir = isDesc ? 'asc' : 'desc';
+      th.classList.add('sorted-' + dir);
+
+      var rows = Array.from(tbody.querySelectorAll('tr'));
+      rows.sort(function (a, b) {
+        var av, bv;
+        if (col === 'name') {
+          av = a.dataset.name;
+          bv = b.dataset.name;
+          return dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+        } else {
+          av = parseInt(a.dataset[col], 10);
+          bv = parseInt(b.dataset[col], 10);
+          return dir === 'asc' ? av - bv : bv - av;
+        }
+      });
+      rows.forEach(function (r) { tbody.appendChild(r); });
     });
-
-    checkbox.addEventListener('change', syncRow);
-    syncRow();
   });
 });
 </script>
