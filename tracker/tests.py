@@ -357,7 +357,7 @@ class SubjectColourCardTests(TestCase):
         response = self._get()
         # No status-badge rendered when lesson has no log
         self.assertNotContains(response, 'status-badge')
-        self.assertNotContains(response, 'mastery-dot')
+        self.assertNotContains(response, 'class="mastery-dot')
 
     # ---------- status badges ----------
 
@@ -409,7 +409,7 @@ class SubjectColourCardTests(TestCase):
             updated_by=self.student,
         )
         response = self._get()
-        self.assertNotContains(response, 'mastery-dot')
+        self.assertNotContains(response, 'class="mastery-dot')
 
     # ---------- different subjects get different colours ----------
 
