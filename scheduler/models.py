@@ -105,3 +105,25 @@ class ScheduledLesson(models.Model):
 
     def __str__(self):
         return f'{self.child.first_name} — {self.lesson.lesson_title} on {self.scheduled_date}'
+
+
+class Vacation(models.Model):
+    """A vacation or break period for a specific child.
+
+    Lessons that fall on vacation days are visually marked on the calendar
+    but not automatically rescheduled.  Parents can add, edit or delete
+    vacations via the Manage Vacations page.
+    """
+
+    child = models.ForeignKey(Child, on_delete=models.CASCADE, related_name='vacations')
+    name = models.CharField(max_length=100)
+    start_date = models.DateField()
+    end_date = models.DateField()
+
+    class Meta:
+        ordering = ['start_date']
+        verbose_name = 'Vacation'
+        verbose_name_plural = 'Vacations'
+
+    def __str__(self):
+        return f'{self.child.first_name} — {self.name} ({self.start_date} → {self.end_date})'

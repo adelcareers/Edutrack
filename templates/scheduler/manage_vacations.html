@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Manage Vacations for {{ child.first_name }} — EduTrack{% endblock %}
+{% block nav_students %}active{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width:720px;">
+
+  <a href="{% url 'scheduler:child_detail' child_id=child.pk %}"
+     class="text-decoration-none text-muted small d-inline-flex align-items-center gap-1 mb-3">
+    <i class="bi bi-arrow-left"></i> Back to {{ child.first_name }}
+  </a>
+
+  <div class="mb-4">
+    <h2 class="fw-bold mb-1">Vacations for {{ child.first_name }}</h2>
+    <p class="text-muted mb-0">Add school breaks and trips — they'll appear on the calendar.</p>
+  </div>
+
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags }} alert-dismissible fade show" role="alert">
+      {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <!-- Add vacation form -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <h6 class="fw-semibold mb-3"><i class="bi bi-plus-circle me-1"></i>Add a Vacation</h6>
+      <form method="post" action="{% url 'scheduler:add_vacation' child_id=child.pk %}" novalidate>
+        {% csrf_token %}
+        <div class="row g-3 align-items-end">
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold" for="vac-name">Name</label>
+            <input type="text" class="form-control" id="vac-name" name="name"
+                   placeholder="e.g. Easter Break" maxlength="100" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold" for="vac-start">Start date</label>
+            <input type="date" class="form-control" id="vac-start" name="start_date" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold" for="vac-end">End date</label>
+            <input type="date" class="form-control" id="vac-end" name="end_date" required>
+          </div>
+          <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100">Add</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Vacations list -->
+  {% if vacations %}
+  <div class="card shadow-sm">
+    <table class="table mb-0" aria-label="Vacations list">
+      <thead>
+        <tr style="background:#f8fafc;">
+          <th class="ps-3">Name</th>
+          <th>Start</th>
+          <th>End</th>
+          <th style="width:4rem;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for vac in vacations %}
+        <tr>
+          <td class="ps-3 fw-semibold">
+            <i class="bi bi-sun text-warning me-1"></i>{{ vac.name }}
+          </td>
+          <td>{{ vac.start_date|date:"j M Y" }}</td>
+          <td>{{ vac.end_date|date:"j M Y" }}</td>
+          <td class="text-end pe-3">
+            <form method="post" action="{% url 'scheduler:delete_vacation' vacation_id=vac.pk %}"
+                  style="display:inline;"
+                  onsubmit="return confirm('Delete vacation \"{{ vac.name }}\"?')">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-outline-danger" aria-label="Delete {{ vac.name }}">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted text-center py-4">No vacations added yet.</p>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Auto-set end_date min to start_date
+  document.getElementById('vac-start').addEventListener('change', function () {
+    document.getElementById('vac-end').min = this.value;
+    if (document.getElementById('vac-end').value < this.value) {
+      document.getElementById('vac-end').value = this.value;
+    }
+  });
+</script>
+{% endblock %}

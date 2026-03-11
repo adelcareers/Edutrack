@@ -122,3 +122,33 @@ body {
   height: 1.1rem;
   cursor: pointer;
 }
+
+/* ── Vacation cards (calendar) ──────────────────────────────────────────── */
+.vacation-card {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-left: 4px solid #f59e0b;
+  border-radius: 6px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
+  margin-bottom: 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #92400e;
+}
+.vacation-card .vac-name  { font-weight: 600; }
+.vacation-card .vac-child { opacity: 0.7; font-size: 0.72rem; }
+
+/* ── Today dot (blue circle in day header) ───────────────────────────────── */
+.today-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3b82f6;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* ── 6-column calendar override ─────────────────────────────────────────── */
+.calendar-grid { grid-template-columns: repeat(6, 1fr); }

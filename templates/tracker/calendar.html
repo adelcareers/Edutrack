@@ -5,106 +5,307 @@
 
 {% block extra_css %}
 <style>
+  /* ── Header toolbar ─────────────────────── */
+  .cal-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    padding: 0.5rem 0 1rem;
+  }
+  .cal-nav-group { display: flex; align-items: center; gap: 0.25rem; }
+  .cal-nav-btn {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 0.3rem 0.7rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: #374151;
+    text-decoration: none;
+    line-height: 1.4;
+  }
+  .cal-nav-btn:hover { background: #f1f5f9; color: #111; }
+  .cal-nav-btn.today-btn { font-weight: 600; }
+  .cal-date-range {
+    font-size: 0.92rem;
+    font-weight: 500;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .cal-date-range i { opacity: 0.5; }
+  .cal-toolbar-right { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .cal-action-btn {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: #374151;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    cursor: pointer;
+  }
+  .cal-action-btn:hover { background: #f1f5f9; color: #111; }
+
+  /* ── Calendar grid ─────────────────────── */
   .calendar-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 1rem;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.75rem;
     min-height: 60vh;
   }
-  @media (max-width: 991px) {
-    .calendar-grid {
-      grid-template-columns: 1fr;
-    }
-  }
+  @media (max-width: 1199px) { .calendar-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 767px)  { .calendar-grid { grid-template-columns: 1fr; } }
+
+  /* ── Day column ─────────────────────────── */
   .day-column {
-    background: #f8f9fa;
-    border-radius: 8px;
-    padding: 0.75rem;
-    min-height: 300px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    min-height: 320px;
+    overflow: hidden;
   }
   .day-header {
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: #495057;
-    border-bottom: 2px solid #dee2e6;
-    padding-bottom: 0.5rem;
-    margin-bottom: 0.75rem;
+    padding: 0.55rem 0.75rem 0.45rem;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
-  .day-header.today-col {
-    color: var(--bs-primary);
-    border-bottom-color: var(--bs-primary);
+  .day-header-left { display: flex; align-items: center; gap: 0.4rem; }
+  .day-name { font-weight: 700; font-size: 0.82rem; color: #374151; }
+  .day-date { font-size: 0.75rem; color: #94a3b8; }
+  .today-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #3b82f6; display: inline-block; flex-shrink: 0;
   }
-  .empty-day {
-    color: #adb5bd;
+  .day-add-btn {
+    background: none; border: none; padding: 0 0.1rem;
+    color: #94a3b8; font-size: 1.1rem; cursor: pointer;
+    line-height: 1; border-radius: 4px;
+  }
+  .day-add-btn:hover { color: #3b82f6; background: #eff6ff; }
+
+  .day-body { padding: 0.5rem 0.6rem; }
+  .empty-day { color: #cbd5e1; font-size: 0.75rem; text-align: center; padding-top: 1.75rem; }
+
+  /* ── Vacation card ─────────────────────── */
+  .vacation-card {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-left: 4px solid #f59e0b;
+    border-radius: 6px;
+    padding: 0.3rem 0.6rem;
     font-size: 0.8rem;
-    text-align: center;
-    padding-top: 1.5rem;
+    margin-bottom: 0.4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: #92400e;
   }
-  /* Mastery buttons — outline by default, filled when active */
-  .mastery-btn[data-mastery="green"]               { color: #16A34A; border: 1px solid #16A34A; background: transparent; }
-  .mastery-btn[data-mastery="green"].mastery-active  { background: #16A34A; color: #fff; }
-  .mastery-btn[data-mastery="amber"]               { color: #D97706; border: 1px solid #D97706; background: transparent; }
-  .mastery-btn[data-mastery="amber"].mastery-active  { background: #D97706; color: #fff; }
-  .mastery-btn[data-mastery="red"]                 { color: #DC2626; border: 1px solid #DC2626; background: transparent; }
-  .mastery-btn[data-mastery="red"].mastery-active   { background: #DC2626; color: #fff; }
+  .vacation-card .vac-name { font-weight: 600; }
+  .vacation-card .vac-child { opacity: 0.7; font-size: 0.72rem; }
+
+  /* ── Lesson cards (unchanged visuals) ───── */
+  .lesson-card {
+    --subject-colour: #6c757d;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 0.45rem;
+    font-size: 0.82rem;
+    overflow: hidden;
+    background: #fff;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    transition: box-shadow 0.15s;
+  }
+  .lesson-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.12); }
+  .lesson-card .card-header {
+    background-color: var(--subject-colour);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.28rem 0.7rem;
+    border-bottom: none;
+  }
+  .lesson-card .card-body {
+    padding: 0.35rem 0.7rem 0.3rem;
+    color: #1e293b;
+    line-height: 1.35;
+  }
+  .lesson-card .card-footer {
+    padding: 0.2rem 0.7rem 0.3rem;
+    background: transparent;
+    border-top: none;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 1.4rem;
+  }
+
+  /* ── Mastery dots ──────────────────────── */
+  .mastery-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .mastery-dot.green { background: #16a34a; }
+  .mastery-dot.amber { background: #d97706; }
+  .mastery-dot.red   { background: #dc2626; }
+
+  /* ── Mastery buttons in modal ─────────── */
+  .mastery-btn[data-mastery="green"]              { color: #16A34A; border: 1px solid #16A34A; background: transparent; }
+  .mastery-btn[data-mastery="green"].mastery-active { background: #16A34A; color: #fff; }
+  .mastery-btn[data-mastery="amber"]              { color: #D97706; border: 1px solid #D97706; background: transparent; }
+  .mastery-btn[data-mastery="amber"].mastery-active { background: #D97706; color: #fff; }
+  .mastery-btn[data-mastery="red"]                { color: #DC2626; border: 1px solid #DC2626; background: transparent; }
+  .mastery-btn[data-mastery="red"].mastery-active  { background: #DC2626; color: #fff; }
+
+  /* ── Filter badge ──────────────────────── */
+  .filter-badge {
+    background: #3b82f6; color: #fff; border-radius: 999px;
+    font-size: 0.68rem; padding: 0.05rem 0.38rem; margin-left: 0.2rem;
+  }
+  .lesson-card.filter-hidden { display: none !important; }
+
+  /* Saturday column subtle tint */
+  .day-column.saturday { background: #fafdf7; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-  <h2 class="h4 mb-0">
-    <i class="bi bi-calendar3 me-2"></i>{% if is_readonly %}{{ child_name }}'s Calendar{% else %}My Calendar{% endif %}
-    <small class="text-muted fs-6 ms-2">{{ week_display }}</small>
-  </h2>
-  <div class="btn-group" role="group" aria-label="Week navigation">
-    <a href="{% if is_readonly %}{% url 'tracker:parent_calendar_week' child_id prev_year prev_week %}{% else %}{% url 'tracker:calendar_week' prev_year prev_week %}{% endif %}"
-       class="btn btn-outline-secondary btn-sm" aria-label="Previous week">
-      &larr; Prev
-    </a>
-    <a href="{% if is_readonly %}{% url 'tracker:parent_calendar_week' child_id today_year today_week %}{% else %}{% url 'tracker:calendar_week' today_year today_week %}{% endif %}"
-       class="btn btn-outline-primary btn-sm">Today</a>
-    <a href="{% if is_readonly %}{% url 'tracker:parent_calendar_week' child_id next_year next_week %}{% else %}{% url 'tracker:calendar_week' next_year next_week %}{% endif %}"
-       class="btn btn-outline-secondary btn-sm" aria-label="Next week">
-      Next &rarr;
-    </a>
+<!-- ── Toolbar ───────────────────────────────────────── -->
+<div class="cal-toolbar">
+  <div class="cal-nav-group">
+    <a class="cal-nav-btn"
+       href="{% if is_readonly %}{% url 'tracker:parent_calendar_week' child_id prev_year prev_week %}{% else %}{% url 'tracker:calendar_week' prev_year prev_week %}{% endif %}"
+       aria-label="Previous week">&#8249;</a>
+    <a class="cal-nav-btn today-btn"
+       href="{% if is_readonly %}{% url 'tracker:parent_calendar_week' child_id today_year today_week %}{% else %}{% url 'tracker:calendar_week' today_year today_week %}{% endif %}">Today</a>
+    <a class="cal-nav-btn"
+       href="{% if is_readonly %}{% url 'tracker:parent_calendar_week' child_id next_year next_week %}{% else %}{% url 'tracker:calendar_week' next_year next_week %}{% endif %}"
+       aria-label="Next week">&#8250;</a>
+  </div>
+
+  <div class="cal-date-range">
+    <i class="bi bi-calendar3"></i>
+    {{ week_display }}
+  </div>
+
+  <div class="cal-toolbar-right">
+    <!-- Filters -->
+    <div class="dropdown">
+      <button class="cal-action-btn dropdown-toggle" data-bs-toggle="dropdown" id="filter-btn">
+        <i class="bi bi-funnel"></i> Filters
+        <span id="active-filter-badge" class="filter-badge" style="display:none;">0</span>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="font-size:0.85rem; min-width:180px;">
+        <li>
+          <label class="dropdown-item d-flex align-items-center gap-2" style="cursor:pointer;">
+            <input type="checkbox" id="filter-complete" checked> Show Completed
+          </label>
+        </li>
+        <li>
+          <label class="dropdown-item d-flex align-items-center gap-2" style="cursor:pointer;">
+            <input type="checkbox" id="filter-skipped" checked> Show Skipped
+          </label>
+        </li>
+        <li>
+          <label class="dropdown-item d-flex align-items-center gap-2" style="cursor:pointer;">
+            <input type="checkbox" id="filter-pending" checked> Show Pending
+          </label>
+        </li>
+      </ul>
+    </div>
+
+    {% if is_readonly %}
+      <!-- Parent: manage vacations + export links for this child -->
+      <a href="{% url 'scheduler:manage_vacations' child_id=child_id %}" class="cal-action-btn">
+        <i class="bi bi-sun"></i> Manage Vacations
+      </a>
+      <a href="{% url 'tracker:parent_export_ical' child_id=child_id %}" class="cal-action-btn">
+        <i class="bi bi-box-arrow-up"></i> Export
+      </a>
+    {% else %}
+      {% if child %}
+      <a href="{% url 'scheduler:manage_vacations' child_id=child.pk %}" class="cal-action-btn">
+        <i class="bi bi-sun"></i> Manage Vacations
+      </a>
+      {% endif %}
+      <a href="{% url 'tracker:export_ical' %}" class="cal-action-btn">
+        <i class="bi bi-box-arrow-up"></i> Export
+      </a>
+    {% endif %}
   </div>
 </div>
 
+<!-- ── Calendar grid ────────────────────────────────── -->
 <div class="calendar-grid">
   {% for name, day in days.items %}
-  <div class="day-column">
-    <div class="day-header {% if day.date == today %}today-col{% endif %}">
-      <div>{{ day.date|date:"l" }}</div>
-      <div class="fw-normal text-muted" style="font-size:0.8rem">{{ day.date|date:"j M Y" }}</div>
+  <div class="day-column {% if name == 'saturday' %}saturday{% endif %}">
+    <div class="day-header">
+      <div class="day-header-left">
+        <span class="day-name">{{ day.date|date:"l" }}</span>
+        {% if day.date == today %}<span class="today-dot"></span>{% endif %}
+        <span class="day-date">{{ day.date|date:"M d" }}</span>
+      </div>
+      {% if not is_readonly %}
+      <button class="day-add-btn"
+              data-date="{{ day.date|date:'Y-m-d' }}"
+              title="Add vacation on {{ day.date|date:'M d' }}"
+              aria-label="Add vacation on {{ day.date|date:'l, M d' }}">+</button>
+      {% endif %}
     </div>
 
-    {% if day.lessons %}
-      {% for sl in day.lessons %}
-      <div class="lesson-card" style="--subject-colour: {{ sl.enrolled_subject.colour_hex }}" data-id="{{ sl.pk }}" role="button" tabindex="0" aria-haspopup="dialog">
-        <div class="card-header">{{ sl.enrolled_subject.subject_name }}</div>
-        <div class="card-body">{{ sl.lesson.lesson_title }}</div>
-        <div class="card-footer">
-          {% if sl.log.status == 'complete' %}<span class="badge status-badge bg-success me-1">Complete</span>{% endif %}
-          {% if sl.log.status == 'skipped' %}<span class="badge status-badge bg-secondary me-1">Skipped</span>{% endif %}
-          {% if sl.log.mastery == 'green' %}<span class="mastery-dot green" title="Mastery: green"></span>{% endif %}
-          {% if sl.log.mastery == 'amber' %}<span class="mastery-dot amber" title="Mastery: amber"></span>{% endif %}
-          {% if sl.log.mastery == 'red' %}<span class="mastery-dot red" title="Mastery: needs work"></span>{% endif %}
+    <div class="day-body">
+      {# Vacation banners for this day #}
+      {% for vac in day.vacations %}
+      <div class="vacation-card">
+        <span>☀️</span>
+        <div>
+          <div class="vac-name">{{ vac.name }}</div>
+          <div class="vac-child">{{ child.first_name }}</div>
         </div>
       </div>
       {% endfor %}
-    {% else %}
-      <p class="empty-day">No lessons scheduled</p>
-    {% endif %}
+
+      {# Lesson cards for this day #}
+      {% if day.lessons %}
+        {% for sl in day.lessons %}
+        <div class="lesson-card"
+             style="--subject-colour: {{ sl.enrolled_subject.colour_hex }}"
+             data-id="{{ sl.pk }}"
+             data-status="{% if sl.log %}{{ sl.log.status }}{% else %}pending{% endif %}"
+             role="button" tabindex="0" aria-haspopup="dialog">
+          <div class="card-header">{{ sl.enrolled_subject.subject_name }}</div>
+          <div class="card-body">{{ sl.lesson.lesson_title }}</div>
+          <div class="card-footer">
+            {% if sl.log.status == 'complete' %}<span class="badge status-badge bg-success me-1" style="font-size:0.65rem;">Complete</span>{% endif %}
+            {% if sl.log.status == 'skipped' %}<span class="badge status-badge bg-secondary me-1" style="font-size:0.65rem;">Skipped</span>{% endif %}
+            {% if sl.log.mastery == 'green' %}<span class="mastery-dot green" title="Mastery: good"></span>{% endif %}
+            {% if sl.log.mastery == 'amber' %}<span class="mastery-dot amber" title="Mastery: amber"></span>{% endif %}
+            {% if sl.log.mastery == 'red' %}<span class="mastery-dot red" title="Mastery: needs work"></span>{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      {% elif not day.vacations %}
+        <p class="empty-day">No lessons</p>
+      {% endif %}
+    </div>
   </div>
   {% endfor %}
 </div>
 
-<!-- Lesson Detail Modal -->
+<!-- ── Lesson Detail Modal (unchanged) ─────────────── -->
 <div id="lesson-modal" class="modal fade" tabindex="-1" role="dialog"
      aria-modal="true" aria-labelledby="modal-title">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
-      <div id="modal-header" class="modal-header" style="background: var(--modal-colour, #6c757d); color: #fff; border-bottom: none;">
+      <div id="modal-header" class="modal-header"
+           style="background: var(--modal-colour, #6c757d); color: #fff; border-bottom: none;">
         <h5 class="modal-title" id="modal-title">Lesson Detail</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -152,7 +353,8 @@
         <div class="mt-2">
           <label for="modal-reschedule-date" class="small text-muted mb-1 d-block">Reschedule to</label>
           <div class="d-flex gap-2 align-items-center">
-            <input type="date" id="modal-reschedule-date" class="form-control form-control-sm" style="max-width:180px" disabled>
+            <input type="date" id="modal-reschedule-date" class="form-control form-control-sm"
+                   style="max-width:180px" disabled>
             <button id="modal-btn-reschedule" class="btn btn-sm btn-outline-warning" disabled>Move Lesson</button>
           </div>
         </div>
@@ -174,8 +376,106 @@
     </div>
   </div>
 </div>
+
+<!-- ── Quick-add Vacation Modal ─────────────────────── -->
+{% if not is_readonly %}
+<div id="vacation-modal" class="modal fade" tabindex="-1" aria-labelledby="vac-modal-title" aria-modal="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#f59e0b; color:#fff; border-bottom:none;">
+        <h6 class="modal-title fw-bold" id="vac-modal-title">☀️ Add Vacation</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="vacation-form" method="post" action="" novalidate>
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold" for="vac-modal-name">Vacation name</label>
+            <input type="text" class="form-control" id="vac-modal-name" name="name"
+                   maxlength="100" placeholder="e.g. Half term" required
+                   autocomplete="off">
+          </div>
+          <div class="row g-2">
+            <div class="col">
+              <label class="form-label small fw-semibold" for="vac-modal-start">Start date</label>
+              <input type="date" class="form-control" id="vac-modal-start" name="start_date" required>
+            </div>
+            <div class="col">
+              <label class="form-label small fw-semibold" for="vac-modal-end">End date</label>
+              <input type="date" class="form-control" id="vac-modal-end" name="end_date" required>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary btn-sm"
+                  data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-warning btn-sm fw-semibold">Add Vacation</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'js/calendar.js' %}"></script>
+<script>
+(function () {
+  // ── Vacation quick-add modal ─────────────
+  {% if not is_readonly %}
+  {% if child %}
+  var addVacUrl = "{% url 'scheduler:add_vacation' child_id=child.pk %}";
+  {% else %}
+  var addVacUrl = null;
+  {% endif %}
+  var vacModal = new bootstrap.Modal(document.getElementById('vacation-modal'));
+  document.getElementById('vacation-form').action = addVacUrl || '#';
+
+  document.querySelectorAll('.day-add-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var date = btn.dataset.date;
+      document.getElementById('vac-modal-start').value = date;
+      document.getElementById('vac-modal-end').value   = date;
+      document.getElementById('vac-modal-name').value  = '';
+      vacModal.show();
+    });
+  });
+
+  document.getElementById('vac-modal-start').addEventListener('change', function () {
+    var endEl = document.getElementById('vac-modal-end');
+    endEl.min = this.value;
+    if (endEl.value < this.value) endEl.value = this.value;
+  });
+  {% endif %}
+
+  // ── Filters ──────────────────────────────
+  var filterComplete = document.getElementById('filter-complete');
+  var filterSkipped  = document.getElementById('filter-skipped');
+  var filterPending  = document.getElementById('filter-pending');
+  var badge = document.getElementById('active-filter-badge');
+
+  function applyFilters() {
+    var hiddenCount = 0;
+    document.querySelectorAll('.lesson-card').forEach(function (card) {
+      var status = card.dataset.status || 'pending';
+      var visible = (
+        (status === 'complete' && filterComplete.checked) ||
+        (status === 'skipped'  && filterSkipped.checked)  ||
+        (status === 'pending'  && filterPending.checked)
+      );
+      card.classList.toggle('filter-hidden', !visible);
+      if (!visible) hiddenCount++;
+    });
+    badge.textContent = hiddenCount;
+    badge.style.display = hiddenCount > 0 ? 'inline' : 'none';
+  }
+
+  [filterComplete, filterSkipped, filterPending].forEach(function (el) {
+    el.addEventListener('change', applyFilters);
+  });
+  applyFilters();
+})();
+</script>
 {% endblock %}
+

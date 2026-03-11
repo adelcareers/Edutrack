@@ -136,12 +136,12 @@ class CalendarViewTests(TestCase):
         for key in ('days', 'year', 'week', 'today'):
             self.assertIn(key, response.context)
 
-    def test_days_has_five_columns(self):
+    def test_days_has_six_columns(self):
         self.client.force_login(self.student)
         response = self.client.get(self.url)
         days = response.context['days']
-        self.assertEqual(len(days), 5)
-        for name in ('monday', 'tuesday', 'wednesday', 'thursday', 'friday'):
+        self.assertEqual(len(days), 6)
+        for name in ('monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'):
             self.assertIn(name, days)
 
     def test_default_week_matches_today(self):
@@ -201,7 +201,7 @@ class CalendarViewTests(TestCase):
     def test_empty_day_renders_no_lessons_message(self):
         self.client.force_login(self.student)
         response = self.client.get(self.url)
-        self.assertContains(response, 'No lessons scheduled')
+        self.assertContains(response, 'No lessons')
 
     # ---------- student without child_profile ----------
 
@@ -286,15 +286,14 @@ class CalendarNavigationTests(TestCase):
     # ---------- week_display string ----------
 
     def test_week_display_same_month(self):
-        # Week 10 2026: Mon 2 Mar – Fri 6 Mar 2026 → "2–6 Mar 2026"
+        # Week 10 2026: Mon 2 Mar – Sat 7 Mar 2026 → "Mar 02, 2026 — Mar 07, 2026"
         response = self._get_week(2026, 10)
-        self.assertEqual(response.context['week_display'], '2–6 Mar 2026')
+        self.assertEqual(response.context['week_display'], 'Mar 02, 2026 — Mar 07, 2026')
 
     def test_week_display_cross_month(self):
-        # Week 13 2026: Mon 23 Mar – Fri 27 Mar 2026 → same month
-        # Week 14 2026: Mon 30 Mar – Fri 3 Apr 2026 → cross month
+        # Week 14 2026: Mon 30 Mar – Sat 4 Apr 2026 → "Mar 30, 2026 — Apr 04, 2026"
         response = self._get_week(2026, 14)
-        self.assertEqual(response.context['week_display'], '30 Mar–3 Apr 2026')
+        self.assertEqual(response.context['week_display'], 'Mar 30, 2026 — Apr 04, 2026')
 
     # ---------- nav links rendered in template ----------
 

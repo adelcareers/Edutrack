@@ -52,4 +52,19 @@ urlpatterns = [
         views.schedule_edit_view,
         name='schedule_edit',
     ),
+    path(
+        'children/<int:child_id>/vacations/',
+        views.manage_vacations_view,
+        name='manage_vacations',
+    ),
+    path(
+        'children/<int:child_id>/vacations/add/',
+        views.add_vacation_view,
+        name='add_vacation',
+    ),
+    path(
+        'vacations/<int:vacation_id>/delete/',
+        views.delete_vacation_view,
+        name='delete_vacation',
+    ),
 ]

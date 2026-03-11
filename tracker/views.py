@@ -1,20 +1,95 @@
 import datetime
+import uuid
 
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from accounts.decorators import role_required
-from scheduler.models import ScheduledLesson
+from scheduler.models import ScheduledLesson, Vacation
 from tracker.models import EvidenceFile, LessonLog
+
+
+def _build_calendar_context(child, year, week, today, is_readonly, child_id=None, child_name=None):
+    """Shared helper: build the full context dict for the calendar template.
+
+    Covers Mon–Sat (6 days), queries lessons and vacations that overlap
+    the week, and computes navigation years/weeks.
+    """
+    monday = datetime.date.fromisocalendar(year, week, 1)
+    saturday = monday + datetime.timedelta(days=5)
+
+    # Lessons
+    lesson_by_date: dict = {}
+    if child is not None:
+        qs = (
+            ScheduledLesson.objects
+            .filter(child=child, scheduled_date__gte=monday, scheduled_date__lte=saturday)
+            .select_related('lesson', 'enrolled_subject', 'log')
+        )
+        for sl in qs:
+            lesson_by_date.setdefault(sl.scheduled_date, []).append(sl)
+
+    # Vacations overlapping this week
+    vacations_by_date: dict = {}
+    if child is not None:
+        vac_qs = Vacation.objects.filter(
+            child=child,
+            start_date__lte=saturday,
+            end_date__gte=monday,
+        )
+        for vac in vac_qs:
+            cur = max(vac.start_date, monday)
+            end = min(vac.end_date, saturday)
+            while cur <= end:
+                vacations_by_date.setdefault(cur, []).append(vac)
+                cur += datetime.timedelta(days=1)
+
+    day_names = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+    days = {}
+    for i, name in enumerate(day_names):
+        date = monday + datetime.timedelta(days=i)
+        days[name] = {
+            'date': date,
+            'lessons': lesson_by_date.get(date, []),
+            'vacations': vacations_by_date.get(date, []),
+        }
+
+    # Week navigation
+    prev_monday = monday - datetime.timedelta(weeks=1)
+    next_monday = monday + datetime.timedelta(weeks=1)
+    prev_y, prev_w, _ = prev_monday.isocalendar()
+    next_y, next_w, _ = next_monday.isocalendar()
+    today_iso = today.isocalendar()
+
+    # Header date range e.g. "Mar 09, 2026 — Mar 15, 2026"
+    week_display = f"{monday.strftime('%b %d, %Y')} — {saturday.strftime('%b %d, %Y')}"
+
+    return {
+        'days': days,
+        'year': year,
+        'week': week,
+        'today': today,
+        'prev_year': prev_y,
+        'prev_week': prev_w,
+        'next_year': next_y,
+        'next_week': next_w,
+        'today_year': today_iso[0],
+        'today_week': today_iso[1],
+        'week_display': week_display,
+        'is_readonly': is_readonly,
+        'child_id': child_id,
+        'child_name': child_name,
+        'child': child,
+    }
 
 
 @login_required
 @role_required('student')
 def calendar_view(request, year=None, week=None):
-    """Weekly calendar for a student showing Mon–Fri lessons.
+    """Weekly calendar for a student showing Mon–Sat lessons.
 
     URL params ``year`` and ``week`` are ISO year/week integers.
     Defaults to the current ISO week when omitted.
@@ -24,55 +99,9 @@ def calendar_view(request, year=None, week=None):
     if year is None or week is None:
         year, week = iso_year, iso_week
 
-    monday = datetime.date.fromisocalendar(year, week, 1)
-    friday = monday + datetime.timedelta(days=4)
-
     child = getattr(request.user, 'child_profile', None)
-
-    lesson_by_date: dict = {}
-    if child is not None:
-        qs = (
-            ScheduledLesson.objects
-            .filter(child=child, scheduled_date__gte=monday, scheduled_date__lte=friday)
-            .select_related('lesson', 'enrolled_subject', 'log')
-        )
-        for sl in qs:
-            lesson_by_date.setdefault(sl.scheduled_date, []).append(sl)
-
-    day_names = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
-    days = {}
-    for i, name in enumerate(day_names):
-        date = monday + datetime.timedelta(days=i)
-        days[name] = {
-            'date': date,
-            'lessons': lesson_by_date.get(date, []),
-        }
-
-    # Week navigation
-    prev_monday = monday - datetime.timedelta(weeks=1)
-    next_monday = monday + datetime.timedelta(weeks=1)
-    prev_y, prev_w, _ = prev_monday.isocalendar()
-    next_y, next_w, _ = next_monday.isocalendar()
-
-    # Week display string e.g. "9–13 Jan 2026" or "30 Mar–3 Apr 2026"
-    if monday.month == friday.month:
-        week_display = f"{monday.day}–{friday.day} {friday.strftime('%b %Y')}"
-    else:
-        week_display = f"{monday.strftime('%-d %b')}–{friday.strftime('%-d %b %Y')}"
-
-    return render(request, 'tracker/calendar.html', {
-        'days': days,
-        'year': year,
-        'week': week,
-        'today': today,
-        'prev_year': prev_y,
-        'prev_week': prev_w,
-        'next_year': next_y,
-        'next_week': next_w,
-        'today_year': iso_year,
-        'today_week': iso_week,
-        'week_display': week_display,
-    })
+    ctx = _build_calendar_context(child, year, week, today, is_readonly=False)
+    return render(request, 'tracker/calendar.html', ctx)
 
 
 @login_required
@@ -344,50 +373,103 @@ def parent_calendar_view(request, child_id, year=None, week=None):
     if year is None or week is None:
         year, week = iso_year, iso_week
 
-    monday = datetime.date.fromisocalendar(year, week, 1)
-    friday = monday + datetime.timedelta(days=4)
-
-    lesson_by_date: dict = {}
-    qs = (
-        ScheduledLesson.objects
-        .filter(child=child, scheduled_date__gte=monday, scheduled_date__lte=friday)
-        .select_related('lesson', 'enrolled_subject', 'log')
+    ctx = _build_calendar_context(
+        child, year, week, today,
+        is_readonly=True, child_id=child_id, child_name=child.first_name,
     )
-    for sl in qs:
-        lesson_by_date.setdefault(sl.scheduled_date, []).append(sl)
+    return render(request, 'tracker/calendar.html', ctx)
 
-    day_names = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
-    days = {}
-    for i, name in enumerate(day_names):
-        date = monday + datetime.timedelta(days=i)
-        days[name] = {
-            'date': date,
-            'lessons': lesson_by_date.get(date, []),
-        }
 
-    prev_monday = monday - datetime.timedelta(weeks=1)
-    next_monday = monday + datetime.timedelta(weeks=1)
-    prev_y, prev_w, _ = prev_monday.isocalendar()
-    next_y, next_w, _ = next_monday.isocalendar()
+def _build_ical(child, scheduled_lessons, vacations):
+    """Build a minimal RFC 5545 iCalendar string for a child's schedule."""
+    lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        f'PRODID:-//EduTrack//Schedule for {child.first_name}//EN',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+        f'X-WR-CALNAME:{child.first_name} — EduTrack Schedule',
+    ]
 
-    if monday.month == friday.month:
-        week_display = f"{monday.day}\u2013{friday.day} {friday.strftime('%b %Y')}"
-    else:
-        week_display = f"{monday.strftime('%-d %b')}\u2013{friday.strftime('%-d %b %Y')}"
+    for sl in scheduled_lessons:
+        uid = f'lesson-{sl.pk}@edutrack'
+        dtstart = sl.scheduled_date.strftime('%Y%m%d')
+        dtend = (sl.scheduled_date + datetime.timedelta(days=1)).strftime('%Y%m%d')
+        summary = f'{sl.enrolled_subject.subject_name}: {sl.lesson.lesson_title}'
+        lines += [
+            'BEGIN:VEVENT',
+            f'UID:{uid}',
+            f'DTSTART;VALUE=DATE:{dtstart}',
+            f'DTEND;VALUE=DATE:{dtend}',
+            f'SUMMARY:{summary}',
+            'END:VEVENT',
+        ]
 
-    return render(request, 'tracker/calendar.html', {
-        'days': days,
-        'year': year,
-        'week': week,
-        'today': today,
-        'prev_year': prev_y,
-        'prev_week': prev_w,
-        'next_year': next_y,
-        'next_week': next_w,
-        'today_year': iso_year,
-        'today_week': iso_week,
-        'week_display': week_display,
-        'is_readonly': True,
-        'child_id': child_id,
-        'child_name': child.first_name,
-    })
+    for vac in vacations:
+        uid = f'vac-{vac.pk}@edutrack'
+        dtstart = vac.start_date.strftime('%Y%m%d')
+        dtend = (vac.end_date + datetime.timedelta(days=1)).strftime('%Y%m%d')
+        lines += [
+            'BEGIN:VEVENT',
+            f'UID:{uid}',
+            f'DTSTART;VALUE=DATE:{dtstart}',
+            f'DTEND;VALUE=DATE:{dtend}',
+            f'SUMMARY:{vac.name}',
+            'TRANSP:TRANSPARENT',
+            'END:VEVENT',
+        ]
+
+    lines.append('END:VCALENDAR')
+    return '\r\n'.join(lines) + '\r\n'
+
+
+@login_required
+@role_required('student')
+def export_ical_view(request):
+    """Download the student's full schedule as an iCalendar (.ics) file."""
+    child = getattr(request.user, 'child_profile', None)
+    if child is None:
+        from django.http import HttpResponseNotFound
+        return HttpResponseNotFound('No child profile found.')
+
+    lessons = (
+        ScheduledLesson.objects
+        .filter(child=child)
+        .select_related('lesson', 'enrolled_subject')
+        .order_by('scheduled_date')
+    )
+    vacations = Vacation.objects.filter(child=child)
+
+    content = _build_ical(child, lessons, vacations)
+    response = HttpResponse(content, content_type='text/calendar; charset=utf-8')
+    response['Content-Disposition'] = (
+        f'attachment; filename="{child.first_name}_schedule.ics"'
+    )
+    return response
+
+
+@login_required
+@role_required('parent')
+def parent_export_ical_view(request, child_id):
+    """Download a child's full schedule as an iCalendar (.ics) file (parent)."""
+    from scheduler.models import Child as ChildModel
+    child = get_object_or_404(ChildModel, pk=child_id)
+
+    if child.parent_id != request.user.pk:
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden()
+
+    lessons = (
+        ScheduledLesson.objects
+        .filter(child=child)
+        .select_related('lesson', 'enrolled_subject')
+        .order_by('scheduled_date')
+    )
+    vacations = Vacation.objects.filter(child=child)
+
+    content = _build_ical(child, lessons, vacations)
+    response = HttpResponse(content, content_type='text/calendar; charset=utf-8')
+    response['Content-Disposition'] = (
+        f'attachment; filename="{child.first_name}_schedule.ics"'
+    )
+    return response
