@@ -327,13 +327,15 @@
           <div class="mb-3">
             <label class="form-label fw-semibold" style="font-size:0.9rem;">Subject(s)</label>
             <div class="subject-tags" id="subjectTags">
-              {% for subj in form.instance.subjects.all %}
-                <span class="subject-tag" data-id="{{ subj.pk }}">
-                  {{ subj.name }}
-                  <input type="hidden" name="subject_ids" value="{{ subj.pk }}">
-                  <button type="button" onclick="removeSubject(this)" aria-label="Remove {{ subj.name }}">×</button>
-                </span>
-              {% endfor %}
+              {% if form.instance.pk %}
+                {% for subj in form.instance.subjects.all %}
+                  <span class="subject-tag" data-id="{{ subj.pk }}">
+                    {{ subj.name }}
+                    <input type="hidden" name="subject_ids" value="{{ subj.pk }}">
+                    <button type="button" onclick="removeSubject(this)" aria-label="Remove {{ subj.name }}">×</button>
+                  </span>
+                {% endfor %}
+              {% endif %}
             </div>
             <div class="subject-input-wrap mt-1">
               <input type="text" id="subjectInput" class="form-control form-control-sm"
