@@ -5,6 +5,7 @@
 {% block nav_courses %}active{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css">
 <style>
   body { background: #f8f9fb; }
 
@@ -241,6 +242,37 @@
     gap: 0.75rem;
     margin-top: 1.5rem;
   }
+
+  /* ── Quill rich-text editor ── */
+  .ql-toolbar.ql-snow {
+    border-radius: 8px 8px 0 0;
+    border-color: #dee2e6;
+    background: #fff;
+    padding: 8px 10px;
+    font-family: inherit;
+  }
+  .ql-container.ql-snow {
+    border-radius: 0 0 8px 8px;
+    border-color: #dee2e6;
+    font-family: inherit;
+    font-size: 0.9rem;
+  }
+  .ql-editor {
+    min-height: 180px;
+    line-height: 1.6;
+  }
+  .ql-editor.ql-blank::before {
+    color: #9ca3af;
+    font-style: normal;
+  }
+  .ql-snow .ql-picker.ql-header { width: 90px; }
+  .ql-snow .ql-stroke { stroke: #374151; }
+  .ql-snow .ql-fill { fill: #374151; }
+  .ql-snow .ql-picker { color: #374151; }
+  .ql-snow .ql-picker-label:hover,
+  .ql-snow button:hover .ql-stroke { stroke: #4f46e5; }
+  .ql-snow .ql-active .ql-stroke { stroke: #4f46e5; }
+  .ql-snow .ql-active { color: #4f46e5; }
 </style>
 {% endblock %}
 
@@ -427,13 +459,16 @@
             <button type="button" onclick="switchTab(this,'introPanel')">Course Introduction</button>
           </div>
           <div id="descPanel">
-            {{ form.description }}
+            {# hidden textarea — Quill syncs back to this on submit #}
+            <div style="display:none;">{{ form.description }}</div>
+            <div id="descEditor"></div>
             {% if form.description.errors %}
               <div class="text-danger small mt-1">{{ form.description.errors|join:", " }}</div>
             {% endif %}
           </div>
           <div id="introPanel" style="display:none;">
-            {{ form.course_intro }}
+            <div style="display:none;">{{ form.course_intro }}</div>
+            <div id="introEditor"></div>
             {% if form.course_intro.errors %}
               <div class="text-danger small mt-1">{{ form.course_intro.errors|join:", " }}</div>
             {% endif %}
@@ -566,6 +601,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 <script>
 // ── Color picker ──────────────────────────────────────────────────────────
 const colorInput = document.getElementById('id_color');
@@ -755,5 +791,47 @@ function getCookie(name) {
 document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
   new bootstrap.Tooltip(el);
 });
+
+// ── Quill rich-text editors ──────────────────────────────────────────────
+const QUILL_TOOLBAR = [
+  [{ header: [false, 1, 2, 3] }],
+  ['bold', 'italic', 'underline'],
+  [{ list: 'ordered' }, { list: 'bullet' }],
+  ['link'],
+];
+
+const descQuill = new Quill('#descEditor', {
+  theme: 'snow',
+  placeholder: 'Write a description…',
+  modules: { toolbar: QUILL_TOOLBAR },
+});
+const introQuill = new Quill('#introEditor', {
+  theme: 'snow',
+  placeholder: 'Write a course introduction…',
+  modules: { toolbar: QUILL_TOOLBAR },
+});
+
+// Pre-fill with existing saved content
+const descTA  = document.getElementById('id_description');
+const introTA = document.getElementById('id_course_intro');
+if (descTA  && descTA.value.trim())  descQuill.clipboard.dangerouslyPasteHTML(descTA.value);
+if (introTA && introTA.value.trim()) introQuill.clipboard.dangerouslyPasteHTML(introTA.value);
+
+// Sync Quill HTML → textarea before form submits
+document.getElementById('courseForm').addEventListener('submit', function() {
+  if (descTA)  descTA.value  = descQuill.root.innerHTML;
+  if (introTA) introTA.value = introQuill.root.innerHTML;
+});
+
+// Refresh intro Quill layout the first time its panel becomes visible
+let introQuillInit = false;
+const _origSwitchTab = switchTab;
+window.switchTab = function(btn, panelId) {
+  _origSwitchTab(btn, panelId);
+  if (panelId === 'introPanel' && !introQuillInit) {
+    introQuill.update();
+    introQuillInit = true;
+  }
+};
 </script>
 {% endblock %}
