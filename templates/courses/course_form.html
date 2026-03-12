@@ -76,6 +76,25 @@
   }
   .color-swatch-btn:hover, .color-swatch-btn.selected { border-color: #374151; transform: scale(1.15); }
 
+  /* ── Inline color palette grid ── */
+  .color-palette-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 28px);
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .cp-swatch {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 2.5px solid transparent;
+    cursor: pointer;
+    transition: transform .12s, border-color .12s;
+    outline: none;
+    flex-shrink: 0;
+  }
+  .cp-swatch:hover { transform: scale(1.18); }
+  .cp-swatch.active { border-color: #374151; transform: scale(1.18); box-shadow: 0 0 0 2px #fff inset; }
+
   /* ── Right column — form fields ── */
   .form-right { flex: 1; min-width: 0; }
 
@@ -335,12 +354,19 @@
             </div>
             <div class="col-auto">
               <label class="form-label fw-semibold d-block" style="font-size:0.9rem;">Color</label>
-              <div class="d-flex align-items-center gap-2">
-                <button type="button" id="colorSwatchBtn"
-                        style="width:36px;height:36px;border-radius:6px;border:2px solid #dee2e6;cursor:pointer;background:{{ form.color.value|default:'#6c757d' }};flex-shrink:0;"
-                        onclick="document.getElementById('id_color').click()"
-                        title="Pick colour"></button>
-                <div style="display:none;">{{ form.color }}</div>
+              {# Hidden native color input kept for value storage #}
+              <div style="display:none;">{{ form.color }}</div>
+              <div class="color-palette-grid" id="colorPaletteGrid">
+                <button type="button" class="cp-swatch" data-color="#e879a0" style="background:#e879a0;" onclick="pickColor('#e879a0')"></button>
+                <button type="button" class="cp-swatch" data-color="#f97316" style="background:#f97316;" onclick="pickColor('#f97316')"></button>
+                <button type="button" class="cp-swatch" data-color="#eab308" style="background:#eab308;" onclick="pickColor('#eab308')"></button>
+                <button type="button" class="cp-swatch" data-color="#22c55e" style="background:#22c55e;" onclick="pickColor('#22c55e')"></button>
+                <button type="button" class="cp-swatch" data-color="#06b6d4" style="background:#06b6d4;" onclick="pickColor('#06b6d4')"></button>
+                <button type="button" class="cp-swatch" data-color="#4f46e5" style="background:#4f46e5;" onclick="pickColor('#4f46e5')"></button>
+                <button type="button" class="cp-swatch" data-color="#8b5cf6" style="background:#8b5cf6;" onclick="pickColor('#8b5cf6')"></button>
+                <button type="button" class="cp-swatch" data-color="#ec4899" style="background:#ec4899;" onclick="pickColor('#ec4899')"></button>
+                <button type="button" class="cp-swatch" data-color="#6b7280" style="background:#6b7280;" onclick="pickColor('#6b7280')"></button>
+                <button type="button" class="cp-swatch" data-color="#374151" style="background:#374151;" onclick="pickColor('#374151')"></button>
               </div>
             </div>
           </div>
@@ -370,17 +396,40 @@
             </div>
           </div>
 
-          <!-- Grade Years -->
-          <div class="mb-1">
-            <label class="form-label fw-semibold" style="font-size:0.9rem;">Grade Year(s)</label>
-            <div class="grade-years-grid">
-              {% for val, label in form.grade_years_list.field.choices %}
-                <div class="grade-toggle">
-                  <input type="checkbox" name="grade_years_list" id="gy_{{ val }}" value="{{ val }}"
-                         {% if val in form.grade_years_list.value %}checked{% endif %}>
-                  <label for="gy_{{ val }}">{{ label }}</label>
-                </div>
-              {% endfor %}
+          <!-- School Year (single-select dropdown) -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold" style="font-size:0.9rem;">School Year</label>
+            <select name="grade_years_list" id="id_grade_years_list" class="form-select">
+              <option value="">— Select year —</option>
+              <option value="year1"  {% if 'year1'  in form.grade_years_list.value %}selected{% endif %}>Year 1</option>
+              <option value="year2"  {% if 'year2'  in form.grade_years_list.value %}selected{% endif %}>Year 2</option>
+              <option value="year3"  {% if 'year3'  in form.grade_years_list.value %}selected{% endif %}>Year 3</option>
+              <option value="year4"  {% if 'year4'  in form.grade_years_list.value %}selected{% endif %}>Year 4</option>
+              <option value="year5"  {% if 'year5'  in form.grade_years_list.value %}selected{% endif %}>Year 5</option>
+              <option value="year6"  {% if 'year6'  in form.grade_years_list.value %}selected{% endif %}>Year 6</option>
+              <option value="year7"  {% if 'year7'  in form.grade_years_list.value %}selected{% endif %}>Year 7</option>
+              <option value="year8"  {% if 'year8'  in form.grade_years_list.value %}selected{% endif %}>Year 8</option>
+              <option value="year9"  {% if 'year9'  in form.grade_years_list.value %}selected{% endif %}>Year 9</option>
+              <option value="year10" {% if 'year10' in form.grade_years_list.value %}selected{% endif %}>Year 10</option>
+              <option value="year11" {% if 'year11' in form.grade_years_list.value %}selected{% endif %}>Year 11</option>
+              <option value="all"    {% if 'all'    in form.grade_years_list.value %}selected{% endif %}>All Years</option>
+            </select>
+          </div>
+
+          <!-- Grading Style + Credits (moved up from Grading card) -->
+          <div class="row g-3">
+            <div class="col-md-5">
+              <label class="form-label fw-semibold" style="font-size:0.9rem;">
+                Grading Style <span class="text-danger">*</span>
+              </label>
+              {{ form.grading_style }}
+              {% if form.grading_style.errors %}
+                <div class="text-danger small mt-1">{{ form.grading_style.errors|join:", " }}</div>
+              {% endif %}
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold" style="font-size:0.9rem;">Credits</label>
+              {{ form.credits }}
             </div>
           </div>
         </div>
@@ -478,18 +527,6 @@
         <!-- Grading -->
         <div class="form-card">
           <h5>Grading</h5>
-          <div class="row g-3 mb-3">
-            <div class="col-md-5">
-              <label class="form-label fw-semibold" style="font-size:0.9rem;">
-                Grading Style <span class="text-danger">*</span>
-              </label>
-              {{ form.grading_style }}
-            </div>
-            <div class="col-md-3">
-              <label class="form-label fw-semibold" style="font-size:0.9rem;">Credits</label>
-              {{ form.credits }}
-            </div>
-          </div>
 
           <!-- Assignment Type Weights -->
           <div id="assignmentWeightsSection" {% if not form.use_assignment_weights.value %}style="display:none"{% endif %}>
@@ -607,15 +644,17 @@
 const colorInput = document.getElementById('id_color');
 const thumbnail  = document.getElementById('courseThumbnail');
 const nameInput  = document.querySelector('input[name="name"]');
-const colorSwatchBtn = document.getElementById('colorSwatchBtn');
 
-if (colorInput) {
-  colorInput.addEventListener('input', () => {
-    const hex = colorInput.value;
-    thumbnail.style.background = hex;
-    if (colorSwatchBtn) colorSwatchBtn.style.background = hex;
+// Initialise palette — mark the current colour as active
+const _initColor = (colorInput ? colorInput.value : '') || '#6c757d';
+function pickColor(hex) {
+  if (colorInput) colorInput.value = hex;
+  if (thumbnail)  thumbnail.style.background = hex;
+  document.querySelectorAll('.cp-swatch').forEach(b => {
+    b.classList.toggle('active', b.dataset.color === hex);
   });
 }
+pickColor(_initColor);
 if (nameInput) {
   nameInput.addEventListener('input', () => {
     document.getElementById('thumbnailInitial').textContent = (nameInput.value[0] || 'N').toUpperCase();

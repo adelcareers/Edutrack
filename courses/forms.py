@@ -7,36 +7,34 @@ from scheduler.models import Child
 from .models import (
     Course,
     CourseEnrollment,
-    GRADE_YEAR_CHOICES,
     Subject,
 )
 
-DAY_OF_WEEK_CHOICES = [
-    ('0', 'Monday'),
-    ('1', 'Tuesday'),
-    ('2', 'Wednesday'),
-    ('3', 'Thursday'),
-    ('4', 'Friday'),
-    ('5', 'Saturday'),
-    ('6', 'Sunday'),
-]
-
 SCHOOL_YEAR_CHOICES = [
-    ('2023-2024', '2023-2024'),
-    ('2024-2025', '2024-2025'),
-    ('2025-2026', '2025-2026'),
-    ('2026-2027', '2026-2027'),
+    ('', '— Select year —'),
+    ('year1',  'Year 1'),
+    ('year2',  'Year 2'),
+    ('year3',  'Year 3'),
+    ('year4',  'Year 4'),
+    ('year5',  'Year 5'),
+    ('year6',  'Year 6'),
+    ('year7',  'Year 7'),
+    ('year8',  'Year 8'),
+    ('year9',  'Year 9'),
+    ('year10', 'Year 10'),
+    ('year11', 'Year 11'),
+    ('all',    'All Years'),
 ]
 
 
 class CourseForm(forms.ModelForm):
     """Form for creating and editing a Course."""
 
-    grade_years_list = forms.MultipleChoiceField(
-        choices=GRADE_YEAR_CHOICES,
+    grade_years_list = forms.ChoiceField(
+        choices=SCHOOL_YEAR_CHOICES,
         required=False,
-        widget=forms.CheckboxSelectMultiple,
-        label='Grade Year(s)',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='School Year',
     )
 
     class Meta:
@@ -62,17 +60,16 @@ class CourseForm(forms.ModelForm):
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
 
-        # Populate grade_years_list from instance.grade_years CSV
+        # Populate grade_years_list from instance.grade_years (single value)
         if self.instance and self.instance.grade_years:
-            self.fields['grade_years_list'].initial = [
-                g.strip() for g in self.instance.grade_years.split(',') if g.strip()
-            ]
+            first = self.instance.grade_years.split(',')[0].strip()
+            self.fields['grade_years_list'].initial = first
 
     def save(self, commit=True):
         course = super().save(commit=False)
-        # Convert grade_years_list → CSV string
-        grade_years = self.cleaned_data.get('grade_years_list', [])
-        course.grade_years = ','.join(grade_years)
+        # Store single school year selection
+        grade_year = self.cleaned_data.get('grade_years_list', '')
+        course.grade_years = grade_year or ''
         if commit:
             course.save()
             self._save_m2m()
