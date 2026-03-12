@@ -50,13 +50,14 @@ class CourseForm(forms.ModelForm):
     class Meta:
         model = Course
         fields = [
-            'name', 'color', 'duration_weeks', 'frequency_days',
+            'name', 'color', 'labels', 'duration_weeks', 'frequency_days',
             'grading_style', 'use_assignment_weights', 'credits',
             'description', 'course_intro',
         ]
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Course Name'}),
             'color': forms.TextInput(attrs={'type': 'color', 'class': 'form-control form-control-color'}),
+            'labels': forms.SelectMultiple(attrs={'class': 'form-select select2-labels'}),
             'duration_weeks': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 52}),
             'frequency_days': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 7}),
             'grading_style': forms.Select(attrs={'class': 'form-select'}),

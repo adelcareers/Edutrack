@@ -318,319 +318,233 @@
   <form method="post" enctype="multipart/form-data" id="courseForm">
     {% csrf_token %}
 
-    <div class="course-form-layout">
+    <div class="row justify-content-center">
+      <div class="col-lg-10">
+        <div class="card shadow-sm border-0">
+          <div class="card-body p-4">
 
-      <!-- ── Left: photo/color ── -->
-      <div class="form-left">
-        <div class="course-photo-block">
-          <div class="course-thumbnail" id="courseThumbnail"
-               style="background: {{ form.color.value|default:'#6c757d' }};">
-            <span id="thumbnailInitial">{{ form.instance.name|slice:":1"|upper|default:"N" }}</span>
-            <span class="thumbnail-overlay"><i class="bi bi-pencil-fill"></i></span>
-          </div>
-          <div class="photo-label">
-            <label for="id_photo" style="cursor:pointer;">
-              <i class="bi bi-upload me-1"></i>Edit Photo
-            </label>
-            <input type="file" name="photo" id="id_photo" accept="image/*" class="d-none">
-          </div>
-        </div>
-      </div>
-
-      <!-- ── Right: fields ── -->
-      <div class="form-right">
-
-        <!-- Course Name + Grade Years -->
-        <div class="form-card">
-          <div class="row g-3 mb-3 align-items-end">
-            <div class="col">
-              <label class="form-label fw-semibold" style="font-size:0.9rem;">
-                Course Name <span class="text-danger">*</span>
-              </label>
-              {{ form.name }}
-              {% if form.name.errors %}
-                <div class="text-danger small mt-1">{{ form.name.errors|join:", " }}</div>
-              {% endif %}
-            </div>
-            <div class="col-auto">
-              <label class="form-label fw-semibold d-block" style="font-size:0.9rem;">Color</label>
-              {# Hidden native color input kept for value storage #}
-              <div style="display:none;">{{ form.color }}</div>
-              <div class="color-palette-grid" id="colorPaletteGrid">
-                <button type="button" class="cp-swatch" data-color="#e879a0" style="background:#e879a0;" onclick="pickColor('#e879a0')"></button>
-                <button type="button" class="cp-swatch" data-color="#f97316" style="background:#f97316;" onclick="pickColor('#f97316')"></button>
-                <button type="button" class="cp-swatch" data-color="#eab308" style="background:#eab308;" onclick="pickColor('#eab308')"></button>
-                <button type="button" class="cp-swatch" data-color="#22c55e" style="background:#22c55e;" onclick="pickColor('#22c55e')"></button>
-                <button type="button" class="cp-swatch" data-color="#06b6d4" style="background:#06b6d4;" onclick="pickColor('#06b6d4')"></button>
-                <button type="button" class="cp-swatch" data-color="#4f46e5" style="background:#4f46e5;" onclick="pickColor('#4f46e5')"></button>
-                <button type="button" class="cp-swatch" data-color="#8b5cf6" style="background:#8b5cf6;" onclick="pickColor('#8b5cf6')"></button>
-                <button type="button" class="cp-swatch" data-color="#ec4899" style="background:#ec4899;" onclick="pickColor('#ec4899')"></button>
-                <button type="button" class="cp-swatch" data-color="#6b7280" style="background:#6b7280;" onclick="pickColor('#6b7280')"></button>
-                <button type="button" class="cp-swatch" data-color="#374151" style="background:#374151;" onclick="pickColor('#374151')"></button>
+            <!-- Row 1: Name (9), Color (3) -->
+            <div class="row g-3 mb-4 align-items-end">
+              <div class="col-md-9">
+                <label class="form-label fw-bold">Course Name <span class="text-danger">*</span></label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                  <div class="text-danger small mt-1">{{ form.name.errors|join:", " }}</div>
+                {% endif %}
+              </div>
+              <div class="col-md-3">
+                 <label class="form-label fw-bold">Color</label>
+                 <div style="display:none;">{{ form.color }}</div>
+                 <div class="color-palette-grid" id="colorPaletteGrid">
+                    <button type="button" class="cp-swatch" data-color="#e879a0" style="background:#e879a0;" onclick="pickColor('#e879a0')"></button>
+                    <button type="button" class="cp-swatch" data-color="#f97316" style="background:#f97316;" onclick="pickColor('#f97316')"></button>
+                    <button type="button" class="cp-swatch" data-color="#eab308" style="background:#eab308;" onclick="pickColor('#eab308')"></button>
+                    <button type="button" class="cp-swatch" data-color="#22c55e" style="background:#22c55e;" onclick="pickColor('#22c55e')"></button>
+                    <button type="button" class="cp-swatch" data-color="#06b6d4" style="background:#06b6d4;" onclick="pickColor('#06b6d4')"></button>
+                    <button type="button" class="cp-swatch" data-color="#4f46e5" style="background:#4f46e5;" onclick="pickColor('#4f46e5')"></button>
+                    <button type="button" class="cp-swatch" data-color="#8b5cf6" style="background:#8b5cf6;" onclick="pickColor('#8b5cf6')"></button>
+                    <button type="button" class="cp-swatch" data-color="#ec4899" style="background:#ec4899;" onclick="pickColor('#ec4899')"></button>
+                    <button type="button" class="cp-swatch" data-color="#6b7280" style="background:#6b7280;" onclick="pickColor('#6b7280')"></button>
+                    <button type="button" class="cp-swatch" data-color="#374151" style="background:#374151;" onclick="pickColor('#374151')"></button>
+                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- Subjects -->
-          <div class="mb-3">
-            <label class="form-label fw-semibold" style="font-size:0.9rem;">Subject(s)</label>
-            <div class="subject-tags" id="subjectTags">
-              {% if form.instance.pk %}
-                {% for subj in form.instance.subjects.all %}
-                  <span class="subject-tag" data-id="{{ subj.pk }}">
-                    {{ subj.name }}
-                    <input type="hidden" name="subject_ids" value="{{ subj.pk }}">
-                    <button type="button" onclick="removeSubject(this)" aria-label="Remove {{ subj.name }}">×</button>
-                  </span>
-                {% endfor %}
-              {% endif %}
-            </div>
-            <div class="subject-input-wrap mt-1">
-              <input type="text" id="subjectInput" class="form-control form-control-sm"
-                     placeholder="Type a subject and press Enter or Create…"
-                     autocomplete="off" list="subjectDatalist">
-              <datalist id="subjectDatalist"></datalist>
-              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addSubjectFromInput()">
-                + Create
-              </button>
-            </div>
-          </div>
-
-          <!-- School Year (single-select dropdown) -->
-          <div class="mb-3">
-            <label class="form-label fw-semibold" style="font-size:0.9rem;">School Year</label>
-            <select name="grade_years_list" id="id_grade_years_list" class="form-select">
-              <option value="">— Select year —</option>
-              <option value="year1"  {% if 'year1'  in form.grade_years_list.value %}selected{% endif %}>Year 1</option>
-              <option value="year2"  {% if 'year2'  in form.grade_years_list.value %}selected{% endif %}>Year 2</option>
-              <option value="year3"  {% if 'year3'  in form.grade_years_list.value %}selected{% endif %}>Year 3</option>
-              <option value="year4"  {% if 'year4'  in form.grade_years_list.value %}selected{% endif %}>Year 4</option>
-              <option value="year5"  {% if 'year5'  in form.grade_years_list.value %}selected{% endif %}>Year 5</option>
-              <option value="year6"  {% if 'year6'  in form.grade_years_list.value %}selected{% endif %}>Year 6</option>
-              <option value="year7"  {% if 'year7'  in form.grade_years_list.value %}selected{% endif %}>Year 7</option>
-              <option value="year8"  {% if 'year8'  in form.grade_years_list.value %}selected{% endif %}>Year 8</option>
-              <option value="year9"  {% if 'year9'  in form.grade_years_list.value %}selected{% endif %}>Year 9</option>
-              <option value="year10" {% if 'year10' in form.grade_years_list.value %}selected{% endif %}>Year 10</option>
-              <option value="year11" {% if 'year11' in form.grade_years_list.value %}selected{% endif %}>Year 11</option>
-              <option value="all"    {% if 'all'    in form.grade_years_list.value %}selected{% endif %}>All Years</option>
-            </select>
-          </div>
-
-          <!-- Grading Style + Credits (moved up from Grading card) -->
-          <div class="row g-3">
-            <div class="col-md-5">
-              <label class="form-label fw-semibold" style="font-size:0.9rem;">
-                Grading Style <span class="text-danger">*</span>
-              </label>
-              {{ form.grading_style }}
-              {% if form.grading_style.errors %}
-                <div class="text-danger small mt-1">{{ form.grading_style.errors|join:", " }}</div>
-              {% endif %}
-            </div>
-            <div class="col-md-3">
-              <label class="form-label fw-semibold" style="font-size:0.9rem;">Credits</label>
-              {{ form.credits }}
-            </div>
-          </div>
-        </div>
-
-        <!-- Duration, Frequency, Default Days (single row, image-1 style) -->
-        <div class="form-card">
-          <div class="row g-3 align-items-end">
-            <div class="col-auto">
-              <label class="form-label fw-semibold" style="font-size:0.9rem;">
-                Duration <span class="text-danger">*</span>
-              </label>
-              <div class="input-group" style="width:160px;">
-                {{ form.duration_weeks }}
-                <span class="input-group-text">weeks</span>
-              </div>
-              {% if form.duration_weeks.errors %}
-                <div class="text-danger small mt-1">{{ form.duration_weeks.errors|join:", " }}</div>
-              {% endif %}
-            </div>
-            <div class="col-auto">
-              <label class="form-label fw-semibold" style="font-size:0.9rem;">
-                Frequency <span class="text-danger">*</span>
-              </label>
-              <div class="input-group" style="width:190px;">
-                {{ form.frequency_days }}
-                <span class="input-group-text">days per week</span>
-              </div>
-              {% if form.frequency_days.errors %}
-                <div class="text-danger small mt-1">{{ form.frequency_days.errors|join:", " }}</div>
-              {% endif %}
-            </div>
-            <div class="col">
-              <label class="form-label fw-semibold" style="font-size:0.9rem;">
-                Default Days
-                <span class="text-muted fw-normal ms-1" style="font-size:0.8rem;"
-                      data-bs-toggle="tooltip"
-                      title="Pre-selected days when enrolling a student. The actual days are chosen at enrollment time.">
-                  <i class="bi bi-question-circle-fill"></i>
-                </span>
-              </label>
-              {% with default_days=form.instance.default_days|default:'0,1,2,3,4' %}
-              <div class="days-inline-wrap" id="defaultDaysGrid">
-                <label class="day-check-item">
-                  <input type="checkbox" name="default_days_cb" id="dd_0" value="0" {% if '0' in default_days %}checked{% endif %}>M
-                </label>
-                <label class="day-check-item">
-                  <input type="checkbox" name="default_days_cb" id="dd_1" value="1" {% if '1' in default_days %}checked{% endif %}>Tu
-                </label>
-                <label class="day-check-item">
-                  <input type="checkbox" name="default_days_cb" id="dd_2" value="2" {% if '2' in default_days %}checked{% endif %}>W
-                </label>
-                <label class="day-check-item">
-                  <input type="checkbox" name="default_days_cb" id="dd_3" value="3" {% if '3' in default_days %}checked{% endif %}>Th
-                </label>
-                <label class="day-check-item">
-                  <input type="checkbox" name="default_days_cb" id="dd_4" value="4" {% if '4' in default_days %}checked{% endif %}>F
-                </label>
-                <label class="day-check-item">
-                  <input type="checkbox" name="default_days_cb" id="dd_5" value="5" {% if '5' in default_days %}checked{% endif %}>Sa
-                </label>
-                <label class="day-check-item">
-                  <input type="checkbox" name="default_days_cb" id="dd_6" value="6" {% if '6' in default_days %}checked{% endif %}>Su
-                </label>
-              </div>
-              {% endwith %}
-              <input type="hidden" name="default_days_hidden" id="defaultDaysHidden"
-                     value="{{ form.instance.default_days|default:'0,1,2,3,4' }}">
-            </div>
-          </div>
-        </div>
-
-        <!-- Description / Course Introduction tabs -->
-        <div class="form-card">
-          <div class="content-tabs">
-            <button type="button" class="active" onclick="switchTab(this,'descPanel')">Description</button>
-            <button type="button" onclick="switchTab(this,'introPanel')">Course Introduction</button>
-          </div>
-          <div id="descPanel">
-            {# hidden textarea — Quill syncs back to this on submit #}
-            <div style="display:none;">{{ form.description }}</div>
-            <div id="descEditor"></div>
-            {% if form.description.errors %}
-              <div class="text-danger small mt-1">{{ form.description.errors|join:", " }}</div>
-            {% endif %}
-          </div>
-          <div id="introPanel" style="display:none;">
-            <div style="display:none;">{{ form.course_intro }}</div>
-            <div id="introEditor"></div>
-            {% if form.course_intro.errors %}
-              <div class="text-danger small mt-1">{{ form.course_intro.errors|join:", " }}</div>
-            {% endif %}
-          </div>
-        </div>
-
-        <!-- Grading -->
-        <div class="form-card">
-          <h5>Grading</h5>
-
-          <!-- Assignment Type Weights -->
-          <div id="assignmentWeightsSection" {% if not form.use_assignment_weights.value %}style="display:none"{% endif %}>
-            <div class="d-flex align-items-center gap-2 mb-2">
-              <div class="form-check mb-0">
-                {{ form.use_assignment_weights }}
-                <label class="form-check-label fw-semibold" for="{{ form.use_assignment_weights.id_for_label }}"
-                       style="font-size:0.9rem;">
-                  Use custom weights for grading
-                  <span class="text-muted fw-normal ms-1" style="font-size:0.8rem;"
-                        data-bs-toggle="tooltip"
-                        title="Weight different assignment types differently in the final grade.">
-                    <i class="bi bi-question-circle-fill"></i>
-                  </span>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div class="mb-2">
-            <div class="form-check">
-              {{ form.use_assignment_weights }}
-              <label class="form-check-label" for="{{ form.use_assignment_weights.id_for_label }}"
-                     style="font-size:0.9rem; font-weight:600;">
-                Use custom weights for grading
-              </label>
-            </div>
-          </div>
-
-          <div id="atWeightsBlock" style="{% if not form.instance.use_assignment_weights %}display:none;{% endif %}">
-            <div id="atRows">
-              {% if assignment_types %}
-                {% for at in assignment_types %}
-                  <div class="at-row" data-index="{{ forloop.counter0 }}">
-                    {% if at.id %}<input type="hidden" name="at_id_{{ forloop.counter0 }}" value="{{ at.id }}">{% endif %}
-                    <input type="text" name="at_name_{{ forloop.counter0 }}" value="{{ at.name }}"
-                           class="form-control form-control-sm at-name" placeholder="Type name…">
-                    <input type="number" name="at_weight_{{ forloop.counter0 }}" value="{{ at.weight }}"
-                           class="form-control form-control-sm at-weight" min="0" max="100"
-                           onchange="updateTotal()">
-                    <span class="at-pct">%</span>
-                    <button type="button" class="btn-remove" onclick="removeAtRow(this)">
-                      <i class="bi bi-x-circle-fill"></i>
-                    </button>
+            <!-- Row 2: Subject (6), Label (6) -->
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Subject(s)</label>
+                <div class="p-2 border rounded bg-light">
+                  <div class="subject-tags mb-2" id="subjectTags">
+                    {% if form.instance.pk %}
+                      {% for subj in form.instance.subjects.all %}
+                        <span class="subject-tag" data-id="{{ subj.pk }}">
+                          {{ subj.name }}
+                          <input type="hidden" name="subject_ids" value="{{ subj.pk }}">
+                          <button type="button" onclick="removeSubject(this)" aria-label="Remove {{ subj.name }}">×</button>
+                        </span>
+                      {% endfor %}
+                    {% endif %}
                   </div>
-                {% endfor %}
-              {% else %}
-                <!-- Default row -->
-                <div class="at-row" data-index="0">
-                  <input type="text" name="at_name_0" value="Homework"
-                         class="form-control form-control-sm at-name" placeholder="Type name…">
-                  <input type="number" name="at_weight_0" value="100"
-                         class="form-control form-control-sm at-weight" min="0" max="100"
-                         onchange="updateTotal()">
-                  <span class="at-pct">%</span>
-                  <button type="button" class="btn-remove" onclick="removeAtRow(this)">
-                    <i class="bi bi-x-circle-fill"></i>
-                  </button>
+                  <div class="subject-input-wrap">
+                     <input type="text" id="subjectInput" class="form-control form-control-sm"
+                         placeholder="Type a subject..." autocomplete="off" list="subjectDatalist">
+                     <datalist id="subjectDatalist"></datalist>
+                     <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addSubjectFromInput()">+ Add</button>
+                  </div>
                 </div>
-              {% endif %}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Label(s)</label>
+                {{ form.labels }}
+              </div>
             </div>
 
-            <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="addAtRow()">
-              <i class="bi bi-plus-lg me-1"></i>Add Type
-            </button>
-
-            <div class="total-weight-row mt-2">
-              Total <span id="totalWeightBadge" class="total-weight-badge ok">100%</span>
+            <!-- Row 3: Level (6), Grading (3), Credits (3) -->
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                 <label class="form-label fw-bold">Level (School Year)</label>
+                 {{ form.grade_years_list }}
+              </div>
+              <div class="col-md-3">
+                 <label class="form-label fw-bold">Grading Style <span class="text-danger">*</span></label>
+                 {{ form.grading_style }}
+                 {% if form.grading_style.errors %}
+                   <div class="text-danger small mt-1">{{ form.grading_style.errors|join:", " }}</div>
+                 {% endif %}
+              </div>
+              <div class="col-md-3">
+                 <label class="form-label fw-bold">Credits</label>
+                 {{ form.credits }}
+              </div>
             </div>
-          </div>
 
-          <!-- Grading Scale (static) -->
-          <div class="mt-3">
-            <p class="form-section-label">Grading Scale</p>
-            <table class="grading-scale-table">
-              <thead>
-                <tr>
-                  <th class="py-1">Grade</th>
-                  <th class="py-1">Percentage</th>
-                  <th class="py-1">GPA</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr><td>A</td><td>&ge; 90%</td><td>4.0</td></tr>
-                <tr><td>B</td><td>80% &ndash; 89%</td><td>3.0</td></tr>
-                <tr><td>C</td><td>70% &ndash; 79%</td><td>2.0</td></tr>
-                <tr><td>D</td><td>60% &ndash; 69%</td><td>1.0</td></tr>
-                <tr><td>F</td><td>&lt; 60%</td><td>0.0</td></tr>
-              </tbody>
-            </table>
+            <!-- Row 4: Duration (4), Frequency (4), Days (4) -->
+            <div class="row g-3 mb-4 align-items-end">
+               <div class="col-md-4">
+                  <label class="form-label fw-bold">Duration <span class="text-danger">*</span></label>
+                  <div class="input-group">
+                    {{ form.duration_weeks }}
+                    <span class="input-group-text">weeks</span>
+                  </div>
+                  {% if form.duration_weeks.errors %}
+                    <div class="text-danger small mt-1">{{ form.duration_weeks.errors|join:", " }}</div>
+                  {% endif %}
+               </div>
+               <div class="col-md-4">
+                  <label class="form-label fw-bold">Frequency <span class="text-danger">*</span></label>
+                  <div class="input-group">
+                    {{ form.frequency_days }}
+                    <span class="input-group-text">days/week</span>
+                  </div>
+                  {% if form.frequency_days.errors %}
+                     <div class="text-danger small mt-1">{{ form.frequency_days.errors|join:", " }}</div>
+                  {% endif %}
+               </div>
+               <div class="col-md-4">
+                  <label class="form-label fw-bold">Days of Week</label>
+                  {% with default_days=form.instance.default_days|default:'0,1,2,3,4' %}
+                  <div class="days-inline-wrap" id="defaultDaysGrid">
+                    <label class="day-check-item">
+                      <input type="checkbox" name="default_days_cb" value="0" {% if '0' in default_days %}checked{% endif %}> M
+                    </label>
+                    <label class="day-check-item">
+                      <input type="checkbox" name="default_days_cb" value="1" {% if '1' in default_days %}checked{% endif %}> Tu
+                    </label>
+                    <label class="day-check-item">
+                      <input type="checkbox" name="default_days_cb" value="2" {% if '2' in default_days %}checked{% endif %}> W
+                    </label>
+                    <label class="day-check-item">
+                      <input type="checkbox" name="default_days_cb" value="3" {% if '3' in default_days %}checked{% endif %}> Th
+                    </label>
+                    <label class="day-check-item">
+                      <input type="checkbox" name="default_days_cb" value="4" {% if '4' in default_days %}checked{% endif %}> F
+                    </label>
+                    <label class="day-check-item">
+                      <input type="checkbox" name="default_days_cb" value="5" {% if '5' in default_days %}checked{% endif %}> Sa
+                    </label>
+                    <label class="day-check-item">
+                      <input type="checkbox" name="default_days_cb" value="6" {% if '6' in default_days %}checked{% endif %}> Su
+                    </label>
+                  </div>
+                  {% endwith %}
+                  <input type="hidden" name="default_days_hidden" id="defaultDaysHidden"
+                         value="{{ form.instance.default_days|default:'0,1,2,3,4' }}">
+               </div>
+            </div>
+
+            <!-- Description Tabs -->
+            <div class="mt-4">
+              <div class="content-tabs">
+                <button type="button" class="active" onclick="switchTab(this,'descPanel')">Description</button>
+                <button type="button" onclick="switchTab(this,'introPanel')">Course Introduction</button>
+              </div>
+              <div id="descPanel" class="mt-3">
+                 <div style="display:none;">{{ form.description }}</div>
+                 <div id="descEditor"></div>
+              </div>
+              <div id="introPanel" class="mt-3" style="display:none;">
+                 <div style="display:none;">{{ form.course_intro }}</div>
+                 <div id="introEditor"></div>
+              </div>
+            </div>
+
+             <!-- Grading Weights -->
+            <div class="mt-4 pt-3 border-top">
+               <div class="form-check mb-2">
+                  {{ form.use_assignment_weights }}
+                  <label class="form-check-label fw-bold" for="{{ form.use_assignment_weights.id_for_label }}">
+                    Use custom weights for grading
+                  </label>
+               </div>
+               <div id="atWeightsBlock" style="{% if not form.instance.use_assignment_weights %}display:none;{% endif %}">
+                  <div id="atRows">
+                    {% if assignment_types %}
+                      {% for at in assignment_types %}
+                        <div class="at-row" data-index="{{ forloop.counter0 }}">
+                          {% if at.id %}<input type="hidden" name="at_id_{{ forloop.counter0 }}" value="{{ at.id }}">{% endif %}
+                          <input type="text" name="at_name_{{ forloop.counter0 }}" value="{{ at.name }}"
+                                 class="form-control form-control-sm at-name" placeholder="Type name…">
+                          <input type="number" name="at_weight_{{ forloop.counter0 }}" value="{{ at.weight }}"
+                                 class="form-control form-control-sm at-weight" min="0" max="100"
+                                 onchange="updateTotal()">
+                          <span class="at-pct">%</span>
+                          <button type="button" class="btn-remove" onclick="removeAtRow(this)">
+                            <i class="bi bi-x-circle-fill"></i>
+                          </button>
+                        </div>
+                      {% endfor %}
+                    {% else %}
+                      <div class="at-row" data-index="0">
+                        <input type="text" name="at_name_0" value="Homework"
+                               class="form-control form-control-sm at-name" placeholder="Type name…">
+                        <input type="number" name="at_weight_0" value="100"
+                               class="form-control form-control-sm at-weight" min="0" max="100"
+                               onchange="updateTotal()">
+                        <span class="at-pct">%</span>
+                        <button type="button" class="btn-remove" onclick="removeAtRow(this)">
+                          <i class="bi bi-x-circle-fill"></i>
+                        </button>
+                      </div>
+                    {% endif %}
+                  </div>
+                  <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="addAtRow()">
+                    <i class="bi bi-plus-lg me-1"></i>Add Type
+                  </button>
+                  <div class="total-weight-row mt-2">
+                    Total <span id="totalWeightBadge" class="total-weight-badge ok">100%</span>
+                  </div>
+               </div>
+            </div>
+          
+             <!-- Grading Scale -->
+            <div class="mt-4 pt-3 border-top">
+              <p class="form-section-label">Grading Scale</p>
+              <table class="grading-scale-table text-muted" style="max-width:400px;">
+                 <thead><tr><th>Grade</th><th>Percentage</th><th>GPA</th></tr></thead>
+                 <tbody>
+                  <tr><td>A</td><td>&ge; 90%</td><td>4.0</td></tr>
+                  <tr><td>B</td><td>80% &ndash; 89%</td><td>3.0</td></tr>
+                  <tr><td>C</td><td>70% &ndash; 79%</td><td>2.0</td></tr>
+                  <tr><td>D</td><td>60% &ndash; 69%</td><td>1.0</td></tr>
+                  <tr><td>F</td><td>&lt; 60%</td><td>0.0</td></tr>
+                 </tbody>
+              </table>
+            </div>
+
+            <!-- Actions -->
+            <div class="form-actions pt-3 border-top mt-4">
+               {% if editing %}
+                  <a href="{% url 'courses:course_detail' course_id=course.pk %}" class="btn btn-outline-secondary">Cancel</a>
+                  <button type="submit" class="btn btn-primary px-4">Save Changes</button>
+                {% else %}
+                  <a href="{% url 'courses:course_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                  <button type="submit" class="btn btn-primary px-4">Add Course</button>
+                {% endif %}
+            </div>
+
           </div>
         </div>
-
-        <!-- Actions -->
-        <div class="form-actions">
-          {% if editing %}
-            <a href="{% url 'courses:course_detail' course_id=course.pk %}" class="btn btn-outline-secondary">Cancel</a>
-            <button type="submit" class="btn btn-primary px-4">Save Changes</button>
-          {% else %}
-            <a href="{% url 'courses:course_list' %}" class="btn btn-outline-secondary">Cancel</a>
-            <button type="submit" class="btn btn-primary px-4">Add Course</button>
-          {% endif %}
-        </div>
-
       </div>
     </div>
   </form>
@@ -657,22 +571,10 @@ function pickColor(hex) {
 pickColor(_initColor);
 if (nameInput) {
   nameInput.addEventListener('input', () => {
-    document.getElementById('thumbnailInitial').textContent = (nameInput.value[0] || 'N').toUpperCase();
+    const tInit = document.getElementById('thumbnailInitial');
+    if (tInit) tInit.textContent = (nameInput.value[0] || 'N').toUpperCase();
   });
 }
-
-// ── Photo preview ─────────────────────────────────────────────────────────
-document.getElementById('id_photo')?.addEventListener('change', function() {
-  const file = this.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    thumbnail.style.backgroundImage = `url(${e.target.result})`;
-    thumbnail.style.backgroundSize = 'cover';
-    document.getElementById('thumbnailInitial').style.display = 'none';
-  };
-  reader.readAsDataURL(file);
-});
 
 // ── Content tabs ─────────────────────────────────────────────────────────
 function switchTab(btn, panelId) {
