@@ -335,7 +335,7 @@
       <div class="courses-header">
         <h5>Courses</h5>
         <div class="d-flex align-items-center gap-2">
-          <a href="{% url 'scheduler:subject_selection' child_id=child.pk %}" class="enroll-btn">
+          <a href="{% url 'courses:course_list' %}?child_id={{ child.pk }}" class="enroll-btn">
             <i class="bi bi-person-plus"></i> Enroll in Course
           </a>
           <div class="dropdown">

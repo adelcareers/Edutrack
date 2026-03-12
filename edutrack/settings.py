@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "tracker",
     "reports",
     "payments",
+    "courses",
 ]
 
 CRISPY_TEMPLATE_PACK = 'bootstrap5'

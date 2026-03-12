@@ -1,0 +1,405 @@
+"""Courses views — implemented below."""
+import csv
+import json
+
+from django.contrib import messages
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.views.decorators.http import require_POST
+
+from accounts.decorators import role_required
+from scheduler.models import Child
+
+from .forms import (
+    CompleteEnrollmentForm,
+    EnrollStudentForm,
+    CourseForm,
+    SubjectForm,
+)
+from .models import (
+    AssignmentType,
+    Course,
+    CourseEnrollment,
+    DEFAULT_ASSIGNMENT_TYPES,
+    Subject,
+)
+
+
+# ── Helpers ────────────────────────────────────────────────────────────────
+
+
+def _get_course_or_403(course_id, user):
+    course = get_object_or_404(Course, pk=course_id)
+    if course.parent != user:
+        raise PermissionError
+    return course
+
+
+def _get_enrollment_or_403(enrollment_id, user):
+    enrollment = get_object_or_404(CourseEnrollment, pk=enrollment_id)
+    if enrollment.course.parent != user:
+        raise PermissionError
+    return enrollment
+
+
+# ── Course CRUD ────────────────────────────────────────────────────────────
+
+
+@role_required('parent')
+def course_list_view(request):
+    tab = request.GET.get('tab', 'active')
+    is_archived = tab == 'archived'
+
+    qs = Course.objects.filter(parent=request.user, is_archived=is_archived).prefetch_related(
+        'subjects', 'labels', 'enrollments'
+    )
+
+    search = request.GET.get('q', '').strip()
+    if search:
+        qs = qs.filter(name__icontains=search)
+
+    # Sidebar filter — enrolled student
+    child_filter = request.GET.get('child', '')
+    if child_filter:
+        qs = qs.filter(enrollments__child__pk=child_filter, enrollments__status='active').distinct()
+
+    # Sidebar filter — subject name
+    subject_filter = request.GET.get('subject', '')
+    if subject_filter:
+        qs = qs.filter(subjects__pk=subject_filter).distinct()
+
+    # Sidebar filter — grade year
+    grade_filter = request.GET.get('grade', '').strip()
+    if grade_filter:
+        qs = qs.filter(grade_years__icontains=grade_filter)
+
+    courses = list(qs)
+
+    children = Child.objects.filter(parent=request.user, is_active=True)
+    subjects = Subject.objects.filter(parent=request.user)
+
+    return render(request, 'courses/course_list.html', {
+        'courses': courses,
+        'tab': tab,
+        'search': search,
+        'children': children,
+        'subjects': subjects,
+        'child_filter': child_filter,
+        'subject_filter': subject_filter,
+        'grade_filter': grade_filter,
+        'active_count': Course.objects.filter(parent=request.user, is_archived=False).count(),
+        'archived_count': Course.objects.filter(parent=request.user, is_archived=True).count(),
+    })
+
+
+@role_required('parent')
+def course_new_view(request):
+    if request.method == 'POST':
+        form = CourseForm(request.POST, request.FILES, user=request.user)
+        if form.is_valid():
+            course = form.save(commit=False)
+            course.parent = request.user
+            course.save()
+            form.save_m2m()
+
+            # Seed default assignment types if weights are enabled
+            if course.use_assignment_weights:
+                AssignmentType.objects.create(
+                    course=course, name='Homework', weight=100, order=0
+                )
+            else:
+                for i, name in enumerate(DEFAULT_ASSIGNMENT_TYPES):
+                    AssignmentType.objects.create(
+                        course=course, name=name, weight=0, order=i
+                    )
+
+            # Handle dynamically submitted assignment type rows
+            _save_assignment_types(request, course)
+
+            messages.success(request, f'Course "{course.name}" created.')
+            return redirect('courses:course_detail', course_id=course.pk)
+    else:
+        form = CourseForm(user=request.user)
+
+    return render(request, 'courses/course_form.html', {
+        'form': form,
+        'editing': False,
+        'default_assignment_types': DEFAULT_ASSIGNMENT_TYPES,
+    })
+
+
+@role_required('parent')
+def course_detail_view(request, course_id):
+    try:
+        course = _get_course_or_403(course_id, request.user)
+    except PermissionError:
+        return HttpResponseForbidden('You do not have permission to view this course.')
+
+    enrollments = (
+        CourseEnrollment.objects
+        .filter(course=course)
+        .select_related('child')
+        .order_by('-enrolled_at')
+    )
+    assignment_types = course.assignment_types.all()
+
+    return render(request, 'courses/course_detail.html', {
+        'course': course,
+        'enrollments': enrollments,
+        'assignment_types': assignment_types,
+        'grade_year_labels': course.get_grade_year_labels(),
+    })
+
+
+@role_required('parent')
+def course_edit_view(request, course_id):
+    try:
+        course = _get_course_or_403(course_id, request.user)
+    except PermissionError:
+        return HttpResponseForbidden('You do not have permission to edit this course.')
+
+    if request.method == 'POST':
+        form = CourseForm(request.POST, request.FILES, instance=course, user=request.user)
+        if form.is_valid():
+            form.save()
+            _save_assignment_types(request, course)
+            messages.success(request, f'Course "{course.name}" updated.')
+            return redirect('courses:course_detail', course_id=course.pk)
+    else:
+        form = CourseForm(instance=course, user=request.user)
+
+    return render(request, 'courses/course_form.html', {
+        'form': form,
+        'course': course,
+        'editing': True,
+        'default_assignment_types': DEFAULT_ASSIGNMENT_TYPES,
+        'assignment_types': list(course.assignment_types.values('id', 'name', 'weight', 'order')),
+    })
+
+
+@role_required('parent')
+@require_POST
+def course_archive_view(request, course_id):
+    try:
+        course = _get_course_or_403(course_id, request.user)
+    except PermissionError:
+        return HttpResponseForbidden('You do not have permission to archive this course.')
+
+    course.is_archived = not course.is_archived
+    course.save(update_fields=['is_archived'])
+    action = 'archived' if course.is_archived else 'unarchived'
+    messages.success(request, f'Course "{course.name}" {action}.')
+    return redirect('courses:course_list')
+
+
+@role_required('parent')
+def course_export_view(request, course_id):
+    try:
+        course = _get_course_or_403(course_id, request.user)
+    except PermissionError:
+        return HttpResponseForbidden('You do not have permission to export this course.')
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{course.name}.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(['Course Name', 'Duration (weeks)', 'Frequency (days/week)',
+                     'Grading Style', 'Credits', 'Grade Years', 'Subjects',
+                     'Description'])
+    writer.writerow([
+        course.name,
+        course.duration_weeks,
+        course.frequency_days,
+        course.get_grading_style_display(),
+        course.credits or '',
+        ', '.join(course.get_grade_year_labels()),
+        ', '.join(s.name for s in course.subjects.all()),
+        course.description,
+    ])
+
+    if course.use_assignment_weights:
+        writer.writerow([])
+        writer.writerow(['Assignment Type', 'Weight (%)'])
+        for at in course.assignment_types.all():
+            writer.writerow([at.name, at.weight])
+
+    return response
+
+
+# ── Enrollment ─────────────────────────────────────────────────────────────
+
+
+@role_required('parent')
+def enroll_student_view(request, course_id):
+    try:
+        course = _get_course_or_403(course_id, request.user)
+    except PermissionError:
+        return HttpResponseForbidden('You do not have permission to enroll in this course.')
+
+    if request.method == 'POST':
+        form = EnrollStudentForm(request.POST, user=request.user, course=course)
+        if form.is_valid():
+            enrollment = form.save(commit=False)
+            enrollment.course = course
+            days = form.cleaned_data['days_of_week']
+            enrollment.days_of_week = ','.join(days)
+            enrollment.save()
+            messages.success(
+                request,
+                f'{enrollment.child.first_name} enrolled in "{course.name}".'
+            )
+            return redirect('courses:course_detail', course_id=course.pk)
+    else:
+        form = EnrollStudentForm(user=request.user, course=course)
+        # Pre-select child if passed via query string
+        child_id = request.GET.get('child_id')
+        if child_id:
+            try:
+                form.fields['child'].initial = int(child_id)
+            except (ValueError, TypeError):
+                pass
+
+    return render(request, 'courses/enroll_student.html', {
+        'form': form,
+        'course': course,
+    })
+
+
+@role_required('parent')
+@require_POST
+def unenroll_student_view(request, enrollment_id):
+    try:
+        enrollment = _get_enrollment_or_403(enrollment_id, request.user)
+    except PermissionError:
+        return HttpResponseForbidden('You do not have permission to unenroll this student.')
+
+    child_name = enrollment.child.first_name
+    course_name = enrollment.course.name
+    enrollment.status = 'unenrolled'
+    enrollment.save(update_fields=['status'])
+    messages.warning(
+        request,
+        f'{child_name} has been unenrolled from "{course_name}". '
+        'All associated data has been removed.'
+    )
+    return redirect('courses:course_detail', course_id=enrollment.course.pk)
+
+
+@role_required('parent')
+def complete_enrollment_view(request, enrollment_id):
+    try:
+        enrollment = _get_enrollment_or_403(enrollment_id, request.user)
+    except PermissionError:
+        return HttpResponseForbidden('You do not have permission to complete this enrollment.')
+
+    if request.method == 'POST':
+        form = CompleteEnrollmentForm(request.POST)
+        if form.is_valid():
+            enrollment.status = 'completed'
+            enrollment.completed_school_year = form.cleaned_data['completed_school_year']
+            enrollment.completed_calendar_year = form.cleaned_data['completed_calendar_year']
+            enrollment.completed_at = timezone.now()
+            enrollment.save()
+            messages.success(
+                request,
+                f'{enrollment.child.first_name} has completed "{enrollment.course.name}".'
+            )
+            return redirect('courses:course_detail', course_id=enrollment.course.pk)
+    else:
+        form = CompleteEnrollmentForm()
+
+    return render(request, 'courses/complete_enrollment.html', {
+        'form': form,
+        'enrollment': enrollment,
+    })
+
+
+# ── Subject AJAX ───────────────────────────────────────────────────────────
+
+
+@role_required('parent')
+@require_POST
+def subject_create_view(request):
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'invalid JSON'}, status=400)
+
+    name = data.get('name', '').strip()
+    if not name:
+        return JsonResponse({'error': 'name is required'}, status=400)
+    if len(name) > 100:
+        return JsonResponse({'error': 'name too long'}, status=400)
+
+    subject, created = Subject.objects.get_or_create(parent=request.user, name=name)
+    return JsonResponse({'id': subject.pk, 'name': subject.name, 'created': created})
+
+
+@role_required('parent')
+def subject_list_view(request):
+    subjects = list(
+        Subject.objects.filter(parent=request.user).values('id', 'name')
+    )
+    return JsonResponse({'subjects': subjects})
+
+
+# ── Private helpers ────────────────────────────────────────────────────────
+
+
+def _save_assignment_types(request, course):
+    """Parse dynamically submitted assignment-type rows from POST data.
+
+    Expects form fields named:
+      at_id_<N>     (existing pk, or '' for new)
+      at_name_<N>   (name string)
+      at_weight_<N> (int 0-100)
+    where N is an integer index.  Any existing types not included are deleted,
+    unless the form didn't submit any typed rows at all (which means the JS
+    form section wasn't present — we skip in that case).
+    """
+    # Detect if the JS-driven section was submitted
+    indices = set()
+    for key in request.POST:
+        if key.startswith('at_name_'):
+            try:
+                idx = int(key.split('_')[-1])
+                indices.add(idx)
+            except ValueError:
+                pass
+
+    if not indices:
+        return  # No assignment-type rows submitted — leave existing untouched
+
+    seen_ids = []
+    for idx in sorted(indices):
+        name = request.POST.get(f'at_name_{idx}', '').strip()
+        weight_raw = request.POST.get(f'at_weight_{idx}', '0')
+        at_id = request.POST.get(f'at_id_{idx}', '').strip()
+
+        if not name:
+            continue
+
+        try:
+            weight = max(0, min(100, int(weight_raw)))
+        except ValueError:
+            weight = 0
+
+        if at_id:
+            try:
+                at = AssignmentType.objects.get(pk=int(at_id), course=course)
+                at.name = name
+                at.weight = weight
+                at.order = idx
+                at.save()
+                seen_ids.append(at.pk)
+            except (AssignmentType.DoesNotExist, ValueError):
+                pass
+        else:
+            at = AssignmentType.objects.create(
+                course=course, name=name, weight=weight, order=idx
+            )
+            seen_ids.append(at.pk)
+
+    # Remove types that were not in the submitted rows
+    course.assignment_types.exclude(pk__in=seen_ids).delete()

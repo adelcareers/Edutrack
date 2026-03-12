@@ -191,7 +191,7 @@
           </a>
         </li>
         <li>
-          <a class="nav-link {% block nav_courses %}{% endblock %}" href="#">
+          <a class="nav-link {% block nav_courses %}{% endblock %}" href="{% url 'courses:course_list' %}">
             <i class="bi bi-book"></i>Courses
           </a>
         </li>
@@ -238,6 +238,11 @@
             <li>
               <a class="dropdown-item" href="{% url 'scheduler:child_new' %}">
                 <i class="bi bi-person-plus me-2 text-secondary"></i>New Student
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'courses:course_new' %}">
+                <i class="bi bi-book-half me-2 text-secondary"></i>New Course
               </a>
             </li>
           </ul>
