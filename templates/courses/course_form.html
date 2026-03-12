@@ -318,133 +318,163 @@
   <form method="post" enctype="multipart/form-data" id="courseForm">
     {% csrf_token %}
 
-    <div class="row justify-content-center">
-      <div class="col-lg-10">
-        <div class="card shadow-sm border-0">
-          <div class="card-body p-4">
+    <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px;">
+      <div class="card-body p-4">
 
-            <!-- Row 1: Name (9), Color (3) -->
-            <div class="row g-3 mb-4 align-items-end">
-              <div class="col-md-9">
-                <label class="form-label fw-bold">Course Name <span class="text-danger">*</span></label>
+        <!-- Top Header inside card -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+           <h5 class="fw-bold mb-0 text-dark">Course Information</h5>
+           <div class="d-flex align-items-center gap-3">
+             <button type="button" class="btn btn-sm btn-link text-decoration-none text-dark d-flex align-items-center gap-2 p-0">
+               <i class="bi bi-book"></i> <span style="font-size: 0.85rem; font-weight: 500;">Plan Assignments</span>
+             </button>
+             <button type="button" class="btn btn-sm btn-link text-dark p-0">
+               <i class="bi bi-three-dots-vertical fs-5"></i>
+             </button>
+           </div>
+        </div>
+
+        <div class="course-form-layout d-flex gap-4">
+
+          <!-- ── Left Profile Column ── -->
+          <div style="width: 150px; flex-shrink: 0;" class="text-center">
+             <div class="rounded-3 mb-2 d-flex align-items-center justify-content-center" id="courseThumbnail" 
+                  style="width: 150px; height: 150px; font-size: 4rem; font-weight: 400; background-color: #d1d5db; color: #3730A3;">
+                <span id="thumbnailInitial">{{ form.instance.name|slice:":1"|upper|default:"Y" }}</span>
+             </div>
+             <label for="id_photo" class="text-secondary mb-3 d-flex align-items-center justify-content-center gap-1 w-100" style="cursor:pointer; font-size: 0.75rem;">
+               <i class="bi bi-camera"></i> Edit Photo
+             </label>
+             <input type="file" name="photo" id="id_photo" accept="image/*" class="d-none">
+
+             <!-- Grade Year Pill -->
+             <div class="badge w-100 py-2" style="background-color: #3730A3; font-size: 0.85rem; font-weight: 600; border-radius: 20px;">
+                <span id="leftGradeYearLabel">
+                  {% if form.instance.grade_years %}
+                     {% for gy in form.instance.get_grade_year_labels %}
+                        {{ gy }}{% if not forloop.last %}, {% endif %}
+                     {% endfor %}
+                  {% else %}
+                     Year 8
+                  {% endif %}
+                </span>
+             </div>
+          </div>
+
+          <!-- ── Right Form Fields ── -->
+          <div class="flex-grow-1" style="min-width: 0;">
+
+            <!-- Row 1: Course Name (flex), Color (auto) -->
+            <div class="row gx-4 gy-3 mb-4 align-items-end">
+              <div class="col">
+                <label class="form-label fw-bold mb-1" style="font-size: 0.8rem; color: #374151;">Course Name <span class="text-muted fw-normal fst-italic" style="font-size: 0.75rem;">(Required)</span></label>
                 {{ form.name }}
                 {% if form.name.errors %}
                   <div class="text-danger small mt-1">{{ form.name.errors|join:", " }}</div>
                 {% endif %}
               </div>
-              <div class="col-md-3">
-                 <label class="form-label fw-bold">Color</label>
+              <div class="col-auto">
+                 <label class="form-label fw-bold mb-1" style="font-size: 0.8rem; color: #374151;">Color</label>
                  <div style="display:none;">{{ form.color }}</div>
-                 <div class="color-palette-grid" id="colorPaletteGrid">
-                    <button type="button" class="cp-swatch" data-color="#e879a0" style="background:#e879a0;" onclick="pickColor('#e879a0')"></button>
-                    <button type="button" class="cp-swatch" data-color="#f97316" style="background:#f97316;" onclick="pickColor('#f97316')"></button>
-                    <button type="button" class="cp-swatch" data-color="#eab308" style="background:#eab308;" onclick="pickColor('#eab308')"></button>
-                    <button type="button" class="cp-swatch" data-color="#22c55e" style="background:#22c55e;" onclick="pickColor('#22c55e')"></button>
-                    <button type="button" class="cp-swatch" data-color="#06b6d4" style="background:#06b6d4;" onclick="pickColor('#06b6d4')"></button>
-                    <button type="button" class="cp-swatch" data-color="#4f46e5" style="background:#4f46e5;" onclick="pickColor('#4f46e5')"></button>
-                    <button type="button" class="cp-swatch" data-color="#8b5cf6" style="background:#8b5cf6;" onclick="pickColor('#8b5cf6')"></button>
-                    <button type="button" class="cp-swatch" data-color="#ec4899" style="background:#ec4899;" onclick="pickColor('#ec4899')"></button>
-                    <button type="button" class="cp-swatch" data-color="#6b7280" style="background:#6b7280;" onclick="pickColor('#6b7280')"></button>
-                    <button type="button" class="cp-swatch" data-color="#374151" style="background:#374151;" onclick="pickColor('#374151')"></button>
+                 <div class="position-relative">
+                    <div id="colorSwatchBtn" class="rounded" style="width: 36px; height: 36px; background: {{ form.color.value|default:'#3730a3' }}; cursor: pointer;"></div>
+                    <div id="colorPalettePopup" class="position-absolute bg-white border p-2 rounded shadow-sm" style="display:none; right: 0; top: 40px; z-index: 100; flex-wrap: wrap; width: 180px;">
+                        <div class="color-palette-grid" id="colorPaletteGrid">
+                          <button type="button" class="cp-swatch" data-color="#e879a0" style="background:#e879a0;" onclick="pickColor('#e879a0', this)"></button>
+                          <button type="button" class="cp-swatch" data-color="#f97316" style="background:#f97316;" onclick="pickColor('#f97316', this)"></button>
+                          <button type="button" class="cp-swatch" data-color="#eab308" style="background:#eab308;" onclick="pickColor('#eab308', this)"></button>
+                          <button type="button" class="cp-swatch" data-color="#22c55e" style="background:#22c55e;" onclick="pickColor('#22c55e', this)"></button>
+                          <button type="button" class="cp-swatch" data-color="#06b6d4" style="background:#06b6d4;" onclick="pickColor('#06b6d4', this)"></button>
+                          <button type="button" class="cp-swatch" data-color="#4f46e5" style="background:#4f46e5;" onclick="pickColor('#4f46e5', this)"></button>
+                          <button type="button" class="cp-swatch" data-color="#8b5cf6" style="background:#8b5cf6;" onclick="pickColor('#8b5cf6', this)"></button>
+                          <button type="button" class="cp-swatch" data-color="#ec4899" style="background:#ec4899;" onclick="pickColor('#ec4899', this)"></button>
+                          <button type="button" class="cp-swatch" data-color="#6b7280" style="background:#6b7280;" onclick="pickColor('#6b7280', this)"></button>
+                          <button type="button" class="cp-swatch" data-color="#374151" style="background:#374151;" onclick="pickColor('#374151', this)"></button>
+                        </div>
+                    </div>
                  </div>
               </div>
             </div>
 
-            <!-- Row 2: Subject (6), Label (6) -->
-            <div class="row g-3 mb-4">
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Subject(s)</label>
-                <div class="p-2 border rounded bg-light">
-                  <div class="subject-tags mb-2" id="subjectTags">
+            <!-- Row 2: Subject(s), Label(s), Grade Year(s) -->
+            <div class="row gx-4 gy-3 mb-4">
+              <div class="col-md-4">
+                <label class="form-label fw-bold mb-1" style="font-size: 0.8rem; color: #374151;">Subject(s)</label>
+                <div class="border rounded bg-white p-1" style="min-height: 38px;">
+                  <div class="subject-tags d-flex gap-1 flex-wrap align-items-center h-100 px-1" id="subjectTags">
                     {% if form.instance.pk %}
                       {% for subj in form.instance.subjects.all %}
-                        <span class="subject-tag" data-id="{{ subj.pk }}">
+                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill d-inline-flex align-items-center px-2 py-1" style="font-size: 0.75rem; font-weight: 500;" data-id="{{ subj.pk }}">
                           {{ subj.name }}
                           <input type="hidden" name="subject_ids" value="{{ subj.pk }}">
-                          <button type="button" onclick="removeSubject(this)" aria-label="Remove {{ subj.name }}">×</button>
+                          <button type="button" class="btn-close btn-close-sm ms-1" style="font-size: 0.4rem;" onclick="removeSubject(this)" aria-label="Remove {{ subj.name }}"></button>
                         </span>
                       {% endfor %}
                     {% endif %}
-                  </div>
-                  <div class="subject-input-wrap">
-                     <input type="text" id="subjectInput" class="form-control form-control-sm"
-                         placeholder="Type a subject..." autocomplete="off" list="subjectDatalist">
-                     <datalist id="subjectDatalist"></datalist>
-                     <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addSubjectFromInput()">+ Add</button>
+                    <div class="subject-input-wrap flex-grow-1 position-relative">
+                       <input type="text" id="subjectInput" class="form-control form-control-sm border-0 shadow-none p-0"
+                           placeholder="Type a subject..." autocomplete="off" list="subjectDatalist">
+                       <datalist id="subjectDatalist"></datalist>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Label(s)</label>
+              <div class="col-md-4">
+                <label class="form-label fw-bold mb-1" style="font-size: 0.8rem; color: #374151;">Label(s)</label>
                 {{ form.labels }}
               </div>
-            </div>
-
-            <!-- Row 3: Level (6), Grading (3), Credits (3) -->
-            <div class="row g-3 mb-4">
-              <div class="col-md-6">
-                 <label class="form-label fw-bold">Level (School Year)</label>
+              <div class="col-md-4">
+                 <label class="form-label fw-bold mb-1" style="font-size: 0.8rem; color: #374151;">Grade Year(s)</label>
                  {{ form.grade_years_list }}
               </div>
-              <div class="col-md-3">
-                 <label class="form-label fw-bold">Grading Style <span class="text-danger">*</span></label>
-                 {{ form.grading_style }}
-                 {% if form.grading_style.errors %}
-                   <div class="text-danger small mt-1">{{ form.grading_style.errors|join:", " }}</div>
-                 {% endif %}
-              </div>
-              <div class="col-md-3">
-                 <label class="form-label fw-bold">Credits</label>
-                 {{ form.credits }}
-              </div>
             </div>
 
-            <!-- Row 4: Duration (4), Frequency (4), Days (4) -->
-            <div class="row g-3 mb-4 align-items-end">
-               <div class="col-md-4">
-                  <label class="form-label fw-bold">Duration <span class="text-danger">*</span></label>
+            <!-- Row 3: Duration, Frequency, Days of Week -->
+            <div class="row gx-4 gy-3 mb-4 align-items-end">
+               <div class="col-md-3">
+                  <label class="form-label fw-bold mb-1 text-nowrap" style="font-size: 0.8rem; color: #374151;">Duration <span class="text-muted fw-normal fst-italic" style="font-size: 0.75rem;">(Required)</span></label>
                   <div class="input-group">
                     {{ form.duration_weeks }}
-                    <span class="input-group-text">weeks</span>
+                    <span class="input-group-text bg-white" style="font-size: 0.85rem;">weeks</span>
                   </div>
                   {% if form.duration_weeks.errors %}
                     <div class="text-danger small mt-1">{{ form.duration_weeks.errors|join:", " }}</div>
                   {% endif %}
                </div>
                <div class="col-md-4">
-                  <label class="form-label fw-bold">Frequency <span class="text-danger">*</span></label>
+                  <label class="form-label fw-bold mb-1 text-nowrap" style="font-size: 0.8rem; color: #374151;">Frequency <span class="text-muted fw-normal fst-italic" style="font-size: 0.75rem;">(Required)</span></label>
                   <div class="input-group">
                     {{ form.frequency_days }}
-                    <span class="input-group-text">days/week</span>
+                    <span class="input-group-text bg-white" style="font-size: 0.85rem;">days per week</span>
                   </div>
                   {% if form.frequency_days.errors %}
                      <div class="text-danger small mt-1">{{ form.frequency_days.errors|join:", " }}</div>
                   {% endif %}
                </div>
-               <div class="col-md-4">
-                  <label class="form-label fw-bold">Days of Week</label>
+               <div class="col-md-5">
+                  <label class="form-label fw-bold mb-1" style="font-size: 0.8rem; color: #374151;">Default Days</label>
                   {% with default_days=form.instance.default_days|default:'0,1,2,3,4' %}
-                  <div class="days-inline-wrap" id="defaultDaysGrid">
-                    <label class="day-check-item">
-                      <input type="checkbox" name="default_days_cb" value="0" {% if '0' in default_days %}checked{% endif %}> M
+                  <div class="days-inline-wrap d-flex gap-2" id="defaultDaysGrid">
+                    <label class="day-check-item d-flex align-items-center gap-1" style="font-size: 0.8rem;">
+                      <input type="checkbox" name="default_days_cb" value="0" style="margin-top:0;" {% if '0' in default_days %}checked{% endif %}> <span class="text-muted">M</span>
                     </label>
-                    <label class="day-check-item">
-                      <input type="checkbox" name="default_days_cb" value="1" {% if '1' in default_days %}checked{% endif %}> Tu
+                    <label class="day-check-item d-flex align-items-center gap-1" style="font-size: 0.8rem;">
+                      <input type="checkbox" name="default_days_cb" value="1" style="margin-top:0;" {% if '1' in default_days %}checked{% endif %}> <span class="text-muted">Tu</span>
                     </label>
-                    <label class="day-check-item">
-                      <input type="checkbox" name="default_days_cb" value="2" {% if '2' in default_days %}checked{% endif %}> W
+                    <label class="day-check-item d-flex align-items-center gap-1" style="font-size: 0.8rem;">
+                      <input type="checkbox" name="default_days_cb" value="2" style="margin-top:0;" {% if '2' in default_days %}checked{% endif %}> <span class="text-muted">W</span>
                     </label>
-                    <label class="day-check-item">
-                      <input type="checkbox" name="default_days_cb" value="3" {% if '3' in default_days %}checked{% endif %}> Th
+                    <label class="day-check-item d-flex align-items-center gap-1" style="font-size: 0.8rem;">
+                      <input type="checkbox" name="default_days_cb" value="3" style="margin-top:0;" {% if '3' in default_days %}checked{% endif %}> <span class="text-muted">Th</span>
                     </label>
-                    <label class="day-check-item">
-                      <input type="checkbox" name="default_days_cb" value="4" {% if '4' in default_days %}checked{% endif %}> F
+                    <label class="day-check-item d-flex align-items-center gap-1" style="font-size: 0.8rem;">
+                      <input type="checkbox" name="default_days_cb" value="4" style="margin-top:0;" {% if '4' in default_days %}checked{% endif %}> <span class="text-muted">F</span>
                     </label>
-                    <label class="day-check-item">
-                      <input type="checkbox" name="default_days_cb" value="5" {% if '5' in default_days %}checked{% endif %}> Sa
+                    <label class="day-check-item d-flex align-items-center gap-1" style="font-size: 0.8rem;">
+                      <input type="checkbox" name="default_days_cb" value="5" style="margin-top:0;" {% if '5' in default_days %}checked{% endif %}> <span class="text-muted">Sa</span>
                     </label>
-                    <label class="day-check-item">
-                      <input type="checkbox" name="default_days_cb" value="6" {% if '6' in default_days %}checked{% endif %}> Su
+                    <label class="day-check-item d-flex align-items-center gap-1" style="font-size: 0.8rem;">
+                      <input type="checkbox" name="default_days_cb" value="6" style="margin-top:0;" {% if '6' in default_days %}checked{% endif %}> <span class="text-muted">Su</span>
                     </label>
                   </div>
                   {% endwith %}
@@ -453,32 +483,64 @@
                </div>
             </div>
 
-            <!-- Description Tabs -->
-            <div class="mt-4">
-              <div class="content-tabs">
-                <button type="button" class="active" onclick="switchTab(this,'descPanel')">Description</button>
-                <button type="button" onclick="switchTab(this,'introPanel')">Course Introduction</button>
+            <!-- Row 4: Grading Style, Credits -->
+            <div class="row gx-4 gy-3 mb-4">
+              <div class="col-md-3">
+                 <label class="form-label fw-bold mb-1 text-nowrap" style="font-size: 0.8rem; color: #374151;">Grading Style <span class="text-muted fw-normal fst-italic" style="font-size: 0.75rem;">(Required)</span></label>
+                 {{ form.grading_style }}
+                 {% if form.grading_style.errors %}
+                   <div class="text-danger small mt-1">{{ form.grading_style.errors|join:", " }}</div>
+                 {% endif %}
               </div>
-              <div id="descPanel" class="mt-3">
-                 <div style="display:none;">{{ form.description }}</div>
-                 <div id="descEditor"></div>
-              </div>
-              <div id="introPanel" class="mt-3" style="display:none;">
-                 <div style="display:none;">{{ form.course_intro }}</div>
-                 <div id="introEditor"></div>
+              <div class="col-md-3">
+                 <label class="form-label fw-bold mb-1" style="font-size: 0.8rem; color: #374151;">Credits</label>
+                 {{ form.credits }}
               </div>
             </div>
 
-             <!-- Grading Weights -->
-            <div class="mt-4 pt-3 border-top">
-               <div class="form-check mb-2">
-                  {{ form.use_assignment_weights }}
-                  <label class="form-check-label fw-bold" for="{{ form.use_assignment_weights.id_for_label }}">
-                    Use custom weights for grading
-                  </label>
-               </div>
-               <div id="atWeightsBlock" style="{% if not form.instance.use_assignment_weights %}display:none;{% endif %}">
-                  <div id="atRows">
+          </div> <!-- End Right Form Fields -->
+
+        </div> <!-- End Flex Layout -->
+      </div>
+    </div> <!-- End Main Card -->
+
+    <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px;">
+      <div class="card-body p-4">
+        
+        <div class="d-flex justify-content-between align-items-center mb-4">
+           <h5 class="fw-bold mb-0 text-dark">Course Content & Planning</h5>
+           <button type="button" class="btn btn-sm btn-link text-decoration-none text-dark d-flex align-items-center gap-2 p-0">
+             <i class="bi bi-file-earmark-plus"></i> <span style="font-size: 0.85rem; font-weight: 500;">Add Resource</span>
+           </button>
+        </div>
+
+        <!-- Description Tabs -->
+        <div class="mb-4">
+          <div class="content-tabs">
+            <button type="button" class="active" onclick="switchTab(this,'descPanel')">Description</button>
+            <button type="button" onclick="switchTab(this,'introPanel')">Course Introduction</button>
+          </div>
+          <div id="descPanel" class="mt-3">
+             <div style="display:none;">{{ form.description }}</div>
+             <div id="descEditor"></div>
+          </div>
+          <div id="introPanel" class="mt-3" style="display:none;">
+             <div style="display:none;">{{ form.course_intro }}</div>
+             <div id="introEditor"></div>
+          </div>
+        </div>
+
+        <!-- Grading Weights -->
+        <div class="mb-4">
+           <div class="form-check mb-2">
+              {{ form.use_assignment_weights }}
+              <label class="form-check-label fw-bold" style="font-size: 0.85rem; color: #374151;" for="{{ form.use_assignment_weights.id_for_label }}">
+                Use custom weights for grading
+              </label>
+           </div>
+           
+           <div id="atWeightsBlock" style="{% if not form.instance.use_assignment_weights %}display:none;{% endif %} margin-top: 10px;">
+              <div id="atRows">
                     {% if assignment_types %}
                       {% for at in assignment_types %}
                         <div class="at-row" data-index="{{ forloop.counter0 }}">
@@ -533,21 +595,19 @@
             </div>
 
             <!-- Actions -->
-            <div class="form-actions pt-3 border-top mt-4">
+            <div class="form-actions mt-4 d-flex justify-content-end gap-2">
                {% if editing %}
-                  <a href="{% url 'courses:course_detail' course_id=course.pk %}" class="btn btn-outline-secondary">Cancel</a>
-                  <button type="submit" class="btn btn-primary px-4">Save Changes</button>
-                {% else %}
-                  <a href="{% url 'courses:course_list' %}" class="btn btn-outline-secondary">Cancel</a>
-                  <button type="submit" class="btn btn-primary px-4">Add Course</button>
-                {% endif %}
+                  <a href="{% url 'courses:course_detail' course_id=course.pk %}" class="btn btn-light border px-4" style="border-radius: 8px;">Cancel</a>
+                  <button type="submit" class="btn btn-primary px-4" style="border-radius: 8px; background-color: #3730A3; border-color: #3730A3;">Save Changes</button>
+               {% else %}
+                  <a href="{% url 'courses:course_list' %}" class="btn btn-light border px-4" style="border-radius: 8px;">Cancel</a>
+                  <button type="submit" class="btn btn-primary px-4" style="border-radius: 8px; background-color: #3730A3; border-color: #3730A3;">Add Course</button>
+               {% endif %}
             </div>
 
-          </div>
-        </div>
       </div>
-    </div>
-  </form>
+    </div> <!-- End Second Card -->
+
 </div>
 {% endblock %}
 
@@ -562,6 +622,11 @@ const nameInput  = document.querySelector('input[name="name"]');
 // Initialise palette — mark the current colour as active
 const _initColor = (colorInput ? colorInput.value : '') || '#6c757d';
 function pickColor(hex) {
+  const btn = document.getElementById("colorSwatchBtn");
+  if (btn) btn.style.background = hex;
+  const popup = document.getElementById("colorPalettePopup");
+  if (popup) popup.style.display = "none";
+
   if (colorInput) colorInput.value = hex;
   if (thumbnail)  thumbnail.style.background = hex;
   document.querySelectorAll('.cp-swatch').forEach(b => {
@@ -726,6 +791,21 @@ subjectInput.addEventListener('keydown', function(e) {
 function getCookie(name) {
   const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
   return v ? v[2] : null;
+}
+
+// ── Color Swatch ──────────────────
+const colorBtn = document.getElementById("colorSwatchBtn");
+const colorPopup = document.getElementById("colorPalettePopup");
+if (colorBtn && colorPopup) {
+   colorBtn.addEventListener("click", function(e) {
+       e.stopPropagation();
+       colorPopup.style.display = colorPopup.style.display === "none" ? "flex" : "none";
+   });
+   document.addEventListener("click", function(e) {
+       if (!colorBtn.contains(e.target) && !colorPopup.contains(e.target)) {
+           colorPopup.style.display = "none";
+       }
+   });
 }
 
 // ── Bootstrap tooltips ────────────────────────────────────────────────────
