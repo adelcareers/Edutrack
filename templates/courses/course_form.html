@@ -292,12 +292,16 @@
           </div>
           <!-- Quick color swatches -->
           <div class="color-swatch-row">
-            {% for hex in '#e879a0,#f97316,#eab308,#22c55e,#06b6d4,#4f46e5,#8b5cf6,#ec4899,#6b7280,#374151'|split:',' %}
-            <div class="color-swatch-btn"
-                 style="background: {{ hex }};"
-                 data-color="{{ hex }}"
-                 onclick="pickColor('{{ hex }}')"></div>
-            {% endfor %}
+            <div class="color-swatch-btn" style="background:#e879a0;" data-color="#e879a0" onclick="pickColor('#e879a0')"></div>
+            <div class="color-swatch-btn" style="background:#f97316;" data-color="#f97316" onclick="pickColor('#f97316')"></div>
+            <div class="color-swatch-btn" style="background:#eab308;" data-color="#eab308" onclick="pickColor('#eab308')"></div>
+            <div class="color-swatch-btn" style="background:#22c55e;" data-color="#22c55e" onclick="pickColor('#22c55e')"></div>
+            <div class="color-swatch-btn" style="background:#06b6d4;" data-color="#06b6d4" onclick="pickColor('#06b6d4')"></div>
+            <div class="color-swatch-btn" style="background:#4f46e5;" data-color="#4f46e5" onclick="pickColor('#4f46e5')"></div>
+            <div class="color-swatch-btn" style="background:#8b5cf6;" data-color="#8b5cf6" onclick="pickColor('#8b5cf6')"></div>
+            <div class="color-swatch-btn" style="background:#ec4899;" data-color="#ec4899" onclick="pickColor('#ec4899')"></div>
+            <div class="color-swatch-btn" style="background:#6b7280;" data-color="#6b7280" onclick="pickColor('#6b7280')"></div>
+            <div class="color-swatch-btn" style="background:#374151;" data-color="#374151" onclick="pickColor('#374151')"></div>
           </div>
         </div>
       </div>
@@ -396,26 +400,38 @@
                 <i class="bi bi-question-circle-fill"></i>
               </span>
             </label>
+            {% with default_days=form.instance.default_days|default:'0,1,2,3,4' %}
             <div class="days-grid" id="defaultDaysGrid">
-              {% for num, dname in 'Mon,Tue,Wed,Thu,Fri,Sat,Sun'|split:','|zip_with_index %}{% endfor %}
-              {% for val, dname in '0,Mon|1,Tue|2,Wed|3,Thu|4,Fri|5,Sat|6,Sun'|split:'|' %}
-                {% with parts=val|split:',' %}
-                {# We handle this manually since we can't do zip in Django templates #}
-                {% endwith %}
-              {% endfor %}
-              <!-- Render day toggles via static template -->
-              {% with default_days=form.instance.default_days|default:'0,1,2,3,4' %}
-              {% for item in '0:Mon,1:Tue,2:Wed,3:Thu,4:Fri,5:Sat,6:Sun'|split:',' %}
-                {% with parts=item|split:':' %}
-                <div class="day-toggle">
-                  <input type="checkbox" name="default_days_cb" id="dd_{{ parts.0 }}" value="{{ parts.0 }}"
-                         {% if parts.0 in default_days %}checked{% endif %}>
-                  <label for="dd_{{ parts.0 }}">{{ parts.1 }}</label>
-                </div>
-                {% endwith %}
-              {% endfor %}
-              {% endwith %}
+              <div class="day-toggle">
+                <input type="checkbox" name="default_days_cb" id="dd_0" value="0" {% if '0' in default_days %}checked{% endif %}>
+                <label for="dd_0">Mon</label>
+              </div>
+              <div class="day-toggle">
+                <input type="checkbox" name="default_days_cb" id="dd_1" value="1" {% if '1' in default_days %}checked{% endif %}>
+                <label for="dd_1">Tue</label>
+              </div>
+              <div class="day-toggle">
+                <input type="checkbox" name="default_days_cb" id="dd_2" value="2" {% if '2' in default_days %}checked{% endif %}>
+                <label for="dd_2">Wed</label>
+              </div>
+              <div class="day-toggle">
+                <input type="checkbox" name="default_days_cb" id="dd_3" value="3" {% if '3' in default_days %}checked{% endif %}>
+                <label for="dd_3">Thu</label>
+              </div>
+              <div class="day-toggle">
+                <input type="checkbox" name="default_days_cb" id="dd_4" value="4" {% if '4' in default_days %}checked{% endif %}>
+                <label for="dd_4">Fri</label>
+              </div>
+              <div class="day-toggle">
+                <input type="checkbox" name="default_days_cb" id="dd_5" value="5" {% if '5' in default_days %}checked{% endif %}>
+                <label for="dd_5">Sat</label>
+              </div>
+              <div class="day-toggle">
+                <input type="checkbox" name="default_days_cb" id="dd_6" value="6" {% if '6' in default_days %}checked{% endif %}>
+                <label for="dd_6">Sun</label>
+              </div>
             </div>
+            {% endwith %}
             <!-- Hidden field holding CSV of selected days -->
             <input type="hidden" name="default_days_hidden" id="defaultDaysHidden"
                    value="{{ form.instance.default_days|default:'0,1,2,3,4' }}">
