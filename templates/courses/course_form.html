@@ -121,32 +121,29 @@
   .content-tabs button:hover { color: #4f46e5; }
   .content-tabs button.active { color: #4f46e5; border-bottom-color: #4f46e5; font-weight: 600; }
 
-  /* ── Days checkboxes ── */
-  .days-grid {
+  /* ── Days inline checkboxes (Image 1 style) ── */
+  .days-inline-wrap {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-  .day-toggle input { display: none; }
-  .day-toggle label {
-    display: flex;
-    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    border-radius: 8px;
-    border: 2px solid #dee2e6;
-    font-size: 0.75rem;
-    font-weight: 700;
-    cursor: pointer;
-    color: #6c757d;
-    transition: background .15s, color .15s, border-color .15s;
+    gap: 0.75rem;
+    padding-top: 0.2rem;
   }
-  .day-toggle input:checked + label {
-    background: #4f46e5;
-    border-color: #4f46e5;
-    color: #fff;
+  .day-check-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #374151;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .day-check-item input[type="checkbox"] {
+    width: 1em;
+    height: 1em;
+    accent-color: #4f46e5;
+    cursor: pointer;
   }
 
   /* ── Grade years checkboxes ── */
@@ -286,23 +283,6 @@
             </label>
             <input type="file" name="photo" id="id_photo" accept="image/*" class="d-none">
           </div>
-          <div class="color-row">
-            <label>Color</label>
-            {{ form.color }}
-          </div>
-          <!-- Quick color swatches -->
-          <div class="color-swatch-row">
-            <div class="color-swatch-btn" style="background:#e879a0;" data-color="#e879a0" onclick="pickColor('#e879a0')"></div>
-            <div class="color-swatch-btn" style="background:#f97316;" data-color="#f97316" onclick="pickColor('#f97316')"></div>
-            <div class="color-swatch-btn" style="background:#eab308;" data-color="#eab308" onclick="pickColor('#eab308')"></div>
-            <div class="color-swatch-btn" style="background:#22c55e;" data-color="#22c55e" onclick="pickColor('#22c55e')"></div>
-            <div class="color-swatch-btn" style="background:#06b6d4;" data-color="#06b6d4" onclick="pickColor('#06b6d4')"></div>
-            <div class="color-swatch-btn" style="background:#4f46e5;" data-color="#4f46e5" onclick="pickColor('#4f46e5')"></div>
-            <div class="color-swatch-btn" style="background:#8b5cf6;" data-color="#8b5cf6" onclick="pickColor('#8b5cf6')"></div>
-            <div class="color-swatch-btn" style="background:#ec4899;" data-color="#ec4899" onclick="pickColor('#ec4899')"></div>
-            <div class="color-swatch-btn" style="background:#6b7280;" data-color="#6b7280" onclick="pickColor('#6b7280')"></div>
-            <div class="color-swatch-btn" style="background:#374151;" data-color="#374151" onclick="pickColor('#374151')"></div>
-          </div>
         </div>
       </div>
 
@@ -311,8 +291,8 @@
 
         <!-- Course Name + Grade Years -->
         <div class="form-card">
-          <div class="row g-3 mb-3">
-            <div class="col-md-8">
+          <div class="row g-3 mb-3 align-items-end">
+            <div class="col">
               <label class="form-label fw-semibold" style="font-size:0.9rem;">
                 Course Name <span class="text-danger">*</span>
               </label>
@@ -320,6 +300,16 @@
               {% if form.name.errors %}
                 <div class="text-danger small mt-1">{{ form.name.errors|join:", " }}</div>
               {% endif %}
+            </div>
+            <div class="col-auto">
+              <label class="form-label fw-semibold d-block" style="font-size:0.9rem;">Color</label>
+              <div class="d-flex align-items-center gap-2">
+                <button type="button" id="colorSwatchBtn"
+                        style="width:36px;height:36px;border-radius:6px;border:2px solid #dee2e6;cursor:pointer;background:{{ form.color.value|default:'#6c757d' }};flex-shrink:0;"
+                        onclick="document.getElementById('id_color').click()"
+                        title="Pick colour"></button>
+                <div style="display:none;">{{ form.color }}</div>
+              </div>
             </div>
           </div>
 
@@ -363,14 +353,14 @@
           </div>
         </div>
 
-        <!-- Duration, Frequency, Default Days -->
+        <!-- Duration, Frequency, Default Days (single row, image-1 style) -->
         <div class="form-card">
-          <div class="row g-3 mb-3">
-            <div class="col-md-4">
+          <div class="row g-3 align-items-end">
+            <div class="col-auto">
               <label class="form-label fw-semibold" style="font-size:0.9rem;">
                 Duration <span class="text-danger">*</span>
               </label>
-              <div class="input-group">
+              <div class="input-group" style="width:160px;">
                 {{ form.duration_weeks }}
                 <span class="input-group-text">weeks</span>
               </div>
@@ -378,65 +368,55 @@
                 <div class="text-danger small mt-1">{{ form.duration_weeks.errors|join:", " }}</div>
               {% endif %}
             </div>
-            <div class="col-md-4">
+            <div class="col-auto">
               <label class="form-label fw-semibold" style="font-size:0.9rem;">
                 Frequency <span class="text-danger">*</span>
               </label>
-              <div class="input-group">
+              <div class="input-group" style="width:190px;">
                 {{ form.frequency_days }}
-                <span class="input-group-text">days/week</span>
+                <span class="input-group-text">days per week</span>
               </div>
               {% if form.frequency_days.errors %}
                 <div class="text-danger small mt-1">{{ form.frequency_days.errors|join:", " }}</div>
               {% endif %}
             </div>
-          </div>
-
-          <!-- Default Days -->
-          <div>
-            <label class="form-label fw-semibold" style="font-size:0.9rem;">
-              Default Days
-              <span class="text-muted fw-normal ms-1" style="font-size:0.8rem;"
-                    data-bs-toggle="tooltip"
-                    title="Pre-selected days when enrolling a student. The actual days are chosen at enrollment time.">
-                <i class="bi bi-question-circle-fill"></i>
-              </span>
-            </label>
-            {% with default_days=form.instance.default_days|default:'0,1,2,3,4' %}
-            <div class="days-grid" id="defaultDaysGrid">
-              <div class="day-toggle">
-                <input type="checkbox" name="default_days_cb" id="dd_0" value="0" {% if '0' in default_days %}checked{% endif %}>
-                <label for="dd_0">Mon</label>
+            <div class="col">
+              <label class="form-label fw-semibold" style="font-size:0.9rem;">
+                Default Days
+                <span class="text-muted fw-normal ms-1" style="font-size:0.8rem;"
+                      data-bs-toggle="tooltip"
+                      title="Pre-selected days when enrolling a student. The actual days are chosen at enrollment time.">
+                  <i class="bi bi-question-circle-fill"></i>
+                </span>
+              </label>
+              {% with default_days=form.instance.default_days|default:'0,1,2,3,4' %}
+              <div class="days-inline-wrap" id="defaultDaysGrid">
+                <label class="day-check-item">
+                  <input type="checkbox" name="default_days_cb" id="dd_0" value="0" {% if '0' in default_days %}checked{% endif %}>M
+                </label>
+                <label class="day-check-item">
+                  <input type="checkbox" name="default_days_cb" id="dd_1" value="1" {% if '1' in default_days %}checked{% endif %}>Tu
+                </label>
+                <label class="day-check-item">
+                  <input type="checkbox" name="default_days_cb" id="dd_2" value="2" {% if '2' in default_days %}checked{% endif %}>W
+                </label>
+                <label class="day-check-item">
+                  <input type="checkbox" name="default_days_cb" id="dd_3" value="3" {% if '3' in default_days %}checked{% endif %}>Th
+                </label>
+                <label class="day-check-item">
+                  <input type="checkbox" name="default_days_cb" id="dd_4" value="4" {% if '4' in default_days %}checked{% endif %}>F
+                </label>
+                <label class="day-check-item">
+                  <input type="checkbox" name="default_days_cb" id="dd_5" value="5" {% if '5' in default_days %}checked{% endif %}>Sa
+                </label>
+                <label class="day-check-item">
+                  <input type="checkbox" name="default_days_cb" id="dd_6" value="6" {% if '6' in default_days %}checked{% endif %}>Su
+                </label>
               </div>
-              <div class="day-toggle">
-                <input type="checkbox" name="default_days_cb" id="dd_1" value="1" {% if '1' in default_days %}checked{% endif %}>
-                <label for="dd_1">Tue</label>
-              </div>
-              <div class="day-toggle">
-                <input type="checkbox" name="default_days_cb" id="dd_2" value="2" {% if '2' in default_days %}checked{% endif %}>
-                <label for="dd_2">Wed</label>
-              </div>
-              <div class="day-toggle">
-                <input type="checkbox" name="default_days_cb" id="dd_3" value="3" {% if '3' in default_days %}checked{% endif %}>
-                <label for="dd_3">Thu</label>
-              </div>
-              <div class="day-toggle">
-                <input type="checkbox" name="default_days_cb" id="dd_4" value="4" {% if '4' in default_days %}checked{% endif %}>
-                <label for="dd_4">Fri</label>
-              </div>
-              <div class="day-toggle">
-                <input type="checkbox" name="default_days_cb" id="dd_5" value="5" {% if '5' in default_days %}checked{% endif %}>
-                <label for="dd_5">Sat</label>
-              </div>
-              <div class="day-toggle">
-                <input type="checkbox" name="default_days_cb" id="dd_6" value="6" {% if '6' in default_days %}checked{% endif %}>
-                <label for="dd_6">Sun</label>
-              </div>
+              {% endwith %}
+              <input type="hidden" name="default_days_hidden" id="defaultDaysHidden"
+                     value="{{ form.instance.default_days|default:'0,1,2,3,4' }}">
             </div>
-            {% endwith %}
-            <!-- Hidden field holding CSV of selected days -->
-            <input type="hidden" name="default_days_hidden" id="defaultDaysHidden"
-                   value="{{ form.instance.default_days|default:'0,1,2,3,4' }}">
           </div>
         </div>
 
@@ -591,21 +571,13 @@
 const colorInput = document.getElementById('id_color');
 const thumbnail  = document.getElementById('courseThumbnail');
 const nameInput  = document.querySelector('input[name="name"]');
+const colorSwatchBtn = document.getElementById('colorSwatchBtn');
 
-function pickColor(hex) {
-  colorInput.value = hex;
-  thumbnail.style.background = hex;
-  document.querySelectorAll('.color-swatch-btn').forEach(b => {
-    b.classList.toggle('selected', b.dataset.color === hex);
-  });
-}
 if (colorInput) {
   colorInput.addEventListener('input', () => {
-    thumbnail.style.background = colorInput.value;
-  });
-  // Mark current color swatch as selected
-  document.querySelectorAll('.color-swatch-btn').forEach(b => {
-    if (b.dataset.color === colorInput.value) b.classList.add('selected');
+    const hex = colorInput.value;
+    thumbnail.style.background = hex;
+    if (colorSwatchBtn) colorSwatchBtn.style.background = hex;
   });
 }
 if (nameInput) {
