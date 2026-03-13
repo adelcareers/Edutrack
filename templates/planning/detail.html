@@ -80,6 +80,7 @@
     border-radius: 6px;
     border: 1px solid #e5e7eb;
     background: #fff;
+    display: inline-block;
   }
   .week-dot.active { background: #c7cdfc; border-color: #a5b4fc; }
 
@@ -160,7 +161,7 @@
   <div class="plan-layout">
     <div class="week-sidebar">
       <div class="week-sidebar-head">
-        <span>Week 1, Day 1</span>
+        <span>Week {{ selected_week }}, Day {{ selected_day }}</span>
         <span>
           <i class="bi bi-chevron-left"></i>
           <i class="bi bi-chevron-right"></i>
@@ -170,7 +171,7 @@
         {% for week in weeks %}
           <span class="week-label">{{ week }}</span>
           {% for day in days %}
-            <span class="week-dot {% if week == 1 and day == 1 %}active{% endif %}"></span>
+            <a class="week-dot {% if week == selected_week and day == selected_day %}active{% endif %}" href="?week={{ week }}&day={{ day }}"></a>
           {% endfor %}
         {% endfor %}
       </div>
@@ -178,60 +179,69 @@
 
     <div class="plan-panel">
       <div class="plan-tabs">
-        <span class="active">Week 1, Day 1 (1)</span>
+        <span class="active">Week {{ selected_week }}, Day {{ selected_day }} ({{ day_count }})</span>
         <span>Unscheduled (0)</span>
-        <span>All (1)</span>
+        <span>All ({{ all_count }})</span>
       </div>
 
+      {% for item in day_items %}
       <div class="assignment-row">
         <div>
           <input type="checkbox" class="form-check-input me-2">
-          Math Year 8 - 1
+          {{ item.template.name }}
         </div>
-        <span class="pill">Homework</span>
+        <span class="pill" style="background: {{ item.template.assignment_type.color }}33; color: #374151;">
+          {{ item.template.assignment_type.name }}
+        </span>
       </div>
-
+      {% empty %}
       <div class="assignment-row" style="opacity: 0.7;">
         <span><i class="bi bi-plus-lg"></i> New Assignment</span>
       </div>
+      {% endfor %}
 
-      <div class="assignment-form">
+      <form method="post" class="assignment-form">
+        {% csrf_token %}
         <div class="row g-3">
           <div class="col-md-4">
             <label>Select Week</label>
-            <select class="form-select">
+            <select class="form-select" name="week_number">
               {% for week in weeks %}
-                <option value="{{ week }}">Week {{ week }}</option>
+                <option value="{{ week }}" {% if week == selected_week %}selected{% endif %}>Week {{ week }}</option>
               {% endfor %}
             </select>
           </div>
           <div class="col-md-4">
             <label>Select Day</label>
-            <select class="form-select">
+            <select class="form-select" name="day_number">
               {% for day in days %}
-                <option value="{{ day }}">Day {{ day }}</option>
+                <option value="{{ day }}" {% if day == selected_day %}selected{% endif %}>Day {{ day }}</option>
               {% endfor %}
             </select>
           </div>
           <div class="col-md-4">
             <label>Select Type</label>
-            <select class="form-select">
+            <select class="form-select" name="assignment_type">
               {% for at in assignment_types %}
                 <option value="{{ at.id }}">{{ at.name }}</option>
               {% endfor %}
             </select>
+            <div class="form-check mt-2">
+              <input class="form-check-input" type="checkbox" name="is_graded" id="is_graded">
+              <label class="form-check-label" for="is_graded" style="font-size: 0.78rem;">Graded</label>
+            </div>
           </div>
         </div>
 
         <div class="row g-3 mt-2">
           <div class="col-md-8">
             <label>Assignment Name (Required)</label>
-            <input type="text" class="form-control" placeholder="New Assignment">
+            <input type="text" class="form-control" name="assignment_name" placeholder="New Assignment" required>
           </div>
           <div class="col-md-4">
             <label>Due In</label>
             <div class="d-flex align-items-center gap-2">
-              <input type="text" class="form-control" placeholder="0">
+              <input type="number" class="form-control" name="due_in_days" min="0" value="0">
               <span style="font-size: 0.8rem; color: #6b7280;">day(s)</span>
             </div>
           </div>
@@ -243,14 +253,14 @@
             <span>Attachments (0)</span>
             <span>Teacher's Notes</span>
           </div>
-          <div class="border rounded mt-2" style="height: 140px;"></div>
+          <textarea class="form-control" name="description" rows="5" placeholder="Add a description..."></textarea>
         </div>
 
         <div class="d-flex justify-content-between mt-3">
-          <button type="button" class="btn btn-light" style="background: #e7eafe; border: none;">Cancel</button>
-          <button type="button" class="btn btn-primary" style="background: #5b6af8; border: none;">Create Assignment</button>
+          <button type="reset" class="btn btn-light" style="background: #e7eafe; border: none;">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="background: #5b6af8; border: none;">Create Assignment</button>
         </div>
-      </div>
+      </form>
     </div>
   </div>
 </div>
