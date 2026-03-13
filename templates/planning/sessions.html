@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Plan — EduTrack{% endblock %}
+{% block nav_plan %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .plan-wrap {
+    max-width: 1040px;
+    margin: 0 auto;
+  }
+  .plan-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+  .plan-header h4 {
+    font-weight: 700;
+    margin: 0;
+  }
+  .plan-search {
+    width: 320px;
+  }
+
+  .plan-card {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.04);
+    margin-bottom: 1.5rem;
+  }
+  .plan-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+  }
+  .course-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.9rem;
+    border-radius: 999px;
+    font-weight: 700;
+    background: #e7eafe;
+    color: #3f3f8f;
+    font-size: 0.85rem;
+  }
+  .course-meta {
+    font-size: 0.8rem;
+    color: #6b7280;
+  }
+  .plan-cta {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #4f46e5;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .week-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.35rem 0.9rem;
+    margin-top: 0.75rem;
+  }
+  .week-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .week-label {
+    width: 20px;
+    font-size: 0.72rem;
+    color: #9ca3af;
+  }
+  .day-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+  }
+  .day-dot.filled {
+    background: #c7cdfc;
+    border-color: #a5b4fc;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 plan-wrap">
+  <div class="plan-header">
+    <h4>Planning Sessions</h4>
+    <input type="text" class="form-control plan-search" placeholder="Search Planning Sessions">
+  </div>
+
+  {% for card in cards %}
+  {% with course=card.course %}
+  <div class="plan-card">
+    <div class="plan-card-head">
+      <div>
+        <span class="course-pill">{{ course.name }}</span>
+        <div class="course-meta mt-2">{{ course.duration_weeks }} weeks | {{ course.frequency_days }} days per week</div>
+      </div>
+      <a class="plan-cta" href="{% url 'planning:plan_course' course_id=course.pk %}">
+        <i class="bi bi-journal-text"></i> Plan Assignments
+      </a>
+    </div>
+
+    <div class="week-grid">
+      {% for row in card.week_rows %}
+        <div class="week-row">
+          <span class="week-label">{{ row.week }}</span>
+          {% for day in row.days %}
+            <span class="day-dot{% if row.week == 1 and day == 1 %} filled{% endif %}"></span>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endwith %}
+  {% empty %}
+  <div class="plan-card">
+    <p class="text-muted" style="font-size: 0.9rem;">No courses available for planning yet.</p>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -52,5 +52,6 @@ urlpatterns = [
     path('', include('reports.urls')),
     path('', include('payments.urls')),
     path('', include('courses.urls')),
+    path('', include('planning.urls')),
     path('', root_redirect, name='home'),
 ]

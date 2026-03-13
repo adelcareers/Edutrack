@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}Plan — {{ course.name }} — EduTrack{% endblock %}
+{% block nav_plan %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .plan-detail-wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .plan-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .plan-course-pill {
+    background: #3f3f8f;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 0.55rem 1.3rem;
+    border-radius: 10px;
+  }
+  .plan-search {
+    flex: 1;
+  }
+  .plan-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .btn-select-all {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #6b7280;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .btn-new-assign {
+    background: #5b6af8;
+    border: none;
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.8rem;
+    padding: 0.45rem 1rem;
+    border-radius: 8px;
+  }
+
+  .plan-layout {
+    display: grid;
+    grid-template-columns: 230px 1fr;
+    gap: 1.5rem;
+  }
+  .week-sidebar {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 1rem;
+  }
+  .week-sidebar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #374151;
+  }
+  .week-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 20px);
+    gap: 0.35rem 0.5rem;
+  }
+  .week-label { font-size: 0.72rem; color: #9ca3af; }
+  .week-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+  }
+  .week-dot.active { background: #c7cdfc; border-color: #a5b4fc; }
+
+  .plan-panel {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 1rem 1.25rem 1.5rem;
+  }
+  .plan-tabs {
+    display: flex;
+    gap: 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 1rem;
+  }
+  .plan-tabs span {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #9ca3af;
+    padding-bottom: 0.5rem;
+  }
+  .plan-tabs span.active {
+    color: #4f46e5;
+    border-bottom: 2px solid #4f46e5;
+  }
+
+  .assignment-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 0.6rem 0.9rem;
+    margin-bottom: 0.65rem;
+  }
+  .assignment-row .pill {
+    background: #e5e7eb;
+    border-radius: 999px;
+    padding: 0.2rem 0.7rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #6b7280;
+  }
+
+  .assignment-form {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 1rem;
+    margin-top: 1rem;
+  }
+  .assignment-form label { font-size: 0.75rem; font-weight: 700; color: #6b7280; }
+  .assignment-form .form-control,
+  .assignment-form .form-select {
+    height: 34px;
+    font-size: 0.82rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 plan-detail-wrap">
+  <div class="plan-header">
+    <div class="plan-course-pill">{{ course.name }}</div>
+    <input type="text" class="form-control plan-search" placeholder="Search Assignments">
+    <div class="plan-actions">
+      <span class="btn-select-all"><i class="bi bi-check2-square"></i>Select All</span>
+      <div class="dropdown">
+        <button class="btn-new-assign dropdown-toggle" data-bs-toggle="dropdown">New Assignments</button>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+          <li><a class="dropdown-item" href="#">Single Assignment</a></li>
+          <li><a class="dropdown-item" href="#">Repeating Assignments</a></li>
+          <li><a class="dropdown-item" href="#">Import Assignments</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="plan-layout">
+    <div class="week-sidebar">
+      <div class="week-sidebar-head">
+        <span>Week 1, Day 1</span>
+        <span>
+          <i class="bi bi-chevron-left"></i>
+          <i class="bi bi-chevron-right"></i>
+        </span>
+      </div>
+      <div class="week-grid">
+        {% for week in weeks %}
+          <span class="week-label">{{ week }}</span>
+          {% for day in days %}
+            <span class="week-dot {% if week == 1 and day == 1 %}active{% endif %}"></span>
+          {% endfor %}
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="plan-panel">
+      <div class="plan-tabs">
+        <span class="active">Week 1, Day 1 (1)</span>
+        <span>Unscheduled (0)</span>
+        <span>All (1)</span>
+      </div>
+
+      <div class="assignment-row">
+        <div>
+          <input type="checkbox" class="form-check-input me-2">
+          Math Year 8 - 1
+        </div>
+        <span class="pill">Homework</span>
+      </div>
+
+      <div class="assignment-row" style="opacity: 0.7;">
+        <span><i class="bi bi-plus-lg"></i> New Assignment</span>
+      </div>
+
+      <div class="assignment-form">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label>Select Week</label>
+            <select class="form-select">
+              {% for week in weeks %}
+                <option value="{{ week }}">Week {{ week }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label>Select Day</label>
+            <select class="form-select">
+              {% for day in days %}
+                <option value="{{ day }}">Day {{ day }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label>Select Type</label>
+            <select class="form-select">
+              {% for at in assignment_types %}
+                <option value="{{ at.id }}">{{ at.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="row g-3 mt-2">
+          <div class="col-md-8">
+            <label>Assignment Name (Required)</label>
+            <input type="text" class="form-control" placeholder="New Assignment">
+          </div>
+          <div class="col-md-4">
+            <label>Due In</label>
+            <div class="d-flex align-items-center gap-2">
+              <input type="text" class="form-control" placeholder="0">
+              <span style="font-size: 0.8rem; color: #6b7280;">day(s)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3">
+          <div class="d-flex gap-3 border-bottom pb-2" style="font-size: 0.78rem; font-weight: 600; color: #6b7280;">
+            <span style="color:#4f46e5;">Description</span>
+            <span>Attachments (0)</span>
+            <span>Teacher's Notes</span>
+          </div>
+          <div class="border rounded mt-2" style="height: 140px;"></div>
+        </div>
+
+        <div class="d-flex justify-content-between mt-3">
+          <button type="button" class="btn btn-light" style="background: #e7eafe; border: none;">Cancel</button>
+          <button type="button" class="btn btn-primary" style="background: #5b6af8; border: none;">Create Assignment</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
