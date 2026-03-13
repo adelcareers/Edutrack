@@ -159,6 +159,53 @@
     height: 34px;
     font-size: 0.82rem;
   }
+  .rich-tabs {
+    display: flex;
+    gap: 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 0.75rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #6b7280;
+  }
+  .rich-tabs button {
+    border: none;
+    background: transparent;
+    padding: 0.35rem 0;
+    color: #6b7280;
+  }
+  .rich-tabs button.active {
+    color: #4f46e5;
+    border-bottom: 2px solid #4f46e5;
+  }
+  .rich-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    border: 1px solid #e5e7eb;
+    border-bottom: none;
+    border-radius: 10px 10px 0 0;
+    padding: 0.5rem 0.75rem;
+    background: #fff;
+  }
+  .rich-toolbar button {
+    border: none;
+    background: transparent;
+    color: #4b5563;
+    font-size: 0.85rem;
+  }
+  .rich-editor {
+    border: 1px solid #e5e7eb;
+    border-radius: 0 0 10px 10px;
+    min-height: 140px;
+    padding: 0.75rem;
+    font-size: 0.85rem;
+  }
+  .rich-editor:focus {
+    outline: none;
+    border-color: #c7cdfc;
+    box-shadow: 0 0 0 2px rgba(91, 106, 248, 0.15);
+  }
   .attachment-drop {
     border: 1px dashed #cbd5f5;
     border-radius: 10px;
@@ -300,22 +347,52 @@
         </div>
 
         <div class="mt-3">
-          <div class="d-flex gap-3 border-bottom pb-2" style="font-size: 0.78rem; font-weight: 600; color: #6b7280;">
-            <span style="color:#4f46e5;">Description</span>
-            <span>Attachments ({{ editing_attachments|length }})</span>
-            <span>Teacher's Notes</span>
+          <div class="rich-tabs" role="tablist">
+            <button type="button" class="active" data-tab="description">Description</button>
+            <button type="button" data-tab="attachments">Attachments ({{ editing_attachments|length }})</button>
+            <button type="button" data-tab="notes">Teacher's Notes</button>
           </div>
-          <textarea class="form-control" name="description" rows="5" placeholder="Add a description...">{% if editing_item %}{{ editing_item.template.description }}{% endif %}</textarea>
-          <div class="attachment-drop mt-3">
-            <strong>Drop files here</strong> or click to upload
-            <input type="file" class="form-control mt-2" name="attachments" multiple>
-            {% if editing_attachments %}
-              <ul class="attachment-list">
-                {% for attachment in editing_attachments %}
-                  <li>{{ attachment.original_name|default:attachment.file.name }}</li>
-                {% endfor %}
-              </ul>
-            {% endif %}
+
+          <div class="rich-pane" data-pane="description">
+            <div class="rich-toolbar" data-editor="description">
+              <span style="font-size: 0.78rem; color: #6b7280;">Normal</span>
+              <button type="button" data-cmd="bold"><i class="bi bi-type-bold"></i></button>
+              <button type="button" data-cmd="italic"><i class="bi bi-type-italic"></i></button>
+              <button type="button" data-cmd="underline"><i class="bi bi-type-underline"></i></button>
+              <button type="button" data-cmd="insertUnorderedList"><i class="bi bi-list-ul"></i></button>
+              <button type="button" data-cmd="insertOrderedList"><i class="bi bi-list-ol"></i></button>
+              <button type="button" data-cmd="createLink"><i class="bi bi-link-45deg"></i></button>
+            </div>
+            <div class="rich-editor" contenteditable="true" data-editor="description">{% if editing_item %}{{ editing_item.template.description|safe }}{% endif %}</div>
+            <input type="hidden" name="description" data-input="description">
+          </div>
+
+          <div class="rich-pane" data-pane="attachments" style="display: none;">
+            <div class="attachment-drop">
+              <strong>Drop files here</strong> or click to upload
+              <input type="file" class="form-control mt-2" name="attachments" multiple>
+              {% if editing_attachments %}
+                <ul class="attachment-list">
+                  {% for attachment in editing_attachments %}
+                    <li>{{ attachment.original_name|default:attachment.file.name }}</li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="rich-pane" data-pane="notes" style="display: none;">
+            <div class="rich-toolbar" data-editor="notes">
+              <span style="font-size: 0.78rem; color: #6b7280;">Normal</span>
+              <button type="button" data-cmd="bold"><i class="bi bi-type-bold"></i></button>
+              <button type="button" data-cmd="italic"><i class="bi bi-type-italic"></i></button>
+              <button type="button" data-cmd="underline"><i class="bi bi-type-underline"></i></button>
+              <button type="button" data-cmd="insertUnorderedList"><i class="bi bi-list-ul"></i></button>
+              <button type="button" data-cmd="insertOrderedList"><i class="bi bi-list-ol"></i></button>
+              <button type="button" data-cmd="createLink"><i class="bi bi-link-45deg"></i></button>
+            </div>
+            <div class="rich-editor" contenteditable="true" data-editor="notes">{% if editing_item %}{{ editing_item.notes|safe }}{% endif %}</div>
+            <input type="hidden" name="teacher_notes" data-input="notes">
           </div>
         </div>
 
@@ -328,4 +405,57 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    const tabs = document.querySelectorAll('[data-tab]');
+    const panes = document.querySelectorAll('[data-pane]');
+    const toolbars = document.querySelectorAll('.rich-toolbar');
+    const form = document.querySelector('.assignment-form');
+
+    function setActiveTab(tabName) {
+      tabs.forEach((tab) => {
+        tab.classList.toggle('active', tab.dataset.tab === tabName);
+      });
+      panes.forEach((pane) => {
+        pane.style.display = pane.dataset.pane === tabName ? 'block' : 'none';
+      });
+    }
+
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => setActiveTab(tab.dataset.tab));
+    });
+
+    toolbars.forEach((toolbar) => {
+      toolbar.querySelectorAll('[data-cmd]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const cmd = button.dataset.cmd;
+          if (cmd === 'createLink') {
+            const url = prompt('Enter link URL');
+            if (!url) {
+              return;
+            }
+            document.execCommand(cmd, false, url);
+            return;
+          }
+          document.execCommand(cmd, false, null);
+        });
+      });
+    });
+
+    if (form) {
+      form.addEventListener('submit', () => {
+        document.querySelectorAll('.rich-editor').forEach((editor) => {
+          const key = editor.dataset.editor;
+          const input = form.querySelector(`[data-input="${key}"]`);
+          if (input) {
+            input.value = editor.innerHTML.trim();
+          }
+        });
+      });
+    }
+  })();
+</script>
 {% endblock %}

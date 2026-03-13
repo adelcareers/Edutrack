@@ -101,6 +101,7 @@ def plan_course_view(request, course_id):
         day_number = _safe_int(request.POST.get('day_number', selected_day), selected_day)
         due_in_days = _safe_int(request.POST.get('due_in_days', '0'), 0)
         description = request.POST.get('description', '').strip()
+        teacher_notes = request.POST.get('teacher_notes', '').strip()
         is_graded = request.POST.get('is_graded') == 'on'
 
         if template_name and type_id:
@@ -127,6 +128,7 @@ def plan_course_view(request, course_id):
                 plan_item.week_number = week_number
                 plan_item.day_number = day_number
                 plan_item.due_in_days = due_in_days
+                plan_item.notes = teacher_notes
                 plan_item.save()
             else:
                 template = CourseAssignmentTemplate.objects.create(
@@ -145,6 +147,7 @@ def plan_course_view(request, course_id):
                     day_number=day_number,
                     due_in_days=due_in_days,
                     order=0,
+                    notes=teacher_notes,
                 )
 
             attachments = request.FILES.getlist('attachments')
