@@ -144,11 +144,17 @@ def course_detail_view(request, course_id):
         .select_related('child')
         .order_by('-enrolled_at')
     )
+    active_enrollments = enrollments.filter(status='active')
+    completed_enrollments = enrollments.filter(status='completed')
     assignment_types = course.assignment_types.all()
 
     return render(request, 'courses/course_detail.html', {
         'course': course,
         'enrollments': enrollments,
+        'active_enrollments': active_enrollments,
+        'completed_enrollments': completed_enrollments,
+        'active_count': active_enrollments.count(),
+        'completed_count': completed_enrollments.count(),
         'assignment_types': assignment_types,
         'grade_year_labels': course.get_grade_year_labels(),
     })
@@ -371,6 +377,28 @@ def complete_enrollment_view(request, enrollment_id):
         'form': form,
         'enrollment': enrollment,
     })
+
+
+@role_required('parent')
+@require_POST
+def reactivate_enrollment_view(request, enrollment_id):
+    try:
+        enrollment = _get_enrollment_or_403(enrollment_id, request.user)
+    except PermissionError:
+        return HttpResponseForbidden('You do not have permission to reactivate this enrollment.')
+
+    enrollment.status = 'active'
+    enrollment.completed_school_year = ''
+    enrollment.completed_calendar_year = None
+    enrollment.completed_at = None
+    enrollment.save(update_fields=[
+        'status', 'completed_school_year', 'completed_calendar_year', 'completed_at'
+    ])
+    messages.success(
+        request,
+        f'{enrollment.child.first_name} has been reactivated in "{enrollment.course.name}".'
+    )
+    return redirect('courses:course_detail', course_id=enrollment.course.pk)
 
 
 # ── Subject AJAX ───────────────────────────────────────────────────────────

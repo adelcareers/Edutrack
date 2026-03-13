@@ -235,21 +235,20 @@
     <ul class="nav enrollment-tabs">
       <li class="nav-item">
         <a class="nav-link active" href="#activeEnrollments" data-bs-toggle="tab">
-          Active ({% with count=0 %}{% for e in enrollments %}{% if e.status == 'active' %}{% with count=count|add:1 %}{% endwith %}{% endif %}{% endfor %}{{ enrollments|length }}{% endwith %})
+          Active ({{ active_count }})
         </a>
       </li>
       <li class="nav-item">
         <a class="nav-link" href="#completedEnrollments" data-bs-toggle="tab">
-          Completed
+          Completed ({{ completed_count }})
         </a>
       </li>
     </ul>
 
     <div class="tab-content">
       <div class="tab-pane fade show active" id="activeEnrollments">
-        {% with active_list=enrollments %}
+        {% with active_list=active_enrollments %}
           {% for enrollment in active_list %}
-            {% if enrollment.status == 'active' %}
             <div class="enrollment-row">
               <div class="student-circle">{{ enrollment.child.first_name|slice:":1"|upper }}</div>
               <div class="enrollment-info">
@@ -285,7 +284,6 @@
                 </ul>
               </div>
             </div>
-            {% endif %}
           {% empty %}
             <p class="text-center text-muted py-3" style="font-size: 0.9rem; font-style: italic;">
               No students currently enrolled.
@@ -296,8 +294,7 @@
       </div>
 
       <div class="tab-pane fade" id="completedEnrollments">
-        {% for enrollment in enrollments %}
-          {% if enrollment.status == 'completed' %}
+        {% for enrollment in completed_enrollments %}
           <div class="enrollment-row">
             <div class="student-circle">{{ enrollment.child.first_name|slice:":1"|upper }}</div>
             <div class="enrollment-info">
@@ -308,8 +305,11 @@
               </div>
             </div>
             <span class="status-badge status-completed">Completed</span>
+            <form method="post" action="{% url 'courses:enrollment_reactivate' enrollment_id=enrollment.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-outline-secondary btn-sm">Make Active</button>
+            </form>
           </div>
-          {% endif %}
         {% empty %}
           <p class="text-center text-muted py-3" style="font-size: 0.9rem; font-style: italic;">
             No completed enrollments.
