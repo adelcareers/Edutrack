@@ -70,7 +70,6 @@
   }
   .week-grid {
     display: grid;
-    grid-template-columns: repeat(5, 20px);
     gap: 0.35rem 0.5rem;
   }
   .week-label { font-size: 0.72rem; color: #9ca3af; }
@@ -102,7 +101,18 @@
     color: #9ca3af;
     padding-bottom: 0.5rem;
   }
+  .plan-tabs a {
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #9ca3af;
+    padding-bottom: 0.5rem;
+  }
   .plan-tabs span.active {
+    color: #4f46e5;
+    border-bottom: 2px solid #4f46e5;
+  }
+  .plan-tabs a.active {
     color: #4f46e5;
     border-bottom: 2px solid #4f46e5;
   }
@@ -167,7 +177,7 @@
           <i class="bi bi-chevron-right"></i>
         </span>
       </div>
-      <div class="week-grid">
+      <div class="week-grid" style="grid-template-columns: 24px repeat({{ days|length }}, 20px);">
         {% for week in weeks %}
           <span class="week-label">{{ week }}</span>
           {% for day in days %}
@@ -179,12 +189,12 @@
 
     <div class="plan-panel">
       <div class="plan-tabs">
-        <span class="active">Week {{ selected_week }}, Day {{ selected_day }} ({{ day_count }})</span>
-        <span>Unscheduled (0)</span>
-        <span>All ({{ all_count }})</span>
+        <a class="{% if view_mode == 'day' %}active{% endif %}" href="?week={{ selected_week }}&day={{ selected_day }}&view=day">Week {{ selected_week }}, Day {{ selected_day }} ({{ day_count }})</a>
+        <a class="{% if view_mode == 'unscheduled' %}active{% endif %}" href="?week={{ selected_week }}&day={{ selected_day }}&view=unscheduled">Unscheduled ({{ unscheduled_count }})</a>
+        <a class="{% if view_mode == 'all' %}active{% endif %}" href="?week={{ selected_week }}&day={{ selected_day }}&view=all">All ({{ all_count }})</a>
       </div>
 
-      {% for item in day_items %}
+      {% for item in plan_items %}
       <div class="assignment-row">
         <div>
           <input type="checkbox" class="form-check-input me-2">

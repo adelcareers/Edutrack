@@ -121,16 +121,31 @@ def plan_course_view(request, course_id):
         week_number=selected_week,
         day_number=selected_day,
     )
+    view_mode = request.GET.get('view', 'day')
+    if view_mode not in {'day', 'all', 'unscheduled'}:
+        view_mode = 'day'
+
+    all_items = plan_items
+    unscheduled_items = plan_items.none()
+
+    if view_mode == 'all':
+        filtered_items = all_items
+    elif view_mode == 'unscheduled':
+        filtered_items = unscheduled_items
+    else:
+        filtered_items = day_items
 
     return render(request, 'planning/detail.html', {
         'course': course,
         'weeks': weeks,
         'days': days,
         'assignment_types': assignment_types,
-        'plan_items': plan_items,
+        'plan_items': filtered_items,
         'day_items': day_items,
         'selected_week': selected_week,
         'selected_day': selected_day,
         'day_count': day_items.count(),
-        'all_count': plan_items.count(),
+        'unscheduled_count': unscheduled_items.count(),
+        'all_count': all_items.count(),
+        'view_mode': view_mode,
     })
