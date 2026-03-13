@@ -120,6 +120,19 @@
     margin-bottom: 0.5rem;
   }
 
+  /* ── Consistent field heights ── */
+  .form-control,
+  .form-select,
+  .input-group-text {
+    height: 36px;
+    font-size: 0.85rem;
+    border-radius: 6px;
+  }
+  .form-control::placeholder { color: #9ca3af; font-size: 0.8rem; }
+  .form-control-sm { height: 30px; font-size: 0.8rem; }
+  .input-group .form-control { height: 36px; }
+  .input-group-text { padding: 0 0.6rem; }
+
   /* ── Tab bar (Description / Course Introduction) ── */
   .content-tabs {
     border-bottom: 2px solid #e9ecef;
@@ -213,6 +226,77 @@
   }
   .subject-input-wrap { display: flex; gap: 0.5rem; }
   .subject-input-wrap input { flex: 1; }
+
+  /* ── Students card ── */
+  .students-card {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 1.5rem;
+  }
+  .students-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+  .students-header h5 { margin: 0; font-weight: 700; font-size: 1rem; }
+  .students-tabs {
+    border-bottom: 1px solid #e5e7eb;
+    gap: 1rem;
+  }
+  .students-tabs .nav-link {
+    border: none;
+    color: #6b7280;
+    font-size: 0.85rem;
+    padding: 0.4rem 0;
+  }
+  .students-tabs .nav-link.active {
+    color: #3730A3;
+    font-weight: 600;
+    border-bottom: 2px solid #3730A3;
+  }
+  .student-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .student-row:last-child { border-bottom: 0; }
+  .student-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+  }
+  .student-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #eef2ff;
+    color: #3730A3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .student-name { font-weight: 600; font-size: 0.9rem; color: #111827; }
+  .student-meta { font-size: 0.78rem; color: #6b7280; }
+  .student-progress {
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .student-progress-bar {
+    height: 100%;
+    background: #22c55e;
+    width: 0%;
+  }
 
   /* ── Assignment Types ── */
   .at-row {
@@ -501,18 +585,9 @@
           </div> <!-- End Right Form Fields -->
 
         </div> <!-- End Flex Layout -->
-      </div>
-    </div> <!-- End Main Card -->
 
-    <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px;">
-      <div class="card-body p-4">
-        
-        <div class="d-flex justify-content-between align-items-center mb-4">
-           <h5 class="fw-bold mb-0 text-dark">Course Content & Planning</h5>
-           <button type="button" class="btn btn-sm btn-link text-decoration-none text-dark d-flex align-items-center gap-2 p-0">
-             <i class="bi bi-file-earmark-plus"></i> <span style="font-size: 0.85rem; font-weight: 500;">Add Resource</span>
-           </button>
-        </div>
+        <!-- Divider -->
+        <hr class="my-4" style="border-color: #e5e7eb;">
 
         <!-- Description Tabs -->
         <div class="mb-4">
@@ -532,6 +607,7 @@
 
         <!-- Grading Weights -->
         <div class="mb-4">
+            <p class="form-section-label" style="margin-bottom: 0.6rem;">Assignment Types</p>
            <div class="form-check mb-2">
               {{ form.use_assignment_weights }}
               <label class="form-check-label fw-bold" style="font-size: 0.85rem; color: #374151;" for="{{ form.use_assignment_weights.id_for_label }}">
@@ -606,8 +682,86 @@
             </div>
 
       </div>
-    </div> <!-- End Second Card -->
+    </div> <!-- End Single Course Card -->
 
+  </form>
+
+  {% if editing %}
+  <div class="students-card shadow-sm mb-4">
+    <div class="students-header">
+      <h5>Students</h5>
+      <a href="{% url 'courses:course_enroll' course_id=course.pk %}" class="btn btn-light border px-3" style="border-radius: 8px; font-size: 0.8rem;">
+        <i class="bi bi-person-plus me-1"></i>Enroll Student
+      </a>
+    </div>
+
+    <ul class="nav students-tabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <a class="nav-link active" data-bs-toggle="tab" href="#currentStudents" role="tab">
+          Current ({{ active_enrollments|length }})
+        </a>
+      </li>
+      <li class="nav-item" role="presentation">
+        <a class="nav-link" data-bs-toggle="tab" href="#completedStudents" role="tab">
+          Completed ({{ completed_enrollments|length }})
+        </a>
+      </li>
+    </ul>
+
+    <div class="tab-content pt-3">
+      <div class="tab-pane fade show active" id="currentStudents" role="tabpanel">
+        {% for row in active_enrollment_data %}
+        {% with enrollment=row.enrollment progress=row.progress %}
+        <div class="student-row">
+          <div class="student-info">
+            <div class="student-avatar">{{ enrollment.child.first_name|slice:":1"|upper }}</div>
+            <div>
+              <div class="student-name">{{ enrollment.child.first_name }}</div>
+              <div class="student-meta">
+                Current Grade: {% if course.grading_style == 'not_graded' %}Not Graded{% else %}{{ course.get_grading_style_display }}{% endif %}
+              </div>
+              <div class="student-meta">Schedule: {{ enrollment.get_days_display }}</div>
+              <div class="student-meta" style="margin-top: 6px;">Assignment Progress: {{ progress.completed }} of {{ progress.total }} ({{ progress.percent }}%)</div>
+              <div class="student-progress" style="max-width: 220px;">
+                <div class="student-progress-bar" style="width: {{ progress.percent }}%;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <a href="{% url 'reports:create_report' child_id=enrollment.child_id %}" class="btn btn-link text-muted p-0" style="font-size: 0.8rem; text-decoration: none;">
+              <i class="bi bi-bar-chart-line me-1"></i>View Grades
+            </a>
+            <button type="button" class="btn btn-link text-muted p-0">
+              <i class="bi bi-three-dots-vertical"></i>
+            </button>
+          </div>
+        </div>
+        {% endwith %}
+        {% empty %}
+        <p class="text-muted" style="font-size: 0.85rem;">No current students enrolled.</p>
+        {% endfor %}
+      </div>
+
+      <div class="tab-pane fade" id="completedStudents" role="tabpanel">
+        {% for row in completed_enrollment_data %}
+        {% with enrollment=row.enrollment progress=row.progress %}
+        <div class="student-row">
+          <div class="student-info">
+            <div class="student-avatar">{{ enrollment.child.first_name|slice:":1"|upper }}</div>
+            <div>
+              <div class="student-name">{{ enrollment.child.first_name }}</div>
+              <div class="student-meta">Completed {{ enrollment.completed_at|date:"M d, Y"|default:"—" }}</div>
+            </div>
+          </div>
+        </div>
+        {% endwith %}
+        {% empty %}
+        <p class="text-muted" style="font-size: 0.85rem;">No completed students.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}
 

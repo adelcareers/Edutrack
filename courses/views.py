@@ -4,12 +4,14 @@ import json
 
 from django.contrib import messages
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
+from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from accounts.decorators import role_required
-from scheduler.models import Child
+from scheduler.models import Child, ScheduledLesson
+from tracker.models import LessonLog
 
 from .forms import (
     CompleteEnrollmentForm,
@@ -169,12 +171,68 @@ def course_edit_view(request, course_id):
     else:
         form = CourseForm(instance=course, user=request.user)
 
+    enrollments = (
+        CourseEnrollment.objects
+        .filter(course=course)
+        .select_related('child')
+        .order_by('-enrolled_at')
+    )
+    active_enrollments = enrollments.filter(status='active')
+    completed_enrollments = enrollments.filter(status='completed')
+
+    child_ids = list(enrollments.values_list('child_id', flat=True).distinct())
+    progress_by_child = {cid: {'total': 0, 'completed': 0, 'percent': 0} for cid in child_ids}
+    if child_ids:
+        totals = (
+            ScheduledLesson.objects
+            .filter(child_id__in=child_ids)
+            .values('child_id')
+            .annotate(total=Count('id'))
+        )
+        completes = (
+            LessonLog.objects
+            .filter(status='complete', scheduled_lesson__child_id__in=child_ids)
+            .values('scheduled_lesson__child_id')
+            .annotate(total=Count('id'))
+        )
+        for row in totals:
+            progress_by_child[row['child_id']]['total'] = row['total']
+        for row in completes:
+            child_id = row['scheduled_lesson__child_id']
+            progress_by_child[child_id]['completed'] = row['total']
+        for child_id, data in progress_by_child.items():
+            total = data['total']
+            completed = data['completed']
+            data['percent'] = round((completed / total) * 100) if total else 0
+
+    active_enrollment_data = [
+        {
+            'enrollment': enrollment,
+            'progress': progress_by_child.get(
+                enrollment.child_id, {'total': 0, 'completed': 0, 'percent': 0}
+            ),
+        }
+        for enrollment in active_enrollments
+    ]
+    completed_enrollment_data = [
+        {
+            'enrollment': enrollment,
+            'progress': progress_by_child.get(
+                enrollment.child_id, {'total': 0, 'completed': 0, 'percent': 0}
+            ),
+        }
+        for enrollment in completed_enrollments
+    ]
+
     return render(request, 'courses/course_form.html', {
         'form': form,
         'course': course,
         'editing': True,
         'default_assignment_types': DEFAULT_ASSIGNMENT_TYPES,
         'assignment_types': list(course.assignment_types.values('id', 'name', 'weight', 'order')),
+        'enrollments': enrollments,
+        'active_enrollment_data': active_enrollment_data,
+        'completed_enrollment_data': completed_enrollment_data,
     })
 
 
