@@ -301,7 +301,7 @@ def enroll_student_view(request, course_id):
             enrollment = form.save(commit=False)
             enrollment.course = course
             days = form.cleaned_data['days_of_week']
-            enrollment.days_of_week = ','.join(days)
+            enrollment.days_of_week = days if isinstance(days, str) else ','.join(days)
             enrollment.save()
             messages.success(
                 request,
