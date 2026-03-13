@@ -263,7 +263,7 @@
 <!-- ── Calendar grid ────────────────────────────────── -->
 <div class="calendar-grid">
   {% for name, day in days.items %}
-  <div class="day-column {% if name == 'saturday' %}saturday{% endif %}">
+  <div class="day-column {% if day.date|date:"l"|lower == 'saturday' %}saturday{% endif %}">
     <div class="day-header">
       <div class="day-header-left">
         <span class="day-name">{{ day.date|date:"l" }}</span>
@@ -309,7 +309,7 @@
           </div>
         </div>
         {% endfor %}
-      {% elif not day.vacations %}
+      {% elif not day.vacations and show_empty_assignments %}
         <p class="empty-day">No lessons</p>
       {% endif %}
     </div>

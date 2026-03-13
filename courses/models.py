@@ -35,6 +35,33 @@ GRADING_STYLE_CHOICES = [
 ]
 
 DEFAULT_ASSIGNMENT_TYPES = ['Homework', 'Quiz', 'Test', 'Paper', 'Lab', 'Other']
+GLOBAL_ASSIGNMENT_DEFAULTS = [
+    ('Homework', '#9ca3af'),
+    ('Quiz', '#60a5fa'),
+    ('Test', '#fca5a5'),
+    ('Paper', '#5eead4'),
+    ('Lab', '#86efac'),
+    ('Other', '#c4b5fd'),
+]
+
+
+class GlobalAssignmentType(models.Model):
+    """Assignment types shared across all courses for a parent account."""
+
+    parent = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='global_assignment_types'
+    )
+    name = models.CharField(max_length=100)
+    color = models.CharField(max_length=7, default='#9ca3af')
+    is_hidden = models.BooleanField(default=False)
+    order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['order', 'name']
+        unique_together = [('parent', 'name')]
+
+    def __str__(self):
+        return f'{self.name} ({self.parent.username})'
 
 
 class Subject(models.Model):

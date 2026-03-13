@@ -28,3 +28,29 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f'{self.user.username} ({self.role})'
+
+
+class ParentSettings(models.Model):
+    """Per-parent settings for calendar and assignment configuration."""
+
+    WEEKDAY_CHOICES = [
+        (0, 'Monday'),
+        (1, 'Tuesday'),
+        (2, 'Wednesday'),
+        (3, 'Thursday'),
+        (4, 'Friday'),
+        (5, 'Saturday'),
+        (6, 'Sunday'),
+    ]
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='settings')
+    first_day_of_week = models.PositiveSmallIntegerField(choices=WEEKDAY_CHOICES, default=0)
+    show_empty_assignments = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Parent Settings'
+        verbose_name_plural = 'Parent Settings'
+
+    def __str__(self):
+        return f'Settings for {self.user.username}'

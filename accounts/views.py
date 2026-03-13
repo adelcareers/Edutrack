@@ -6,7 +6,9 @@ from django.contrib.auth.views import LoginView
 from django.contrib import messages
 
 from .forms import CustomUserCreationForm
-from .models import UserProfile
+from .models import ParentSettings, UserProfile
+from accounts.decorators import role_required
+from courses.models import GlobalAssignmentType, GLOBAL_ASSIGNMENT_DEFAULTS
 
 
 def register_view(request):
@@ -65,3 +67,113 @@ def logout_view(request):
         messages.info(request, "You have been logged out.")
         return redirect('home')
     return redirect('home')
+
+
+def _get_or_create_parent_settings(user):
+    settings, _ = ParentSettings.objects.get_or_create(user=user)
+    return settings
+
+
+def _seed_global_assignment_types(user):
+    if GlobalAssignmentType.objects.filter(parent=user).exists():
+        return
+    to_create = [
+        GlobalAssignmentType(
+            parent=user,
+            name=name,
+            color=color,
+            order=idx,
+        )
+        for idx, (name, color) in enumerate(GLOBAL_ASSIGNMENT_DEFAULTS)
+    ]
+    GlobalAssignmentType.objects.bulk_create(to_create)
+
+
+def _save_global_assignment_types(request, user):
+    indices = set()
+    for key in request.POST:
+        if key.startswith('at_name_'):
+            try:
+                idx = int(key.split('_')[-1])
+            except ValueError:
+                continue
+            indices.add(idx)
+
+    seen_ids = []
+    for idx in sorted(indices):
+        name = request.POST.get(f'at_name_{idx}', '').strip()
+        color = request.POST.get(f'at_color_{idx}', '').strip() or '#9ca3af'
+        is_hidden = request.POST.get(f'at_hidden_{idx}') == 'on'
+        delete_flag = request.POST.get(f'at_delete_{idx}') == '1'
+        at_id = request.POST.get(f'at_id_{idx}', '').strip()
+
+        if delete_flag:
+            if at_id:
+                GlobalAssignmentType.objects.filter(pk=at_id, parent=user).delete()
+            continue
+
+        if not name:
+            continue
+
+        if at_id:
+            GlobalAssignmentType.objects.filter(pk=at_id, parent=user).update(
+                name=name,
+                color=color,
+                is_hidden=is_hidden,
+                order=idx,
+            )
+            seen_ids.append(int(at_id))
+        else:
+            at = GlobalAssignmentType.objects.create(
+                parent=user,
+                name=name,
+                color=color,
+                is_hidden=is_hidden,
+                order=idx,
+            )
+            seen_ids.append(at.pk)
+
+    # Normalize ordering for all remaining types
+    remaining = (
+        GlobalAssignmentType.objects
+        .filter(parent=user)
+        .order_by('order', 'name')
+    )
+    for idx, at in enumerate(remaining):
+        if at.order != idx:
+            at.order = idx
+            at.save(update_fields=['order'])
+
+
+@role_required('parent')
+def settings_view(request):
+    settings = _get_or_create_parent_settings(request.user)
+    _seed_global_assignment_types(request.user)
+
+    if request.method == 'POST':
+        first_day_raw = request.POST.get('first_day_of_week', str(settings.first_day_of_week))
+        try:
+            first_day = int(first_day_raw)
+        except ValueError:
+            first_day = settings.first_day_of_week
+
+        valid_days = {choice[0] for choice in ParentSettings.WEEKDAY_CHOICES}
+        settings.first_day_of_week = first_day if first_day in valid_days else settings.first_day_of_week
+        settings.show_empty_assignments = request.POST.get('show_empty_assignments') == 'on'
+        settings.save(update_fields=['first_day_of_week', 'show_empty_assignments'])
+
+        _save_global_assignment_types(request, request.user)
+        messages.success(request, 'Settings saved.')
+        return redirect('accounts:settings')
+
+    assignment_types = (
+        GlobalAssignmentType.objects
+        .filter(parent=request.user)
+        .order_by('order', 'name')
+    )
+
+    return render(request, 'accounts/settings.html', {
+        'settings': settings,
+        'weekday_choices': ParentSettings.WEEKDAY_CHOICES,
+        'assignment_types': assignment_types,
+    })

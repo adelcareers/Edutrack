@@ -8,25 +8,45 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from accounts.decorators import role_required
+from accounts.models import ParentSettings
 from scheduler.models import ScheduledLesson, Vacation
 from tracker.models import EvidenceFile, LessonLog
 
 
-def _build_calendar_context(child, year, week, today, is_readonly, child_id=None, child_name=None):
+def _get_or_create_settings(user):
+    if user is None:
+        return None
+    settings, _ = ParentSettings.objects.get_or_create(user=user)
+    return settings
+
+
+def _build_calendar_context(
+    child,
+    year,
+    week,
+    today,
+    is_readonly,
+    child_id=None,
+    child_name=None,
+    first_day_of_week=0,
+    show_empty_assignments=False,
+):
     """Shared helper: build the full context dict for the calendar template.
 
     Covers Mon–Sat (6 days), queries lessons and vacations that overlap
     the week, and computes navigation years/weeks.
     """
     monday = datetime.date.fromisocalendar(year, week, 1)
-    saturday = monday + datetime.timedelta(days=5)
+    day_offset = first_day_of_week if first_day_of_week <= 5 else -1
+    start_date = monday + datetime.timedelta(days=day_offset)
+    end_date = start_date + datetime.timedelta(days=5)
 
     # Lessons
     lesson_by_date: dict = {}
     if child is not None:
         qs = (
             ScheduledLesson.objects
-            .filter(child=child, scheduled_date__gte=monday, scheduled_date__lte=saturday)
+            .filter(child=child, scheduled_date__gte=start_date, scheduled_date__lte=end_date)
             .select_related('lesson', 'enrolled_subject', 'log')
         )
         for sl in qs:
@@ -37,8 +57,8 @@ def _build_calendar_context(child, year, week, today, is_readonly, child_id=None
     if child is not None:
         vac_qs = Vacation.objects.filter(
             child=child,
-            start_date__lte=saturday,
-            end_date__gte=monday,
+            start_date__lte=end_date,
+            end_date__gte=start_date,
         )
         for vac in vac_qs:
             cur = max(vac.start_date, monday)
@@ -47,25 +67,25 @@ def _build_calendar_context(child, year, week, today, is_readonly, child_id=None
                 vacations_by_date.setdefault(cur, []).append(vac)
                 cur += datetime.timedelta(days=1)
 
-    day_names = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
     days = {}
-    for i, name in enumerate(day_names):
-        date = monday + datetime.timedelta(days=i)
-        days[name] = {
+    for i in range(6):
+        date = start_date + datetime.timedelta(days=i)
+        day_key = date.strftime('%A').lower()
+        days[day_key] = {
             'date': date,
             'lessons': lesson_by_date.get(date, []),
             'vacations': vacations_by_date.get(date, []),
         }
 
     # Week navigation
-    prev_monday = monday - datetime.timedelta(weeks=1)
-    next_monday = monday + datetime.timedelta(weeks=1)
-    prev_y, prev_w, _ = prev_monday.isocalendar()
-    next_y, next_w, _ = next_monday.isocalendar()
+    prev_start = start_date - datetime.timedelta(days=7)
+    next_start = start_date + datetime.timedelta(days=7)
+    prev_y, prev_w, _ = prev_start.isocalendar()
+    next_y, next_w, _ = next_start.isocalendar()
     today_iso = today.isocalendar()
 
     # Header date range e.g. "Mar 09, 2026 — Mar 15, 2026"
-    week_display = f"{monday.strftime('%b %d, %Y')} — {saturday.strftime('%b %d, %Y')}"
+    week_display = f"{start_date.strftime('%b %d, %Y')} — {end_date.strftime('%b %d, %Y')}"
 
     return {
         'days': days,
@@ -83,6 +103,8 @@ def _build_calendar_context(child, year, week, today, is_readonly, child_id=None
         'child_id': child_id,
         'child_name': child_name,
         'child': child,
+        'show_empty_assignments': show_empty_assignments,
+        'first_day_of_week': first_day_of_week,
     }
 
 
@@ -100,7 +122,17 @@ def calendar_view(request, year=None, week=None):
         year, week = iso_year, iso_week
 
     child = getattr(request.user, 'child_profile', None)
-    ctx = _build_calendar_context(child, year, week, today, is_readonly=False)
+    parent = child.parent if child else None
+    settings = _get_or_create_settings(parent) if parent else None
+    ctx = _build_calendar_context(
+        child,
+        year,
+        week,
+        today,
+        is_readonly=False,
+        first_day_of_week=settings.first_day_of_week if settings else 0,
+        show_empty_assignments=settings.show_empty_assignments if settings else False,
+    )
     return render(request, 'tracker/calendar.html', ctx)
 
 
@@ -388,10 +420,13 @@ def parent_calendar_view(request, child_id, year=None, week=None):
 
     from scheduler.models import Child as ChildModel
     siblings = list(ChildModel.objects.filter(parent=request.user, is_active=True))
+    settings = _get_or_create_settings(request.user)
 
     ctx = _build_calendar_context(
         child, year, week, today,
         is_readonly=True, child_id=child_id, child_name=child.first_name,
+        first_day_of_week=settings.first_day_of_week if settings else 0,
+        show_empty_assignments=settings.show_empty_assignments if settings else False,
     )
     ctx['siblings'] = siblings
     return render(request, 'tracker/calendar.html', ctx)
