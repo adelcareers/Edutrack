@@ -97,3 +97,22 @@ class StudentAssignment(models.Model):
 
     def __str__(self):
         return f'{self.enrollment.child.first_name} - {self.plan_item}'
+
+
+class AssignmentAttachment(models.Model):
+    """Files attached to a planned assignment."""
+
+    plan_item = models.ForeignKey(
+        AssignmentPlanItem,
+        on_delete=models.CASCADE,
+        related_name='attachments',
+    )
+    file = models.FileField(upload_to='plan_attachments/')
+    original_name = models.CharField(max_length=255, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.original_name or self.file.name

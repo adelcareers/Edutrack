@@ -1,9 +1,17 @@
+import datetime
+
 from django.shortcuts import get_object_or_404, redirect, render
 
 from accounts.decorators import role_required
 from courses.models import Course, GlobalAssignmentType
 
-from .models import AssignmentPlanItem, CourseAssignmentTemplate, CourseAssignmentType
+from .models import (
+    AssignmentPlanItem,
+    AssignmentAttachment,
+    CourseAssignmentTemplate,
+    CourseAssignmentType,
+    StudentAssignment,
+)
 
 
 @role_required('parent')
@@ -76,7 +84,17 @@ def plan_course_view(request, course_id):
     if selected_day not in days:
         selected_day = days[0] if days else 1
 
+    if request.method == 'POST' and request.POST.get('delete_id'):
+        delete_id = _safe_int(request.POST.get('delete_id'), None)
+        if delete_id:
+            plan_item = get_object_or_404(AssignmentPlanItem, pk=delete_id, course=course)
+            template = plan_item.template
+            plan_item.delete()
+            template.delete()
+        return redirect(f"{request.path}?week={selected_week}&day={selected_day}")
+
     if request.method == 'POST':
+        plan_item_id = _safe_int(request.POST.get('plan_item_id'), None)
         template_name = request.POST.get('assignment_name', '').strip()
         type_id = request.POST.get('assignment_type')
         week_number = _safe_int(request.POST.get('week_number', selected_week), selected_week)
@@ -91,23 +109,70 @@ def plan_course_view(request, course_id):
                 pk=type_id,
                 course=course,
             )
-            template = CourseAssignmentTemplate.objects.create(
-                course=course,
-                assignment_type=assignment_type,
-                name=template_name,
-                description=description,
-                is_graded=is_graded,
-                due_offset_days=due_in_days,
-                order=0,
-            )
-            AssignmentPlanItem.objects.create(
-                course=course,
-                template=template,
-                week_number=week_number,
-                day_number=day_number,
-                due_in_days=due_in_days,
-                order=0,
-            )
+
+            if plan_item_id:
+                plan_item = get_object_or_404(
+                    AssignmentPlanItem,
+                    pk=plan_item_id,
+                    course=course,
+                )
+                template = plan_item.template
+                template.assignment_type = assignment_type
+                template.name = template_name
+                template.description = description
+                template.is_graded = is_graded
+                template.due_offset_days = due_in_days
+                template.save()
+
+                plan_item.week_number = week_number
+                plan_item.day_number = day_number
+                plan_item.due_in_days = due_in_days
+                plan_item.save()
+            else:
+                template = CourseAssignmentTemplate.objects.create(
+                    course=course,
+                    assignment_type=assignment_type,
+                    name=template_name,
+                    description=description,
+                    is_graded=is_graded,
+                    due_offset_days=due_in_days,
+                    order=0,
+                )
+                plan_item = AssignmentPlanItem.objects.create(
+                    course=course,
+                    template=template,
+                    week_number=week_number,
+                    day_number=day_number,
+                    due_in_days=due_in_days,
+                    order=0,
+                )
+
+            attachments = request.FILES.getlist('attachments')
+            for attachment in attachments:
+                AssignmentAttachment.objects.create(
+                    plan_item=plan_item,
+                    file=attachment,
+                    original_name=attachment.name,
+                )
+
+            enrollments = course.enrollments.filter(status='active')
+            for enrollment in enrollments:
+                base_date = enrollment.start_date + datetime.timedelta(
+                    days=(week_number - 1) * 7 + (day_number - 1)
+                )
+                due_date = base_date + datetime.timedelta(days=due_in_days)
+                if plan_item_id:
+                    StudentAssignment.objects.filter(
+                        enrollment=enrollment,
+                        plan_item=plan_item,
+                    ).update(due_date=due_date)
+                else:
+                    StudentAssignment.objects.create(
+                        enrollment=enrollment,
+                        plan_item=plan_item,
+                        due_date=due_date,
+                        status='pending',
+                    )
         return redirect(
             f"{request.path}?week={week_number}&day={day_number}"
         )
@@ -117,6 +182,16 @@ def plan_course_view(request, course_id):
         .filter(course=course)
         .select_related('template', 'template__assignment_type')
     )
+    edit_id = _safe_int(request.GET.get('edit'), None)
+    create_mode = request.GET.get('create') == '1' or bool(edit_id)
+    editing_item = None
+    editing_attachments = []
+
+    if edit_id:
+        editing_item = get_object_or_404(AssignmentPlanItem, pk=edit_id, course=course)
+        selected_week = editing_item.week_number
+        selected_day = editing_item.day_number
+        editing_attachments = list(editing_item.attachments.all())
     day_items = plan_items.filter(
         week_number=selected_week,
         day_number=selected_day,
@@ -148,4 +223,7 @@ def plan_course_view(request, course_id):
         'unscheduled_count': unscheduled_items.count(),
         'all_count': all_items.count(),
         'view_mode': view_mode,
+        'create_mode': create_mode,
+        'editing_item': editing_item,
+        'editing_attachments': editing_attachments,
     })

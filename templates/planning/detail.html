@@ -134,6 +134,18 @@
     font-weight: 700;
     color: #6b7280;
   }
+  .assignment-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .assignment-actions a,
+  .assignment-actions button {
+    border: none;
+    background: transparent;
+    color: #6b7280;
+    font-size: 0.85rem;
+  }
 
   .assignment-form {
     border: 1px solid #e5e7eb;
@@ -146,6 +158,24 @@
   .assignment-form .form-select {
     height: 34px;
     font-size: 0.82rem;
+  }
+  .attachment-drop {
+    border: 1px dashed #cbd5f5;
+    border-radius: 10px;
+    padding: 0.75rem;
+    background: #f8f9ff;
+    font-size: 0.78rem;
+    color: #6b7280;
+  }
+  .attachment-list {
+    list-style: none;
+    padding-left: 0;
+    margin: 0.5rem 0 0;
+  }
+  .attachment-list li {
+    font-size: 0.78rem;
+    color: #4b5563;
+    margin-bottom: 0.25rem;
   }
 </style>
 {% endblock %}
@@ -160,7 +190,7 @@
       <div class="dropdown">
         <button class="btn-new-assign dropdown-toggle" data-bs-toggle="dropdown">New Assignments</button>
         <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-          <li><a class="dropdown-item" href="#">Single Assignment</a></li>
+          <li><a class="dropdown-item" href="?create=1&week={{ selected_week }}&day={{ selected_day }}&view={{ view_mode }}">Single Assignment</a></li>
           <li><a class="dropdown-item" href="#">Repeating Assignments</a></li>
           <li><a class="dropdown-item" href="#">Import Assignments</a></li>
         </ul>
@@ -200,24 +230,36 @@
           <input type="checkbox" class="form-check-input me-2">
           {{ item.template.name }}
         </div>
-        <span class="pill" style="background: {{ item.template.assignment_type.color }}33; color: #374151;">
-          {{ item.template.assignment_type.name }}
-        </span>
+        <div class="assignment-actions">
+          <span class="pill" style="background: {{ item.template.assignment_type.color }}33; color: #374151;">
+            {{ item.template.assignment_type.name }}
+          </span>
+          <a href="?edit={{ item.id }}&create=1&week={{ selected_week }}&day={{ selected_day }}&view={{ view_mode }}" title="Edit"><i class="bi bi-pencil"></i></a>
+          <form method="post" class="d-inline">
+            {% csrf_token %}
+            <input type="hidden" name="delete_id" value="{{ item.id }}">
+            <button type="submit" title="Delete"><i class="bi bi-trash"></i></button>
+          </form>
+        </div>
       </div>
       {% empty %}
-      <div class="assignment-row" style="opacity: 0.7;">
+      <a class="assignment-row" style="opacity: 0.7; text-decoration: none; color: inherit;" href="?create=1&week={{ selected_week }}&day={{ selected_day }}&view={{ view_mode }}">
         <span><i class="bi bi-plus-lg"></i> New Assignment</span>
-      </div>
+      </a>
       {% endfor %}
 
-      <form method="post" class="assignment-form">
+      {% if create_mode %}
+      <form method="post" class="assignment-form" enctype="multipart/form-data">
         {% csrf_token %}
+        {% if editing_item %}
+          <input type="hidden" name="plan_item_id" value="{{ editing_item.id }}">
+        {% endif %}
         <div class="row g-3">
           <div class="col-md-4">
             <label>Select Week</label>
             <select class="form-select" name="week_number">
               {% for week in weeks %}
-                <option value="{{ week }}" {% if week == selected_week %}selected{% endif %}>Week {{ week }}</option>
+                <option value="{{ week }}" {% if editing_item and week == editing_item.week_number %}selected{% elif not editing_item and week == selected_week %}selected{% endif %}>Week {{ week }}</option>
               {% endfor %}
             </select>
           </div>
@@ -225,7 +267,7 @@
             <label>Select Day</label>
             <select class="form-select" name="day_number">
               {% for day in days %}
-                <option value="{{ day }}" {% if day == selected_day %}selected{% endif %}>Day {{ day }}</option>
+                <option value="{{ day }}" {% if editing_item and day == editing_item.day_number %}selected{% elif not editing_item and day == selected_day %}selected{% endif %}>Day {{ day }}</option>
               {% endfor %}
             </select>
           </div>
@@ -233,11 +275,11 @@
             <label>Select Type</label>
             <select class="form-select" name="assignment_type">
               {% for at in assignment_types %}
-                <option value="{{ at.id }}">{{ at.name }}</option>
+                <option value="{{ at.id }}" {% if editing_item and at.id == editing_item.template.assignment_type.id %}selected{% endif %}>{{ at.name }}</option>
               {% endfor %}
             </select>
             <div class="form-check mt-2">
-              <input class="form-check-input" type="checkbox" name="is_graded" id="is_graded">
+              <input class="form-check-input" type="checkbox" name="is_graded" id="is_graded" {% if editing_item and editing_item.template.is_graded %}checked{% endif %}>
               <label class="form-check-label" for="is_graded" style="font-size: 0.78rem;">Graded</label>
             </div>
           </div>
@@ -246,12 +288,12 @@
         <div class="row g-3 mt-2">
           <div class="col-md-8">
             <label>Assignment Name (Required)</label>
-            <input type="text" class="form-control" name="assignment_name" placeholder="New Assignment" required>
+            <input type="text" class="form-control" name="assignment_name" placeholder="New Assignment" value="{% if editing_item %}{{ editing_item.template.name }}{% endif %}" required>
           </div>
           <div class="col-md-4">
             <label>Due In</label>
             <div class="d-flex align-items-center gap-2">
-              <input type="number" class="form-control" name="due_in_days" min="0" value="0">
+              <input type="number" class="form-control" name="due_in_days" min="0" value="{% if editing_item %}{{ editing_item.due_in_days }}{% else %}0{% endif %}">
               <span style="font-size: 0.8rem; color: #6b7280;">day(s)</span>
             </div>
           </div>
@@ -260,17 +302,29 @@
         <div class="mt-3">
           <div class="d-flex gap-3 border-bottom pb-2" style="font-size: 0.78rem; font-weight: 600; color: #6b7280;">
             <span style="color:#4f46e5;">Description</span>
-            <span>Attachments (0)</span>
+            <span>Attachments ({{ editing_attachments|length }})</span>
             <span>Teacher's Notes</span>
           </div>
-          <textarea class="form-control" name="description" rows="5" placeholder="Add a description..."></textarea>
+          <textarea class="form-control" name="description" rows="5" placeholder="Add a description...">{% if editing_item %}{{ editing_item.template.description }}{% endif %}</textarea>
+          <div class="attachment-drop mt-3">
+            <strong>Drop files here</strong> or click to upload
+            <input type="file" class="form-control mt-2" name="attachments" multiple>
+            {% if editing_attachments %}
+              <ul class="attachment-list">
+                {% for attachment in editing_attachments %}
+                  <li>{{ attachment.original_name|default:attachment.file.name }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </div>
         </div>
 
         <div class="d-flex justify-content-between mt-3">
-          <button type="reset" class="btn btn-light" style="background: #e7eafe; border: none;">Cancel</button>
-          <button type="submit" class="btn btn-primary" style="background: #5b6af8; border: none;">Create Assignment</button>
+          <a href="?week={{ selected_week }}&day={{ selected_day }}&view={{ view_mode }}" class="btn btn-light" style="background: #e7eafe; border: none;">Cancel</a>
+          <button type="submit" class="btn btn-primary" style="background: #5b6af8; border: none;">{% if editing_item %}Update Assignment{% else %}Create Assignment{% endif %}</button>
         </div>
       </form>
+      {% endif %}
     </div>
   </div>
 </div>
