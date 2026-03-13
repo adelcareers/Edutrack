@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load planning_extras %}
 
 {% block title %}Plan — {{ course.name }} — EduTrack{% endblock %}
 {% block nav_plan %}active{% endblock %}
@@ -134,6 +135,19 @@
     font-weight: 700;
     color: #6b7280;
   }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: capitalize;
+  }
+  .status-pill.pending { background: #e5e7eb; color: #6b7280; }
+  .status-pill.complete { background: #dcfce7; color: #16a34a; }
+  .status-pill.overdue { background: #fee2e2; color: #dc2626; }
   .assignment-actions {
     display: inline-flex;
     align-items: center;
@@ -224,6 +238,70 @@
     color: #4b5563;
     margin-bottom: 0.25rem;
   }
+  .student-assignments {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 0.75rem 0.9rem;
+    margin-top: 1rem;
+    background: #f8f9ff;
+  }
+  .student-assignments summary {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #374151;
+  }
+  .student-assignments summary::-webkit-details-marker { display: none; }
+  .student-assignments .summary-icon {
+    font-size: 1rem;
+    color: #6b7280;
+  }
+  .student-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .student-row:last-child { border-bottom: none; }
+  .student-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.85rem;
+    color: #374151;
+  }
+  .student-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #5b6af8;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.75rem;
+  }
+  .student-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    color: #6b7280;
+  }
+  .student-status select {
+    font-size: 0.78rem;
+    padding: 0.2rem 0.35rem;
+  }
+  .student-status .status-pill {
+    margin-right: 0.4rem;
+  }
 </style>
 {% endblock %}
 
@@ -278,6 +356,11 @@
           {{ item.template.name }}
         </div>
         <div class="assignment-actions">
+          {% with status=plan_status_map|get_item:item.id %}
+            {% if status %}
+              <span class="status-pill {{ status }}">{{ status }}</span>
+            {% endif %}
+          {% endwith %}
           <span class="pill" style="background: {{ item.template.assignment_type.color }}33; color: #374151;">
             {{ item.template.assignment_type.name }}
           </span>
@@ -395,6 +478,52 @@
             <input type="hidden" name="teacher_notes" data-input="notes">
           </div>
         </div>
+
+        <details class="student-assignments" open>
+          <summary>
+            <span>Student Assignments</span>
+            <i class="bi bi-chevron-down summary-icon"></i>
+          </summary>
+          <div class="mt-2">
+            {% if student_assignments %}
+              {% for sa in student_assignments %}
+                <div class="student-row">
+                  <div class="student-meta">
+                    <span class="student-avatar">{{ sa.enrollment.child.first_name|slice:':1' }}</span>
+                    <span>{{ sa.enrollment.child.first_name }}</span>
+                    <span style="color:#9ca3af; font-size:0.75rem;">{{ sa.due_date|date:"D, M j" }}</span>
+                  </div>
+                  <div class="student-status">
+                    <span class="status-pill {{ sa.status }}">{{ sa.status }}</span>
+                    <select class="form-select" name="student_status_{{ sa.id }}">
+                      <option value="pending" {% if sa.status == 'pending' %}selected{% endif %}>Pending</option>
+                      <option value="complete" {% if sa.status == 'complete' %}selected{% endif %}>Complete</option>
+                      <option value="overdue" {% if sa.status == 'overdue' %}selected{% endif %}>Overdue</option>
+                    </select>
+                  </div>
+                </div>
+              {% endfor %}
+            {% elif active_enrollments %}
+              {% for enrollment in active_enrollments %}
+                <div class="student-row" style="opacity: 0.65;">
+                  <div class="student-meta">
+                    <span class="student-avatar">{{ enrollment.child.first_name|slice:':1' }}</span>
+                    <span>{{ enrollment.child.first_name }}</span>
+                    <span style="color:#9ca3af; font-size:0.75rem;">Save to assign</span>
+                  </div>
+                  <div class="student-status">
+                    <span class="status-pill pending">pending</span>
+                    <select class="form-select" disabled>
+                      <option>Pending</option>
+                    </select>
+                  </div>
+                </div>
+              {% endfor %}
+            {% else %}
+              <div class="text-muted" style="font-size:0.8rem;">No active students enrolled.</div>
+            {% endif %}
+          </div>
+        </details>
 
         <div class="d-flex justify-content-between mt-3">
           <a href="?week={{ selected_week }}&day={{ selected_day }}&view={{ view_mode }}" class="btn btn-light" style="background: #e7eafe; border: none;">Cancel</a>

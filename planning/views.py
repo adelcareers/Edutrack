@@ -1,6 +1,7 @@
 import datetime
 
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
 from accounts.decorators import role_required
 from courses.models import Course, GlobalAssignmentType
@@ -176,6 +177,18 @@ def plan_course_view(request, course_id):
                         due_date=due_date,
                         status='pending',
                     )
+
+            if plan_item_id:
+                for student_assignment in StudentAssignment.objects.filter(plan_item=plan_item):
+                    status_value = request.POST.get(f'student_status_{student_assignment.id}', '')
+                    if status_value not in {'pending', 'complete', 'overdue'}:
+                        continue
+                    student_assignment.status = status_value
+                    if status_value == 'complete':
+                        student_assignment.completed_at = timezone.now()
+                    else:
+                        student_assignment.completed_at = None
+                    student_assignment.save(update_fields=['status', 'completed_at'])
         return redirect(
             f"{request.path}?week={week_number}&day={day_number}"
         )
@@ -189,12 +202,19 @@ def plan_course_view(request, course_id):
     create_mode = request.GET.get('create') == '1' or bool(edit_id)
     editing_item = None
     editing_attachments = []
+    student_assignments = []
+    active_enrollments = list(
+        course.enrollments.select_related('child').filter(status='active')
+    )
 
     if edit_id:
         editing_item = get_object_or_404(AssignmentPlanItem, pk=edit_id, course=course)
         selected_week = editing_item.week_number
         selected_day = editing_item.day_number
         editing_attachments = list(editing_item.attachments.all())
+        student_assignments = list(
+            editing_item.student_assignments.select_related('enrollment__child')
+        )
     day_items = plan_items.filter(
         week_number=selected_week,
         day_number=selected_day,
@@ -213,6 +233,20 @@ def plan_course_view(request, course_id):
     else:
         filtered_items = day_items
 
+    plan_status_map = {}
+    status_rows = StudentAssignment.objects.filter(plan_item__in=plan_items).values(
+        'plan_item_id', 'status'
+    )
+    for row in status_rows:
+        plan_status_map.setdefault(row['plan_item_id'], set()).add(row['status'])
+    for plan_item_id, statuses in plan_status_map.items():
+        if 'overdue' in statuses:
+            plan_status_map[plan_item_id] = 'overdue'
+        elif statuses == {'complete'}:
+            plan_status_map[plan_item_id] = 'complete'
+        else:
+            plan_status_map[plan_item_id] = 'pending'
+
     return render(request, 'planning/detail.html', {
         'course': course,
         'weeks': weeks,
@@ -229,4 +263,7 @@ def plan_course_view(request, course_id):
         'create_mode': create_mode,
         'editing_item': editing_item,
         'editing_attachments': editing_attachments,
+        'student_assignments': student_assignments,
+        'active_enrollments': active_enrollments,
+        'plan_status_map': plan_status_map,
     })
