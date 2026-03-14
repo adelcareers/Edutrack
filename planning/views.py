@@ -87,6 +87,25 @@ def plan_course_view(request, course_id):
         description = request.POST.get('description', '').strip()
         teacher_notes = request.POST.get('teacher_notes', '').strip()
         is_graded = request.POST.get('is_graded') == 'on'
+        active_enrollments = list(
+            course.enrollments.select_related('child').filter(status='active')
+        )
+        active_enrollment_ids = {enrollment.id for enrollment in active_enrollments}
+
+        selection_present = request.POST.get('assign_enrollment_selection_present') == '1'
+        if selection_present:
+            selected_enrollment_ids = {
+                _safe_int(value, -1)
+                for value in request.POST.getlist('assign_enrollment_ids')
+            }
+            selected_enrollment_ids = {
+                enrollment_id
+                for enrollment_id in selected_enrollment_ids
+                if enrollment_id in active_enrollment_ids
+            }
+        else:
+            # Backward compatibility for stale forms that don't send assignment toggles.
+            selected_enrollment_ids = set(active_enrollment_ids)
 
         if template_name and type_id:
             assignment_type = get_object_or_404(
@@ -142,28 +161,47 @@ def plan_course_view(request, course_id):
                     original_name=attachment.name,
                 )
 
-            enrollments = course.enrollments.filter(status='active')
-            for enrollment in enrollments:
+            for enrollment in active_enrollments:
                 base_date = enrollment.start_date + datetime.timedelta(
                     days=(week_number - 1) * 7 + (day_number - 1)
                 )
                 due_date = base_date + datetime.timedelta(days=due_in_days)
-                if plan_item_id:
+
+                if enrollment.id in selected_enrollment_ids:
+                    if plan_item_id:
+                        student_assignment, _ = StudentAssignment.objects.get_or_create(
+                            enrollment=enrollment,
+                            plan_item=plan_item,
+                            defaults={
+                                'due_date': due_date,
+                                'status': 'pending',
+                            },
+                        )
+                        if student_assignment.due_date != due_date:
+                            student_assignment.due_date = due_date
+                            student_assignment.save(update_fields=['due_date'])
+                    else:
+                        StudentAssignment.objects.create(
+                            enrollment=enrollment,
+                            plan_item=plan_item,
+                            due_date=due_date,
+                            status='pending',
+                        )
+                else:
                     StudentAssignment.objects.filter(
                         enrollment=enrollment,
                         plan_item=plan_item,
-                    ).update(due_date=due_date)
-                else:
-                    StudentAssignment.objects.create(
-                        enrollment=enrollment,
-                        plan_item=plan_item,
-                        due_date=due_date,
-                        status='pending',
-                    )
+                    ).delete()
 
             if plan_item_id:
-                for student_assignment in StudentAssignment.objects.filter(plan_item=plan_item):
-                    status_value = request.POST.get(f'student_status_{student_assignment.id}', '')
+                for student_assignment in StudentAssignment.objects.filter(
+                    plan_item=plan_item,
+                    enrollment_id__in=selected_enrollment_ids,
+                ):
+                    status_value = request.POST.get(
+                        f'student_status_{student_assignment.id}',
+                        '',
+                    )
                     if status_value not in {'pending', 'complete'}:
                         continue
                     student_assignment.status = status_value
@@ -189,6 +227,7 @@ def plan_course_view(request, course_id):
     active_enrollments = list(
         course.enrollments.select_related('child').filter(status='active')
     )
+    enrollment_rows = []
 
     if edit_id:
         editing_item = get_object_or_404(AssignmentPlanItem, pk=edit_id, course=course)
@@ -198,6 +237,17 @@ def plan_course_view(request, course_id):
         student_assignments = list(
             editing_item.student_assignments.select_related('enrollment__child')
         )
+
+    student_assignment_by_enrollment = {
+        sa.enrollment_id: sa for sa in student_assignments
+    }
+    for enrollment in active_enrollments:
+        student_assignment = student_assignment_by_enrollment.get(enrollment.id)
+        enrollment_rows.append({
+            'enrollment': enrollment,
+            'student_assignment': student_assignment,
+            'assigned': bool(student_assignment) or not editing_item,
+        })
     day_items = plan_items.filter(
         week_number=selected_week,
         day_number=selected_day,
@@ -252,5 +302,6 @@ def plan_course_view(request, course_id):
         'editing_attachments': editing_attachments,
         'student_assignments': student_assignments,
         'active_enrollments': active_enrollments,
+        'enrollment_rows': enrollment_rows,
         'plan_status_map': plan_status_map,
     })

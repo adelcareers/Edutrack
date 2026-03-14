@@ -485,35 +485,41 @@
             <i class="bi bi-chevron-down summary-icon"></i>
           </summary>
           <div class="mt-2">
-            {% if student_assignments %}
-              {% for sa in student_assignments %}
+            <input type="hidden" name="assign_enrollment_selection_present" value="1">
+            {% if enrollment_rows %}
+              {% for row in enrollment_rows %}
                 <div class="student-row">
                   <div class="student-meta">
-                    <span class="student-avatar">{{ sa.enrollment.child.first_name|slice:':1' }}</span>
-                    <span>{{ sa.enrollment.child.first_name }}</span>
-                    <span style="color:#9ca3af; font-size:0.75rem;">{{ sa.due_date|date:"D, M j" }}</span>
+                    <label class="d-inline-flex align-items-center gap-2 mb-0">
+                      <input
+                        type="checkbox"
+                        class="form-check-input student-assign-toggle"
+                        name="assign_enrollment_ids"
+                        value="{{ row.enrollment.id }}"
+                        {% if row.assigned %}checked{% endif %}
+                      >
+                      <span class="student-avatar">{{ row.enrollment.child.first_name|slice:':1' }}</span>
+                      <span>{{ row.enrollment.child.first_name }}</span>
+                    </label>
+                    {% if row.student_assignment %}
+                      <span style="color:#9ca3af; font-size:0.75rem;">{{ row.student_assignment.due_date|date:"D, M j" }}</span>
+                    {% else %}
+                      <span style="color:#9ca3af; font-size:0.75rem;">Not assigned</span>
+                    {% endif %}
                   </div>
                   <div class="student-status">
-                    <span class="status-pill {{ sa.status }}">{{ sa.status }}</span>
-                    <select class="form-select" name="student_status_{{ sa.id }}">
-                      <option value="pending" {% if sa.status == 'pending' %}selected{% endif %}>Pending</option>
-                      <option value="complete" {% if sa.status == 'complete' %}selected{% endif %}>Complete</option>
-                    </select>
-                  </div>
-                </div>
-              {% endfor %}
-            {% elif active_enrollments %}
-              {% for enrollment in active_enrollments %}
-                <div class="student-row" style="opacity: 0.65;">
-                  <div class="student-meta">
-                    <span class="student-avatar">{{ enrollment.child.first_name|slice:':1' }}</span>
-                    <span>{{ enrollment.child.first_name }}</span>
-                    <span style="color:#9ca3af; font-size:0.75rem;">Save to assign</span>
-                  </div>
-                  <div class="student-status">
-                    <span class="status-pill pending">pending</span>
-                    <select class="form-select" disabled>
-                      <option>Pending</option>
+                    {% if row.student_assignment %}
+                      <span class="status-pill {{ row.student_assignment.status }}">{{ row.student_assignment.status }}</span>
+                    {% else %}
+                      <span class="status-pill pending">pending</span>
+                    {% endif %}
+                    <select
+                      class="form-select student-status-select"
+                      {% if not row.student_assignment %}disabled{% endif %}
+                      {% if row.student_assignment %}name="student_status_{{ row.student_assignment.id }}"{% endif %}
+                    >
+                      <option value="pending" {% if row.student_assignment and row.student_assignment.status == 'pending' %}selected{% endif %}>Pending</option>
+                      <option value="complete" {% if row.student_assignment and row.student_assignment.status == 'complete' %}selected{% endif %}>Complete</option>
                     </select>
                   </div>
                 </div>
@@ -584,6 +590,24 @@
         });
       });
     }
+
+    document.querySelectorAll('.student-assign-toggle').forEach((toggle) => {
+      const row = toggle.closest('.student-row');
+      const statusSelect = row ? row.querySelector('.student-status-select') : null;
+
+      const applyState = () => {
+        if (!row) {
+          return;
+        }
+        row.style.opacity = toggle.checked ? '1' : '0.55';
+        if (statusSelect) {
+          statusSelect.disabled = !toggle.checked;
+        }
+      };
+
+      toggle.addEventListener('change', applyState);
+      applyState();
+    });
   })();
 </script>
 {% endblock %}
