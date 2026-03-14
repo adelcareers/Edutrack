@@ -269,14 +269,14 @@
 
   <!-- ── Create Student Account Login ── -->
   <div class="detail-card overflow-hidden">
-    <div class="login-section-header" data-bs-toggle="collapse" data-bs-target="#loginSection" aria-expanded="{% if not child.student_user %}true{% else %}false{% endif %}">
+    <div class="login-section-header" data-bs-toggle="collapse" data-bs-target="#loginSection" aria-expanded="{% if login_section_open %}true{% else %}false{% endif %}">
       <h5><i class="bi bi-person-lock me-2"></i>Create Student Account Login</h5>
       <i class="bi bi-chevron-up" id="loginChevron"></i>
     </div>
-    <div class="collapse {% if not child.student_user %}show{% endif %}" id="loginSection">
+    <div class="collapse {% if login_section_open %}show{% endif %}" id="loginSection">
       <div class="login-section-body">
         {% if child.student_user %}
-          <div class="d-flex align-items-center gap-3 py-2">
+          <div class="d-flex align-items-center gap-3 py-2 mb-3">
             <div class="rounded-circle d-flex align-items-center justify-content-center"
                  style="width:44px;height:44px;background:#edf0fe;">
               <i class="bi bi-person-check text-primary fs-5"></i>
@@ -284,6 +284,64 @@
             <div>
               <div class="fw-semibold">{{ child.first_name }} has a student login</div>
               <div class="text-muted small">Username: <strong>{{ child.student_user.username }}</strong></div>
+            </div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <form method="post" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="update_login_username" value="1">
+                <label class="form-label fw-semibold" style="font-size: 0.9rem;">Change Username</label>
+                <div class="input-group">
+                  <input
+                    type="text"
+                    name="new_username"
+                    class="form-control{% if login_manage_errors.new_username %} is-invalid{% endif %}"
+                    value="{{ login_manage_data.new_username|default:child.student_user.username }}"
+                    placeholder="Student username"
+                  >
+                  <button type="submit" class="btn btn-outline-primary">Update</button>
+                  {% if login_manage_errors.new_username %}
+                    <div class="invalid-feedback d-block">{{ login_manage_errors.new_username }}</div>
+                  {% endif %}
+                </div>
+              </form>
+            </div>
+
+            <div class="col-md-6">
+              <form method="post" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="reset_login_password" value="1">
+                <label class="form-label fw-semibold" style="font-size: 0.9rem;">Reset Password</label>
+                <div class="row g-2">
+                  <div class="col-12">
+                    <input
+                      type="password"
+                      name="new_password1"
+                      class="form-control{% if login_manage_errors.new_password1 %} is-invalid{% endif %}"
+                      placeholder="New password"
+                    >
+                    {% if login_manage_errors.new_password1 %}
+                      <div class="invalid-feedback">{{ login_manage_errors.new_password1 }}</div>
+                    {% endif %}
+                  </div>
+                  <div class="col-12">
+                    <div class="input-group">
+                      <input
+                        type="password"
+                        name="new_password2"
+                        class="form-control{% if login_manage_errors.new_password2 %} is-invalid{% endif %}"
+                        placeholder="Confirm new password"
+                      >
+                      <button type="submit" class="btn btn-outline-primary">Reset</button>
+                    </div>
+                    {% if login_manage_errors.new_password2 %}
+                      <div class="invalid-feedback d-block">{{ login_manage_errors.new_password2 }}</div>
+                    {% endif %}
+                  </div>
+                </div>
+              </form>
             </div>
           </div>
         {% else %}

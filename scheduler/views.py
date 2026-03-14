@@ -9,7 +9,9 @@ import uuid
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
 from django.http import HttpResponseForbidden
+from django.core.exceptions import ValidationError
 
 from django.db.models import Count
 
@@ -440,6 +442,9 @@ def child_detail_view(request, child_id):
 
     info_errors = {}
     login_form = StudentCreationForm()
+    login_manage_errors = {}
+    login_manage_data = {}
+    login_section_open = child.student_user is None
 
     if request.method == 'POST':
         if 'save_student' in request.POST:
@@ -463,6 +468,7 @@ def child_detail_view(request, child_id):
                 messages.info(request, f"{child.first_name} already has login credentials.")
                 return redirect('scheduler:child_detail', child_id=child.pk)
             login_form = StudentCreationForm(request.POST)
+            login_section_open = True
             if login_form.is_valid():
                 username = login_form.cleaned_data['username']
                 password = login_form.cleaned_data['password1']
@@ -473,6 +479,60 @@ def child_detail_view(request, child_id):
                 messages.success(request, f"Login created for {child.first_name}.")
                 return redirect('scheduler:child_detail', child_id=child.pk)
 
+        elif 'update_login_username' in request.POST:
+            login_section_open = True
+            if child.student_user is None:
+                messages.error(request, 'Create a student login first.')
+                return redirect('scheduler:child_detail', child_id=child.pk)
+
+            new_username = request.POST.get('new_username', '').strip()
+            login_manage_data['new_username'] = new_username
+
+            if not new_username:
+                login_manage_errors['new_username'] = 'Username is required.'
+            elif (
+                User.objects
+                .filter(username__iexact=new_username)
+                .exclude(pk=child.student_user.pk)
+                .exists()
+            ):
+                login_manage_errors['new_username'] = 'This username is already taken.'
+            else:
+                child.student_user.username = new_username
+                child.student_user.save(update_fields=['username'])
+                messages.success(
+                    request,
+                    f"{child.first_name}'s login username was updated.",
+                )
+                return redirect('scheduler:child_detail', child_id=child.pk)
+
+        elif 'reset_login_password' in request.POST:
+            login_section_open = True
+            if child.student_user is None:
+                messages.error(request, 'Create a student login first.')
+                return redirect('scheduler:child_detail', child_id=child.pk)
+
+            new_password1 = request.POST.get('new_password1', '')
+            new_password2 = request.POST.get('new_password2', '')
+
+            if not new_password1:
+                login_manage_errors['new_password1'] = 'Password is required.'
+            elif new_password1 != new_password2:
+                login_manage_errors['new_password2'] = 'Passwords do not match.'
+            else:
+                try:
+                    validate_password(new_password1, user=child.student_user)
+                except ValidationError as exc:
+                    login_manage_errors['new_password1'] = ' '.join(exc.messages)
+                else:
+                    child.student_user.set_password(new_password1)
+                    child.student_user.save(update_fields=['password'])
+                    messages.success(
+                        request,
+                        f"{child.first_name}'s password was reset.",
+                    )
+                    return redirect('scheduler:child_detail', child_id=child.pk)
+
     enrolled_subjects = child.enrolled_subjects.filter(is_active=True)
     total_days_attended = child.scheduled_lessons.filter(log__status='complete').count()
 
@@ -480,6 +540,9 @@ def child_detail_view(request, child_id):
         'child': child,
         'school_years': school_years,
         'login_form': login_form,
+        'login_manage_errors': login_manage_errors,
+        'login_manage_data': login_manage_data,
+        'login_section_open': login_section_open,
         'info_errors': info_errors,
         'enrolled_subjects': enrolled_subjects,
         'total_days_attended': total_days_attended,

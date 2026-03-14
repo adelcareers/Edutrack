@@ -124,6 +124,53 @@ class CreateStudentLoginPostTests(TestCase):
         self.assertTrue(logged_in)
 
 
+class ChildDetailStudentCredentialManagementTests(TestCase):
+    """Parent can manage existing student credentials from child detail page."""
+
+    def setUp(self):
+        self.parent = _make_parent(username='manage_parent')
+        self.student = User.objects.create_user(username='student_old', password='OldPass123!')
+        UserProfile.objects.create(user=self.student, role='student')
+        self.child = _make_child(self.parent, first_name='Marya')
+        self.child.student_user = self.student
+        self.child.save(update_fields=['student_user'])
+
+        self.url = reverse('scheduler:child_detail', kwargs={'child_id': self.child.pk})
+        self.client.force_login(self.parent)
+
+    def test_parent_can_update_student_username(self):
+        response = self.client.post(self.url, {
+            'update_login_username': '1',
+            'new_username': 'student_new',
+        })
+        self.assertRedirects(response, self.url, fetch_redirect_response=False)
+
+        self.student.refresh_from_db()
+        self.assertEqual(self.student.username, 'student_new')
+
+    def test_duplicate_username_shows_error(self):
+        User.objects.create_user(username='taken_user', password='AnyPass123!')
+
+        response = self.client.post(self.url, {
+            'update_login_username': '1',
+            'new_username': 'taken_user',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'This username is already taken.')
+
+    def test_parent_can_reset_student_password(self):
+        response = self.client.post(self.url, {
+            'reset_login_password': '1',
+            'new_password1': 'BetterPass123!',
+            'new_password2': 'BetterPass123!',
+        })
+        self.assertRedirects(response, self.url, fetch_redirect_response=False)
+
+        self.student.refresh_from_db()
+        self.assertTrue(self.student.check_password('BetterPass123!'))
+        self.assertFalse(self.student.check_password('OldPass123!'))
+
+
 # ---------------------------------------------------------------------------
 # S1.5 — Add Child Profile
 # ---------------------------------------------------------------------------
