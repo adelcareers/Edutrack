@@ -212,7 +212,7 @@
     {% if course.description %}
     <div class="mb-2">
       <p class="section-label">Description</p>
-      <p style="font-size: 0.9rem; color: #374151;">{{ course.description|linebreaksbr }}</p>
+      <p style="font-size: 0.9rem; color: #374151;">{{ course.description|striptags|linebreaksbr }}</p>
     </div>
     {% endif %}
 
