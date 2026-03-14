@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DJANGO_SECRET_KEY: ci-secret-key-for-testing-only-please-change-in-production-1234567890
-      DJANGO_DEBUG: "False"
+      DJANGO_DEBUG: "True"
       ALLOWED_HOSTS: "localhost,127.0.0.1"
       # Use SQLite for CI — no database secret required.
       # Heroku uses its own DATABASE_URL config var at runtime.
@@ -53,6 +53,7 @@ jobs:
 
       - name: Run Django deploy checks
         env:
+          DJANGO_DEBUG: "False"
           SECURE_SSL_REDIRECT: "True"
           SESSION_COOKIE_SECURE: "True"
           CSRF_COOKIE_SECURE: "True"
