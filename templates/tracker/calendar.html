@@ -125,6 +125,23 @@
     transition: box-shadow 0.15s;
   }
   .lesson-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.12); }
+
+  .assignment-card {
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #6b7280;
+    border-radius: 8px;
+    margin-bottom: 0.45rem;
+    font-size: 0.8rem;
+    background: #fff;
+    cursor: pointer;
+    padding: 0.4rem 0.6rem;
+  }
+  .assignment-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.12); }
+  .assignment-card.assignment-done { border-left-color: #16a34a; }
+  .assignment-card.assignment-incomplete { border-left-color: #d97706; }
+  .assignment-card.assignment-overdue { border-left-color: #dc2626; }
+  .assignment-title { font-weight: 600; color: #1f2937; }
+  .assignment-meta { color: #6b7280; font-size: 0.72rem; }
   .lesson-card .card-header {
     background-color: var(--subject-colour);
     color: #fff;
@@ -291,6 +308,33 @@
       {% endfor %}
 
       {# Lesson cards for this day #}
+      {% for assignment in day.assignments %}
+      <div
+        class="assignment-card assignment-{{ assignment.effective_status }}"
+        data-assignment-id="{{ assignment.pk }}"
+        data-assignment-status="{{ assignment.effective_status }}"
+        role="button"
+        tabindex="0"
+        aria-haspopup="dialog"
+      >
+        <div class="assignment-title">{{ assignment.plan_item.template.name }}</div>
+        <div class="assignment-meta">
+          {{ assignment.enrollment.course.name }}
+          <span class="mx-1">•</span>
+          {{ assignment.plan_item.template.assignment_type.name }}
+        </div>
+        <div class="mt-1">
+          {% if assignment.effective_status == 'done' %}
+          <span class="badge bg-success">Done</span>
+          {% elif assignment.effective_status == 'overdue' %}
+          <span class="badge bg-danger">Overdue</span>
+          {% else %}
+          <span class="badge text-bg-secondary">Incomplete</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+
       {% if day.lessons %}
         {% for sl in day.lessons %}
         <div class="lesson-card"
@@ -309,12 +353,44 @@
           </div>
         </div>
         {% endfor %}
-      {% elif not day.vacations and show_empty_assignments %}
+      {% elif not day.vacations and not day.assignments %}
         <p class="empty-day">No lessons</p>
       {% endif %}
     </div>
   </div>
   {% endfor %}
+</div>
+
+<div id="assignment-modal" class="modal fade" tabindex="-1" role="dialog"
+     aria-modal="true" aria-labelledby="assignment-modal-title">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#334155; color:#fff; border-bottom:none;">
+        <h5 class="modal-title" id="assignment-modal-title">Assignment</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-1" id="assignment-modal-course"></p>
+        <p class="text-muted small mb-2" id="assignment-modal-due"></p>
+        <p class="mb-1 fw-semibold" id="assignment-modal-type"></p>
+        <p class="small text-muted" id="assignment-modal-notes"></p>
+        <div class="mt-3" id="assignment-status-row">
+          <span class="small text-muted">Status:</span>
+          <span id="assignment-modal-status" class="badge ms-1 text-bg-secondary">Incomplete</span>
+        </div>
+        {% if can_edit_assignments %}
+        <div class="d-flex gap-2 mt-3">
+          <button id="assignment-btn-done" class="btn btn-sm btn-success" type="button">
+            Mark Done
+          </button>
+          <button id="assignment-btn-incomplete" class="btn btn-sm btn-outline-secondary" type="button">
+            Mark Incomplete
+          </button>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ── Lesson Detail Modal (unchanged) ─────────────── -->

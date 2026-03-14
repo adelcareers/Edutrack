@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Archived Course Records — EduTrack{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 980px;">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">Archived Course Records</h3>
+    <a href="{% url 'courses:course_list' %}" class="btn btn-outline-secondary btn-sm">
+      Back to Courses
+    </a>
+  </div>
+
+  {% if archives %}
+    <div class="table-responsive bg-white border rounded-3">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Course</th>
+            <th>Remark</th>
+            <th>Archived At</th>
+            <th>Assignments</th>
+            <th>Enrollments</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for archive in archives %}
+            <tr>
+              <td>{{ archive.course_name }}</td>
+              <td>{{ archive.remark }}</td>
+              <td>{{ archive.archived_at|date:"M d, Y H:i" }}</td>
+              <td>{{ archive.assignment_history|length }}</td>
+              <td>{{ archive.enrollment_history|length }}</td>
+              <td class="text-end">
+                <a
+                  href="{% url 'courses:archived_course_detail' archive_id=archive.pk %}"
+                  class="btn btn-sm btn-outline-primary"
+                >
+                  View History
+                </a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="alert alert-info">No archived course records yet.</div>
+  {% endif %}
+</div>
+{% endblock %}

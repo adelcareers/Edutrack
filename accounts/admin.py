@@ -5,7 +5,7 @@ from .models import UserProfile
 
 
 class UserProfileInline(admin.StackedInline):
-    """Inline editor for UserProfile shown inside the User admin detail view."""
+    """Inline editor for UserProfile in User admin detail view."""
 
     model = UserProfile
     can_delete = False
@@ -24,8 +24,10 @@ admin.site.register(User, UserAdmin)
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    """Admin view for UserProfile with role and subscription filters."""
+    """Admin view for UserProfile with role and subscription tier filters."""
 
-    list_display = ['user', 'role', 'subscription_active', 'created_at']
-    list_filter = ['role', 'subscription_active']
+    list_display = [
+        'user', 'role', 'subscription_tier', 'storage_limit_gb', 'created_at'
+    ]
+    list_filter = ['role', 'subscription_tier']
     search_fields = ['user__username', 'user__email']

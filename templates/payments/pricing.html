@@ -19,6 +19,9 @@
             </div>
             <div class="card-body">
                 <h1 class="card-title pricing-card-title">{{ plan.price }}<small class="text-muted fw-light">{{ plan.interval }}</small></h1>
+                <div class="mb-3">
+                    <span class="badge bg-info">{{ plan.storage }} Storage</span>
+                </div>
                 <p class="text-muted mt-3">{{ plan.description }}</p>
                 <ul class="list-unstyled mt-3 mb-4 text-start ms-4">
                     {% for feature in plan.features %}

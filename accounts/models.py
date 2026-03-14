@@ -7,7 +7,7 @@ class UserProfile(models.Model):
     """Extended profile for every User. Links to Django's built-in User model.
 
     Stores the user's platform role (parent, student, or admin), an optional
-    Cloudinary avatar, and whether the parent's subscription is currently active.
+    Cloudinary avatar, subscription tier, and storage limit in GB.
     """
 
     ROLE_CHOICES = [
@@ -16,10 +16,23 @@ class UserProfile(models.Model):
         ('admin', 'Admin'),
     ]
 
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    TIER_CHOICES = [
+        ('essential', 'Essential'),
+        ('premium', 'Premium'),
+    ]
+
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name='profile'
+    )
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     avatar = CloudinaryField('avatar', blank=True, null=True)
-    subscription_active = models.BooleanField(default=False)
+    subscription_tier = models.CharField(
+        max_length=20, choices=TIER_CHOICES, default='essential'
+    )
+    storage_limit_gb = models.IntegerField(default=20)  # in GB
+    subscription_active = models.BooleanField(
+        default=False
+    )  # kept for backward compatibility
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -28,6 +41,10 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f'{self.user.username} ({self.role})'
+
+    def get_storage_limit_gb(self):
+        """Return storage limit in GB based on subscription tier."""
+        return 200 if self.subscription_tier == 'premium' else 20
 
 
 class ParentSettings(models.Model):

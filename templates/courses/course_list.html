@@ -322,6 +322,9 @@
         <a href="{% url 'courses:course_new' %}" class="btn-new-course">
           <i class="bi bi-plus-lg"></i> New Course
         </a>
+        <a href="{% url 'courses:archived_courses' %}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-clock-history"></i> Archived Records
+        </a>
       </div>
 
       <!-- Tabs -->
@@ -413,6 +416,11 @@
                       <i class="bi bi-download me-2 text-secondary"></i>Export CSV
                     </a>
                   </li>
+                  <li>
+                    <a class="dropdown-item" href="{% url 'courses:archived_courses' %}">
+                      <i class="bi bi-clock-history me-2 text-secondary"></i>Archived Records
+                    </a>
+                  </li>
                   <li><hr class="dropdown-divider"></li>
                   <li>
                     <form method="post" action="{% url 'courses:course_archive' course_id=course.pk %}">
@@ -420,6 +428,18 @@
                       <button type="submit" class="dropdown-item {% if course.is_archived %}text-success{% else %}text-warning{% endif %}">
                         <i class="bi bi-{% if course.is_archived %}arrow-counterclockwise{% else %}archive{% endif %} me-2"></i>
                         {% if course.is_archived %}Unarchive{% else %}Archive{% endif %}
+                      </button>
+                    </form>
+                  </li>
+                  <li>
+                    <form
+                      method="post"
+                      action="{% url 'courses:course_delete' course_id=course.pk %}"
+                      onsubmit="return confirm('Hard delete this course? Full assignment history will be archived and the live course will be removed.');"
+                    >
+                      {% csrf_token %}
+                      <button type="submit" class="dropdown-item text-danger">
+                        <i class="bi bi-trash me-2"></i>Hard Delete
                       </button>
                     </form>
                   </li>

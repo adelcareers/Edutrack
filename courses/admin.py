@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import AssignmentType, Course, CourseEnrollment, Label, Subject
+from .models import (
+    AssignmentType,
+    Course,
+    CourseArchive,
+    CourseEnrollment,
+    Label,
+    Subject,
+)
 
 
 class AssignmentTypeInline(admin.TabularInline):
@@ -37,4 +44,11 @@ class SubjectAdmin(admin.ModelAdmin):
 class LabelAdmin(admin.ModelAdmin):
     list_display = ['name', 'color', 'parent']
     search_fields = ['name', 'parent__username']
+    raw_id_fields = ['parent']
+
+
+@admin.register(CourseArchive)
+class CourseArchiveAdmin(admin.ModelAdmin):
+    list_display = ['course_name', 'parent', 'remark', 'archived_at']
+    search_fields = ['course_name', 'parent__username', 'remark']
     raw_id_fields = ['parent']

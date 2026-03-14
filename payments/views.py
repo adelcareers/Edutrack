@@ -1,41 +1,50 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from accounts.decorators import role_required
+
 
 def pricing_page_view(request):
     """View to display subscription plans."""
     plans = [
         {
-            'name': 'Free Tier',
-            'price': '£0',
+            'name': 'Essential',
+            'price': 'Free',
             'interval': 'forever',
-            'description': 'Basic tools to get started.',
+            'description': 'Get started with home education tracking.',
+            'storage': '20 GB',
             'features': [
-                'Add up to 2 children',
-                'Basic tracker logging',
-                'Generate simple text reports',
+                'Full access to all features',
+                'Store lessons and assignments',
+                'Track student progress',
+                'Generate reports',
+                'Upload evidence files',
+                'Schedule lessons',
+                'Parent-student collaboration',
             ],
-            'button_text': 'Current Plan',
+            'button_text': 'Get Started',
             'button_class': 'btn-outline-primary',
             'button_link': '#',
             'is_pro': False
         },
         {
-            'name': 'Pro Tier',
+            'name': 'Premium',
             'price': '£6',
             'interval': '/ month',
-            'description': 'Everything you need for full home education tracking.',
+            'description': 'Unlimited storage for growing families.',
+            'storage': '200 GB',
             'features': [
-                'Unlimited children',
-                'Advanced tracker logging with evidence',
-                'Generate LA-ready PDF reports',
-                'Share reports securely via links',
-                'Schedule generation'
+                'Full access to all features',
+                'Store lessons and assignments',
+                'Track student progress',
+                'Generate reports',
+                'Upload evidence files',
+                'Schedule lessons',
+                'Parent-student collaboration',
             ],
-            'button_text': 'Choose Pro',
+            'button_text': 'Upgrade to Premium',
             'button_class': 'btn-primary',
-            'button_link': '/payments/checkout/', # We'll wire this up later
+            'button_link': '/payments/checkout/',
             'is_pro': True
         }
     ]
@@ -45,21 +54,29 @@ def pricing_page_view(request):
 @login_required
 @role_required('parent')
 def checkout_view(request):
-    """View to display Stripe checkout or test mode banner based on feature flag."""
+    """View to display Stripe checkout or test mode banner.
+
+    Shows either Stripe form or test mode banner based on STRIPE_ENABLED.
+    """
     context = {
         'stripe_enabled': settings.STRIPE_ENABLED,
         'stripe_key': settings.STRIPE_PUBLISHABLE_KEY,
     }
     return render(request, 'payments/checkout.html', context)
 
+
 @login_required
 @role_required('parent')
 def success_view(request):
-    """View to display success message after payment."""
-    # Stub: automatically activate subscription for testing purposes
+    """View to display success message after payment.
+
+    Automatically activates premium subscription for testing purposes.
+    """
     profile = request.user.profile
-    if not profile.subscription_active:
+    if profile.subscription_tier != 'premium':
+        profile.subscription_tier = 'premium'
+        profile.storage_limit_gb = 200
         profile.subscription_active = True
         profile.save()
-        
+
     return render(request, 'payments/success.html')

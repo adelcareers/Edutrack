@@ -1,28 +1,6 @@
 from django.db import models
 
-from courses.models import Course, CourseEnrollment, GlobalAssignmentType
-
-
-class CourseAssignmentType(models.Model):
-    """Per-course overrides of global assignment types."""
-
-    course = models.ForeignKey(
-        Course, on_delete=models.CASCADE, related_name='assignment_type_overrides'
-    )
-    global_type = models.ForeignKey(
-        GlobalAssignmentType, on_delete=models.SET_NULL, null=True, blank=True
-    )
-    name = models.CharField(max_length=100)
-    color = models.CharField(max_length=7, default='#9ca3af')
-    is_hidden = models.BooleanField(default=False)
-    order = models.IntegerField(default=0)
-
-    class Meta:
-        ordering = ['order', 'name']
-        unique_together = [('course', 'name')]
-
-    def __str__(self):
-        return f'{self.course.name} - {self.name}'
+from courses.models import AssignmentType, Course, CourseEnrollment
 
 
 class CourseAssignmentTemplate(models.Model):
@@ -32,7 +10,7 @@ class CourseAssignmentTemplate(models.Model):
         Course, on_delete=models.CASCADE, related_name='assignment_templates'
     )
     assignment_type = models.ForeignKey(
-        CourseAssignmentType, on_delete=models.PROTECT, related_name='templates'
+        AssignmentType, on_delete=models.PROTECT, related_name='templates'
     )
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True, default='')

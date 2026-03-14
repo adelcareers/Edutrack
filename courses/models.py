@@ -178,7 +178,16 @@ class AssignmentType(models.Model):
     course = models.ForeignKey(
         Course, on_delete=models.CASCADE, related_name='assignment_types'
     )
+    global_type = models.ForeignKey(
+        GlobalAssignmentType,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='course_assignment_types',
+    )
     name = models.CharField(max_length=100)
+    color = models.CharField(max_length=7, default='#9ca3af')
+    is_hidden = models.BooleanField(default=False)
     weight = models.IntegerField(
         default=0,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
@@ -251,3 +260,28 @@ class CourseEnrollment(models.Model):
         """Return human-readable day labels, e.g. 'Mon, Wed, Fri'."""
         day_map = dict(DAY_CHOICES)
         return ', '.join(day_map.get(d.strip(), d) for d in self.days_of_week.split(',') if d.strip())
+
+
+class CourseArchive(models.Model):
+    """Immutable snapshot of a deleted course and its assignment history."""
+
+    parent = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='course_archives'
+    )
+    original_course_id = models.IntegerField(db_index=True)
+    course_name = models.CharField(max_length=200)
+    remark = models.CharField(max_length=255, default='course deleted')
+    archived_at = models.DateTimeField(auto_now_add=True)
+
+    # Course metadata snapshot
+    course_data = models.JSONField(default=dict)
+
+    # Full history snapshots
+    enrollment_history = models.JSONField(default=list)
+    assignment_history = models.JSONField(default=list)
+
+    class Meta:
+        ordering = ['-archived_at']
+
+    def __str__(self):
+        return f'{self.course_name} (archived)'

@@ -8,6 +8,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from accounts.decorators import role_required
+from planning.models import StudentAssignment
 from accounts.models import ParentSettings
 from scheduler.models import ScheduledLesson, Vacation
 from tracker.models import EvidenceFile, LessonLog
@@ -18,6 +19,17 @@ def _get_or_create_settings(user):
         return None
     settings, _ = ParentSettings.objects.get_or_create(user=user)
     return settings
+
+
+def _effective_assignment_status(assignment, today=None):
+    """Resolve display status with automatic overdue behaviour."""
+    if today is None:
+        today = datetime.date.today()
+    if assignment.status == 'complete':
+        return 'done'
+    if assignment.due_date < today:
+        return 'overdue'
+    return 'incomplete'
 
 
 def _build_calendar_context(
@@ -54,6 +66,7 @@ def _build_calendar_context(
 
     # Vacations overlapping this week
     vacations_by_date: dict = {}
+    assignments_by_date: dict = {}
     if child is not None:
         vac_qs = Vacation.objects.filter(
             child=child,
@@ -67,6 +80,27 @@ def _build_calendar_context(
                 vacations_by_date.setdefault(cur, []).append(vac)
                 cur += datetime.timedelta(days=1)
 
+        assignment_qs = (
+            StudentAssignment.objects
+            .filter(
+                enrollment__child=child,
+                enrollment__status='active',
+                due_date__gte=start_date,
+                due_date__lte=end_date,
+            )
+            .select_related(
+                'enrollment__course',
+                'plan_item__template',
+                'plan_item__template__assignment_type',
+            )
+            .order_by('due_date', 'id')
+        )
+        for assignment in assignment_qs:
+            assignment.effective_status = _effective_assignment_status(
+                assignment, today=today
+            )
+            assignments_by_date.setdefault(assignment.due_date, []).append(assignment)
+
     days = {}
     for i in range(6):
         date = start_date + datetime.timedelta(days=i)
@@ -75,6 +109,7 @@ def _build_calendar_context(
             'date': date,
             'lessons': lesson_by_date.get(date, []),
             'vacations': vacations_by_date.get(date, []),
+            'assignments': assignments_by_date.get(date, []),
         }
 
     # Week navigation
@@ -133,7 +168,86 @@ def calendar_view(request, year=None, week=None):
         first_day_of_week=settings.first_day_of_week if settings else 0,
         show_empty_assignments=settings.show_empty_assignments if settings else False,
     )
+    ctx['can_edit_assignments'] = True
     return render(request, 'tracker/calendar.html', ctx)
+
+
+def _can_access_student_assignment(user, assignment):
+    """Return True when user is parent of child or the student owner."""
+    profile = getattr(user, 'profile', None)
+    if profile is None:
+        return False
+
+    if profile.role == 'parent':
+        return assignment.enrollment.child.parent_id == user.pk
+
+    if profile.role == 'student':
+        child = getattr(user, 'child_profile', None)
+        return child is not None and assignment.enrollment.child_id == child.pk
+
+    return False
+
+
+@login_required
+def assignment_detail_view(request, assignment_id):
+    """Return JSON details for one scheduled student assignment."""
+    assignment = get_object_or_404(
+        StudentAssignment.objects.select_related(
+            'enrollment__child',
+            'enrollment__course',
+            'plan_item__template',
+            'plan_item__template__assignment_type',
+        ),
+        pk=assignment_id,
+    )
+
+    if not _can_access_student_assignment(request.user, assignment):
+        return JsonResponse({'error': 'forbidden'}, status=403)
+
+    effective_status = _effective_assignment_status(assignment)
+    return JsonResponse({
+        'id': assignment.pk,
+        'course_name': assignment.enrollment.course.name,
+        'child_name': assignment.enrollment.child.first_name,
+        'assignment_name': assignment.plan_item.template.name,
+        'assignment_type': assignment.plan_item.template.assignment_type.name,
+        'due_date': assignment.due_date.strftime('%d %b %Y'),
+        'effective_status': effective_status,
+        'status_text': effective_status.replace('_', ' ').title(),
+        'notes': assignment.plan_item.notes,
+    })
+
+
+@login_required
+@require_POST
+def update_assignment_status_view(request, assignment_id):
+    """Accept POST {status: done|incomplete} and persist assignment state."""
+    assignment = get_object_or_404(
+        StudentAssignment.objects.select_related('enrollment__child'),
+        pk=assignment_id,
+    )
+
+    if not _can_access_student_assignment(request.user, assignment):
+        return JsonResponse({'error': 'forbidden'}, status=403)
+
+    requested = request.POST.get('status', '').strip().lower()
+    if requested not in {'done', 'incomplete'}:
+        return JsonResponse({'error': 'invalid status'}, status=400)
+
+    if requested == 'done':
+        assignment.status = 'complete'
+        assignment.completed_at = timezone.now()
+    else:
+        assignment.status = 'pending'
+        assignment.completed_at = None
+
+    assignment.save(update_fields=['status', 'completed_at'])
+    effective_status = _effective_assignment_status(assignment)
+    return JsonResponse({
+        'success': True,
+        'status': effective_status,
+        'message': f'Assignment marked {effective_status}.',
+    })
 
 
 @login_required
@@ -428,6 +542,7 @@ def parent_calendar_view(request, child_id, year=None, week=None):
         first_day_of_week=settings.first_day_of_week if settings else 0,
         show_empty_assignments=settings.show_empty_assignments if settings else False,
     )
+    ctx['can_edit_assignments'] = True
     ctx['siblings'] = siblings
     return render(request, 'tracker/calendar.html', ctx)
 

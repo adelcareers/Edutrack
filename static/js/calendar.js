@@ -21,7 +21,21 @@
   const evidenceCount = document.getElementById('modal-evidence-count');
   const evidenceList  = document.getElementById('modal-evidence-list');
 
+  const assignmentModalEl = document.getElementById('assignment-modal');
+  const assignmentModal = assignmentModalEl
+    ? new bootstrap.Modal(assignmentModalEl)
+    : null;
+  const assignmentTitle = document.getElementById('assignment-modal-title');
+  const assignmentCourse = document.getElementById('assignment-modal-course');
+  const assignmentDue = document.getElementById('assignment-modal-due');
+  const assignmentType = document.getElementById('assignment-modal-type');
+  const assignmentNotes = document.getElementById('assignment-modal-notes');
+  const assignmentStatus = document.getElementById('assignment-modal-status');
+  const assignmentBtnDone = document.getElementById('assignment-btn-done');
+  const assignmentBtnIncomplete = document.getElementById('assignment-btn-incomplete');
+
   let activeScheduledId = null;
+  let activeAssignmentId = null;
 
   // ── Modal alert helper ─────────────────────────────────────────────────
   function showModalAlert(message, type) {
@@ -65,6 +79,36 @@
       badge.className = `badge status-badge ${cls} me-1`;
       badge.textContent = label;
       footer.prepend(badge);
+    }
+  }
+
+  function updateAssignmentBadge(assignmentId, status) {
+    const card = document.querySelector(
+      `.assignment-card[data-assignment-id="${assignmentId}"]`
+    );
+    if (!card) return;
+
+    const labelMap = {
+      done: 'Done',
+      incomplete: 'Incomplete',
+      overdue: 'Overdue',
+    };
+    const classMap = {
+      done: 'bg-success',
+      incomplete: 'text-bg-secondary',
+      overdue: 'bg-danger',
+    };
+
+    card.classList.remove('assignment-done');
+    card.classList.remove('assignment-incomplete');
+    card.classList.remove('assignment-overdue');
+    card.classList.add(`assignment-${status}`);
+    card.dataset.assignmentStatus = status;
+
+    const badge = card.querySelector('.badge');
+    if (badge) {
+      badge.className = `badge ${classMap[status] || 'text-bg-secondary'}`;
+      badge.textContent = labelMap[status] || 'Incomplete';
     }
   }
 
@@ -159,6 +203,22 @@
     return resp.json();
   }
 
+  async function postAssignmentStatusUpdate(assignmentId, status) {
+    const body = new URLSearchParams({ status });
+    const resp = await fetch(`/assignments/${assignmentId}/update/`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': getCookie('csrftoken'),
+        'X-Requested-With': 'XMLHttpRequest',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      credentials: 'same-origin',
+      body,
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return resp.json();
+  }
+
   // ── Fetch lesson detail and open modal ────────────────────────────────────
   async function openLessonModal(scheduledId) {
     activeScheduledId = scheduledId;
@@ -213,6 +273,41 @@
     }
   }
 
+  async function openAssignmentModal(assignmentId) {
+    activeAssignmentId = assignmentId;
+    try {
+      const resp = await fetch(`/assignments/${assignmentId}/detail/`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin',
+      });
+      if (!resp.ok) return;
+      const data = await resp.json();
+
+      if (assignmentTitle) assignmentTitle.textContent = data.assignment_name;
+      if (assignmentCourse) {
+        assignmentCourse.textContent = `${data.course_name} • ${data.child_name}`;
+      }
+      if (assignmentDue) assignmentDue.textContent = `Due: ${data.due_date}`;
+      if (assignmentType) assignmentType.textContent = data.assignment_type;
+      if (assignmentNotes) assignmentNotes.textContent = data.notes || '';
+
+      if (assignmentStatus) {
+        const statusMap = {
+          done: ['Done', 'bg-success'],
+          incomplete: ['Incomplete', 'text-bg-secondary'],
+          overdue: ['Overdue', 'bg-danger'],
+        };
+        const statusInfo = statusMap[data.effective_status] || statusMap.incomplete;
+        assignmentStatus.textContent = statusInfo[0];
+        assignmentStatus.className = `badge ms-1 ${statusInfo[1]}`;
+      }
+
+      if (assignmentModal) assignmentModal.show();
+    } catch (e) {
+      // Silent fail; user can refresh.
+    }
+  }
+
   // ── Complete / Skip button handlers ──────────────────────────────────────
   function attachActionButtons() {
     const btnComplete = document.getElementById('modal-btn-complete');
@@ -263,7 +358,50 @@
     });
   });
 
+  document.querySelectorAll('.assignment-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const id = card.dataset.assignmentId;
+      if (id) openAssignmentModal(id);
+    });
+    card.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        const id = card.dataset.assignmentId;
+        if (id) openAssignmentModal(id);
+      }
+    });
+  });
+
   attachActionButtons();
+
+  if (assignmentBtnDone) {
+    assignmentBtnDone.addEventListener('click', async () => {
+      if (!activeAssignmentId) return;
+      try {
+        const data = await postAssignmentStatusUpdate(activeAssignmentId, 'done');
+        if (data.success) {
+          updateAssignmentBadge(activeAssignmentId, data.status);
+        }
+      } catch (e) { /* silent */ }
+      if (assignmentModal) assignmentModal.hide();
+    });
+  }
+
+  if (assignmentBtnIncomplete) {
+    assignmentBtnIncomplete.addEventListener('click', async () => {
+      if (!activeAssignmentId) return;
+      try {
+        const data = await postAssignmentStatusUpdate(
+          activeAssignmentId,
+          'incomplete'
+        );
+        if (data.success) {
+          updateAssignmentBadge(activeAssignmentId, data.status);
+        }
+      } catch (e) { /* silent */ }
+      if (assignmentModal) assignmentModal.hide();
+    });
+  }
 
   // ── Mastery button handlers ───────────────────────────────────────────────
   document.querySelectorAll('.mastery-btn').forEach(btn => {

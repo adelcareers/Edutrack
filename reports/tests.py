@@ -2,7 +2,7 @@
 
 import datetime
 import uuid
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.urls import reverse
@@ -24,7 +24,9 @@ from tracker.models import LessonLog
 
 def _make_parent(username='rpt_parent', password='TestPass123!'):
     user = User.objects.create_user(username=username, password=password)
-    UserProfile.objects.create(user=user, role='parent', subscription_active=True)
+    UserProfile.objects.create(
+        user=user, role='parent', subscription_active=True
+    )
     return user
 
 
@@ -128,16 +130,6 @@ class CreateReportViewTests(TestCase):
         })
 
     # ---------- access ----------
-
-    def test_parent_without_subscription_is_redirected(self):
-        """S3.5 T4: Protect report generation with subscription_active flag."""
-        unsubscribed_user = User.objects.create_user(username='no_sub', password='pw')
-        UserProfile.objects.create(user=unsubscribed_user, role='parent', subscription_active=False)
-        child = _make_child(unsubscribed_user, 'NoSubChild')
-        
-        self.client.login(username='no_sub', password='pw')
-        res = self.client.get(reverse(self.CREATE_URL, args=[child.id]))
-        self.assertRedirects(res, reverse('payments:pricing'))
 
     def test_unauthenticated_redirects(self):
         response = self.client.get(self._url())

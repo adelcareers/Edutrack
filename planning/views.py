@@ -4,13 +4,12 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from accounts.decorators import role_required
-from courses.models import Course, GlobalAssignmentType
+from courses.models import AssignmentType, Course, GlobalAssignmentType
 
 from .models import (
     AssignmentPlanItem,
     AssignmentAttachment,
     CourseAssignmentTemplate,
-    CourseAssignmentType,
     StudentAssignment,
 )
 
@@ -48,26 +47,27 @@ def plan_course_view(request, course_id):
     weeks = list(range(1, course.duration_weeks + 1))
     days = list(range(1, min(course.frequency_days, 5) + 1))
 
-    if not CourseAssignmentType.objects.filter(course=course).exists():
+    if not AssignmentType.objects.filter(course=course).exists():
         global_types = (
             GlobalAssignmentType.objects
             .filter(parent=request.user)
             .order_by('order', 'name')
         )
-        CourseAssignmentType.objects.bulk_create([
-            CourseAssignmentType(
+        AssignmentType.objects.bulk_create([
+            AssignmentType(
                 course=course,
                 global_type=gt,
                 name=gt.name,
                 color=gt.color,
                 is_hidden=gt.is_hidden,
+                weight=0,
                 order=gt.order,
             )
             for gt in global_types
         ])
 
     assignment_types = (
-        CourseAssignmentType.objects
+        AssignmentType.objects
         .filter(course=course, is_hidden=False)
         .order_by('order', 'name')
     )
@@ -107,7 +107,7 @@ def plan_course_view(request, course_id):
 
         if template_name and type_id:
             assignment_type = get_object_or_404(
-                CourseAssignmentType,
+                AssignmentType,
                 pk=type_id,
                 course=course,
             )
@@ -181,7 +181,7 @@ def plan_course_view(request, course_id):
             if plan_item_id:
                 for student_assignment in StudentAssignment.objects.filter(plan_item=plan_item):
                     status_value = request.POST.get(f'student_status_{student_assignment.id}', '')
-                    if status_value not in {'pending', 'complete', 'overdue'}:
+                    if status_value not in {'pending', 'complete'}:
                         continue
                     student_assignment.status = status_value
                     if status_value == 'complete':
@@ -235,10 +235,14 @@ def plan_course_view(request, course_id):
 
     plan_status_map = {}
     status_rows = StudentAssignment.objects.filter(plan_item__in=plan_items).values(
-        'plan_item_id', 'status'
+        'plan_item_id', 'status', 'due_date'
     )
+    today = timezone.localdate()
     for row in status_rows:
-        plan_status_map.setdefault(row['plan_item_id'], set()).add(row['status'])
+        status = row['status']
+        if status != 'complete' and row['due_date'] < today:
+            status = 'overdue'
+        plan_status_map.setdefault(row['plan_item_id'], set()).add(status)
     for plan_item_id, statuses in plan_status_map.items():
         if 'overdue' in statuses:
             plan_status_map[plan_item_id] = 'overdue'

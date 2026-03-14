@@ -9,7 +9,13 @@ from django.urls import reverse
 from django.contrib.auth.models import User
 
 from accounts.models import UserProfile
+from courses.models import AssignmentType, Course
 from curriculum.models import Lesson
+from planning.models import (
+    AssignmentPlanItem,
+    CourseAssignmentTemplate,
+    StudentAssignment,
+)
 from scheduler.models import Child, EnrolledSubject, ScheduledLesson
 from tracker.models import EvidenceFile, LessonLog
 
@@ -1366,5 +1372,100 @@ class EvidenceDeleteTests(TestCase):
         response = self.client.get(reverse('tracker:lesson_detail',
                                            kwargs={'scheduled_id': new_sl.pk}))
         self.assertEqual(response.json()['evidence_files'], [])
+
+
+class AssignmentCalendarEndpointTests(TestCase):
+    def setUp(self):
+        self.parent = _make_parent(username='assign_parent')
+        self.student = _make_student(username='assign_student')
+        self.child = _make_child(
+            self.parent,
+            first_name='AssignKid',
+            student_user=self.student,
+        )
+
+        self.course = Course.objects.create(
+            parent=self.parent,
+            name='History',
+            duration_weeks=10,
+            frequency_days=3,
+        )
+        self.enrollment = self.course.enrollments.create(
+            child=self.child,
+            start_date=datetime.date(2026, 1, 6),
+            days_of_week='0,2,4',
+            status='active',
+        )
+        self.assignment_type = AssignmentType.objects.create(
+            course=self.course,
+            name='Homework',
+            color='#9ca3af',
+            order=0,
+        )
+        self.template = CourseAssignmentTemplate.objects.create(
+            course=self.course,
+            assignment_type=self.assignment_type,
+            name='Essay Draft',
+            description='Write a short draft',
+            is_graded=True,
+            due_offset_days=0,
+            order=0,
+        )
+        self.plan_item = AssignmentPlanItem.objects.create(
+            course=self.course,
+            template=self.template,
+            week_number=1,
+            day_number=2,
+            due_in_days=0,
+            order=0,
+            notes='Submit by noon',
+        )
+        self.assignment = StudentAssignment.objects.create(
+            enrollment=self.enrollment,
+            plan_item=self.plan_item,
+            due_date=datetime.date.today() - datetime.timedelta(days=2),
+            status='pending',
+        )
+
+    def test_student_can_open_assignment_detail(self):
+        self.client.force_login(self.student)
+        response = self.client.get(
+            reverse(
+                'tracker:assignment_detail',
+                kwargs={'assignment_id': self.assignment.pk},
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['effective_status'], 'overdue')
+
+    def test_parent_can_update_assignment_status_to_done(self):
+        self.client.force_login(self.parent)
+        response = self.client.post(
+            reverse(
+                'tracker:assignment_update',
+                kwargs={'assignment_id': self.assignment.pk},
+            ),
+            {'status': 'done'},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assignment.refresh_from_db()
+        self.assertEqual(self.assignment.status, 'complete')
+        self.assertEqual(response.json()['status'], 'done')
+
+    def test_student_mark_incomplete_becomes_overdue_when_past_due(self):
+        self.assignment.status = 'complete'
+        self.assignment.save(update_fields=['status'])
+        self.client.force_login(self.student)
+        response = self.client.post(
+            reverse(
+                'tracker:assignment_update',
+                kwargs={'assignment_id': self.assignment.pk},
+            ),
+            {'status': 'incomplete'},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assignment.refresh_from_db()
+        self.assertEqual(self.assignment.status, 'pending')
+        self.assertEqual(response.json()['status'], 'overdue')
 
 

@@ -4,6 +4,7 @@ import json
 
 from django.contrib import messages
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
+from django.db import transaction
 from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -17,13 +18,14 @@ from .forms import (
     CompleteEnrollmentForm,
     EnrollStudentForm,
     CourseForm,
-    SubjectForm,
 )
 from .models import (
     AssignmentType,
     Course,
+    CourseArchive,
     CourseEnrollment,
     DEFAULT_ASSIGNMENT_TYPES,
+    GlobalAssignmentType,
     Subject,
 )
 
@@ -43,6 +45,124 @@ def _get_enrollment_or_403(enrollment_id, user):
     if enrollment.course.parent != user:
         raise PermissionError
     return enrollment
+
+
+def _effective_assignment_status(student_assignment, today=None):
+    """Resolve status with auto-overdue behaviour for incomplete work."""
+    if today is None:
+        today = timezone.localdate()
+    if student_assignment.status == 'complete':
+        return 'complete'
+    if student_assignment.due_date < today:
+        return 'overdue'
+    return 'pending'
+
+
+def _archive_course_snapshot(course, remark='course deleted'):
+    """Persist full assignment-level history before hard deleting a course."""
+    from planning.models import StudentAssignment
+
+    enrollments = list(
+        course.enrollments.select_related('child').order_by('id')
+    )
+    assignment_types = list(
+        course.assignment_types.order_by('order', 'name').values(
+            'id', 'name', 'weight', 'order'
+        )
+    )
+
+    enrollment_history = []
+    for enrollment in enrollments:
+        enrollment_history.append({
+            'id': enrollment.id,
+            'child_id': enrollment.child_id,
+            'child_name': enrollment.child.first_name,
+            'start_date': enrollment.start_date.isoformat(),
+            'days_of_week': enrollment.days_of_week,
+            'status': enrollment.status,
+            'completed_school_year': enrollment.completed_school_year,
+            'completed_calendar_year': enrollment.completed_calendar_year,
+            'enrolled_at': enrollment.enrolled_at.isoformat() if enrollment.enrolled_at else None,
+            'completed_at': enrollment.completed_at.isoformat() if enrollment.completed_at else None,
+        })
+
+    student_assignments = (
+        StudentAssignment.objects
+        .filter(enrollment__course=course)
+        .select_related(
+            'enrollment__child',
+            'plan_item__template',
+            'plan_item__template__assignment_type',
+        )
+        .order_by('due_date', 'id')
+    )
+
+    assignment_history = []
+    today = timezone.localdate()
+    for assignment in student_assignments:
+        plan_item = assignment.plan_item
+        template = plan_item.template
+        assignment_type = template.assignment_type
+        attachments = [
+            {
+                'id': a.id,
+                'original_name': a.original_name,
+                'file': str(a.file),
+                'created_at': a.created_at.isoformat() if a.created_at else None,
+            }
+            for a in plan_item.attachments.all().order_by('id')
+        ]
+
+        assignment_history.append({
+            'student_assignment_id': assignment.id,
+            'enrollment_id': assignment.enrollment_id,
+            'child_id': assignment.enrollment.child_id,
+            'child_name': assignment.enrollment.child.first_name,
+            'due_date': assignment.due_date.isoformat(),
+            'status': assignment.status,
+            'effective_status': _effective_assignment_status(assignment, today=today),
+            'completed_at': assignment.completed_at.isoformat() if assignment.completed_at else None,
+            'score': str(assignment.score) if assignment.score is not None else None,
+            'week_number': plan_item.week_number,
+            'day_number': plan_item.day_number,
+            'due_in_days': plan_item.due_in_days,
+            'plan_notes': plan_item.notes,
+            'template_name': template.name,
+            'template_description': template.description,
+            'is_graded': template.is_graded,
+            'assignment_type': assignment_type.name,
+            'assignment_type_id': assignment_type.id,
+            'attachments': attachments,
+        })
+
+    course_data = {
+        'id': course.id,
+        'name': course.name,
+        'color': course.color,
+        'description': course.description,
+        'course_intro': course.course_intro,
+        'duration_weeks': course.duration_weeks,
+        'frequency_days': course.frequency_days,
+        'default_days': course.default_days,
+        'grading_style': course.grading_style,
+        'use_assignment_weights': course.use_assignment_weights,
+        'credits': str(course.credits) if course.credits is not None else None,
+        'grade_years': course.grade_years,
+        'is_archived': course.is_archived,
+        'subjects': list(course.subjects.values('id', 'name')),
+        'labels': list(course.labels.values('id', 'name', 'color')),
+        'assignment_types': assignment_types,
+    }
+
+    return CourseArchive.objects.create(
+        parent=course.parent,
+        original_course_id=course.id,
+        course_name=course.name,
+        remark=remark,
+        course_data=course_data,
+        enrollment_history=enrollment_history,
+        assignment_history=assignment_history,
+    )
 
 
 # ── Course CRUD ────────────────────────────────────────────────────────────
@@ -105,15 +225,39 @@ def course_new_view(request):
             course.save()
             form.save_m2m()
 
-            # Seed default assignment types if weights are enabled
-            if course.use_assignment_weights:
+            # Seed unified assignment types from parent settings when available.
+            global_types = list(
+                GlobalAssignmentType.objects
+                .filter(parent=request.user)
+                .order_by('order', 'name')
+            )
+            if global_types:
+                for gt in global_types:
+                    AssignmentType.objects.create(
+                        course=course,
+                        global_type=gt,
+                        name=gt.name,
+                        color=gt.color,
+                        is_hidden=gt.is_hidden,
+                        weight=0,
+                        order=gt.order,
+                    )
+            elif course.use_assignment_weights:
                 AssignmentType.objects.create(
-                    course=course, name='Homework', weight=100, order=0
+                    course=course,
+                    name='Homework',
+                    color='#9ca3af',
+                    weight=100,
+                    order=0,
                 )
             else:
                 for i, name in enumerate(DEFAULT_ASSIGNMENT_TYPES):
                     AssignmentType.objects.create(
-                        course=course, name=name, weight=0, order=i
+                        course=course,
+                        name=name,
+                        color='#9ca3af',
+                        weight=0,
+                        order=i,
                     )
 
             # Handle dynamically submitted assignment type rows
@@ -289,6 +433,61 @@ def course_export_view(request, course_id):
             writer.writerow([at.name, at.weight])
 
     return response
+
+
+@role_required('parent')
+@require_POST
+def course_delete_view(request, course_id):
+    """Hard delete a course after archiving full assignment-level history."""
+    try:
+        course = _get_course_or_403(course_id, request.user)
+    except PermissionError:
+        return HttpResponseForbidden('You do not have permission to delete this course.')
+
+    course_name = course.name
+    with transaction.atomic():
+        from planning.models import (
+            AssignmentAttachment,
+            AssignmentPlanItem,
+            CourseAssignmentTemplate,
+            StudentAssignment,
+        )
+
+        _archive_course_snapshot(course, remark='course deleted')
+
+        # Remove planning graph explicitly to satisfy PROTECT constraints.
+        StudentAssignment.objects.filter(enrollment__course=course).delete()
+        AssignmentAttachment.objects.filter(plan_item__course=course).delete()
+        AssignmentPlanItem.objects.filter(course=course).delete()
+        CourseAssignmentTemplate.objects.filter(course=course).delete()
+
+        course.delete()
+
+    messages.success(
+        request,
+        f'Course "{course_name}" deleted. Full assignment history has been archived.'
+    )
+    return redirect('courses:course_list')
+
+
+@role_required('parent')
+def archived_courses_view(request):
+    """List deleted-course archives visible to the parent/teacher."""
+    archives = CourseArchive.objects.filter(parent=request.user).order_by('-archived_at')
+    return render(request, 'courses/archived_courses.html', {
+        'archives': archives,
+    })
+
+
+@role_required('parent')
+def archived_course_detail_view(request, archive_id):
+    """Show full archived assignment history for one deleted course."""
+    archive = get_object_or_404(CourseArchive, pk=archive_id, parent=request.user)
+    return render(request, 'courses/archived_course_detail.html', {
+        'archive': archive,
+        'assignment_count': len(archive.assignment_history),
+        'enrollment_count': len(archive.enrollment_history),
+    })
 
 
 # ── Enrollment ─────────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@ from django.urls import reverse
 from django.contrib.auth.models import User
 from accounts.models import UserProfile
 
+
 class PricingPageTests(TestCase):
     def test_pricing_page_status_code(self):
         url = reverse('payments:pricing')
@@ -12,10 +13,13 @@ class PricingPageTests(TestCase):
     def test_pricing_page_content(self):
         url = reverse('payments:pricing')
         response = self.client.get(url)
-        self.assertContains(response, 'Free Tier')
-        self.assertContains(response, 'Pro Tier')
-        self.assertContains(response, 'Choose Pro')
+        self.assertContains(response, 'Essential')
+        self.assertContains(response, 'Premium')
+        self.assertContains(response, 'Upgrade to Premium')
+        self.assertContains(response, '20 GB')
+        self.assertContains(response, '200 GB')
         self.assertContains(response, '/payments/checkout/')
+
 
 class CheckoutViewTests(TestCase):
     def setUp(self):
@@ -40,16 +44,20 @@ class CheckoutViewTests(TestCase):
 class SuccessViewTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='parent', password='pw')
-        UserProfile.objects.create(user=self.user, role='parent', subscription_active=False)
+        UserProfile.objects.create(
+            user=self.user, role='parent', subscription_active=False
+        )
 
     def test_success_view_activates_subscription(self):
         self.client.login(username='parent', password='pw')
         response = self.client.get(reverse('payments:success'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Payment Successful!')
-        
-        # Verify profile was activated
+
+        # Verify profile was upgraded to premium
         self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.profile.subscription_tier, 'premium')
+        self.assertEqual(self.user.profile.storage_limit_gb, 200)
         self.assertTrue(self.user.profile.subscription_active)
 
 
