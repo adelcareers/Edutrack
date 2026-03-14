@@ -25,6 +25,7 @@ from .models import (
     CourseArchive,
     CourseEnrollment,
     DEFAULT_ASSIGNMENT_TYPES,
+    GlobalAssignmentType,
     Subject,
     sync_course_assignment_types_from_global,
 )
@@ -232,11 +233,45 @@ def course_new_view(request):
     else:
         form = CourseForm(user=request.user)
 
+    global_types = list(
+        GlobalAssignmentType.objects
+        .filter(parent=request.user, is_hidden=False)
+        .order_by('order', 'name')
+        .values('id', 'name', 'color', 'order')
+    )
+    posted_weights = {}
+    if request.method == 'POST':
+        for key in request.POST:
+            if not key.startswith('at_global_id_'):
+                continue
+            try:
+                idx = int(key.split('_')[-1])
+                global_id = int(request.POST.get(f'at_global_id_{idx}', '').strip())
+            except (TypeError, ValueError):
+                continue
+
+            weight_raw = request.POST.get(f'at_weight_{idx}', '0')
+            try:
+                posted_weights[global_id] = max(0, min(100, int(weight_raw)))
+            except ValueError:
+                posted_weights[global_id] = 0
+
+    assignment_types = [
+        {
+            'global_type_id': gt['id'],
+            'name': gt['name'],
+            'color': gt['color'],
+            'order': gt['order'],
+            'weight': posted_weights.get(gt['id'], 0),
+        }
+        for gt in global_types
+    ]
+
     return render(request, 'courses/course_form.html', {
         'form': form,
         'editing': False,
         'default_assignment_types': DEFAULT_ASSIGNMENT_TYPES,
-        'assignment_types': [],
+        'assignment_types': assignment_types,
     })
 
 
@@ -352,7 +387,7 @@ def course_edit_view(request, course_id):
         'assignment_types': list(
             course.assignment_types
             .filter(is_hidden=False)
-            .values('id', 'name', 'weight', 'order')
+            .values('id', 'global_type_id', 'name', 'color', 'weight', 'order')
         ),
         'enrollments': enrollments,
         'active_enrollment_data': active_enrollment_data,
@@ -610,7 +645,7 @@ def _save_assignment_weights(request, course):
     """Persist only per-course weights for globally-defined assignment types."""
     indices = set()
     for key in request.POST:
-        if key.startswith('at_id_'):
+        if key.startswith('at_id_') or key.startswith('at_global_id_'):
             try:
                 indices.add(int(key.split('_')[-1]))
             except ValueError:
@@ -618,8 +653,7 @@ def _save_assignment_weights(request, course):
 
     for idx in sorted(indices):
         at_id = request.POST.get(f'at_id_{idx}', '').strip()
-        if not at_id:
-            continue
+        at_global_id = request.POST.get(f'at_global_id_{idx}', '').strip()
 
         weight_raw = request.POST.get(f'at_weight_{idx}', '0')
         try:
@@ -627,4 +661,12 @@ def _save_assignment_weights(request, course):
         except ValueError:
             weight = 0
 
-        AssignmentType.objects.filter(pk=at_id, course=course).update(weight=weight)
+        if at_id:
+            AssignmentType.objects.filter(pk=at_id, course=course).update(weight=weight)
+            continue
+
+        if at_global_id:
+            AssignmentType.objects.filter(
+                course=course,
+                global_type_id=at_global_id,
+            ).update(weight=weight)

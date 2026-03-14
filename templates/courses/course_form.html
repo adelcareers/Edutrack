@@ -621,8 +621,10 @@
                       {% for at in assignment_types %}
                         <div class="at-row" data-index="{{ forloop.counter0 }}">
                           {% if at.id %}<input type="hidden" name="at_id_{{ forloop.counter0 }}" value="{{ at.id }}">{% endif %}
+                          {% if at.global_type_id %}<input type="hidden" name="at_global_id_{{ forloop.counter0 }}" value="{{ at.global_type_id }}">{% endif %}
                           <input type="text" value="{{ at.name }}"
-                                 class="form-control form-control-sm at-name" readonly>
+                                 class="form-control form-control-sm at-name" readonly
+                                 style="background: {{ at.color|default:'#e5e7eb' }}33; border-color: {{ at.color|default:'#d1d5db' }}; color: #374151; font-weight: 600;">
                           <input type="number" name="at_weight_{{ forloop.counter0 }}" value="{{ at.weight }}"
                                  class="form-control form-control-sm at-weight" min="0" max="100"
                                  onchange="updateTotal()">
@@ -631,7 +633,7 @@
                       {% endfor %}
                     {% else %}
                       <p class="text-muted small mb-0">
-                        Assignment types are managed in Settings. Save the course first, then edit weights here.
+                        No visible assignment types found in Settings. Add or unhide assignment types in Settings first.
                       </p>
                     {% endif %}
                   </div>
