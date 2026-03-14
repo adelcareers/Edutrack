@@ -5,7 +5,13 @@ from django.test import TestCase
 from django.urls import reverse
 
 from accounts.models import UserProfile
-from courses.models import AssignmentType, Course, CourseArchive
+from courses.models import (
+    AssignmentType,
+    Course,
+    CourseArchive,
+    GlobalAssignmentType,
+    sync_course_assignment_types_from_global,
+)
 from planning.models import (
     AssignmentPlanItem,
     CourseAssignmentTemplate,
@@ -127,3 +133,91 @@ class CourseHardDeleteArchiveTests(TestCase):
         )
         self.assertEqual(detail_response.status_code, 200)
         self.assertContains(detail_response, 'Archived Maths')
+
+
+class SingleSourceAssignmentTypeSyncTests(TestCase):
+    def setUp(self):
+        self.parent = User.objects.create_user(username='sync-parent', password='pw')
+        UserProfile.objects.create(user=self.parent, role='parent')
+        self.course = Course.objects.create(
+            parent=self.parent,
+            name='History',
+            use_assignment_weights=True,
+        )
+
+    def test_sync_creates_and_updates_course_assignment_types_from_global(self):
+        hw = GlobalAssignmentType.objects.create(
+            parent=self.parent,
+            name='Homework',
+            color='#9ca3af',
+            order=0,
+        )
+        quiz = GlobalAssignmentType.objects.create(
+            parent=self.parent,
+            name='Quiz',
+            color='#60a5fa',
+            order=1,
+        )
+
+        sync_course_assignment_types_from_global(self.course)
+        rows = list(
+            AssignmentType.objects
+            .filter(course=self.course)
+            .order_by('order', 'name')
+            .values_list('global_type_id', 'name', 'color', 'is_hidden')
+        )
+        self.assertEqual(
+            rows,
+            [
+                (hw.pk, 'Homework', '#9ca3af', False),
+                (quiz.pk, 'Quiz', '#60a5fa', False),
+            ],
+        )
+
+        hw.name = 'Practice'
+        hw.color = '#111111'
+        hw.is_hidden = True
+        hw.order = 2
+        hw.save()
+        quiz.delete()
+        lab = GlobalAssignmentType.objects.create(
+            parent=self.parent,
+            name='Lab',
+            color='#86efac',
+            order=0,
+        )
+
+        sync_course_assignment_types_from_global(self.course)
+        rows = list(
+            AssignmentType.objects
+            .filter(course=self.course)
+            .order_by('order', 'name')
+            .values_list('global_type_id', 'name', 'color', 'is_hidden')
+        )
+        self.assertEqual(
+            rows,
+            [
+                (lab.pk, 'Lab', '#86efac', False),
+                (hw.pk, 'Practice', '#111111', True),
+            ],
+        )
+
+    def test_sync_preserves_existing_weight_for_matched_rows(self):
+        gt = GlobalAssignmentType.objects.create(
+            parent=self.parent,
+            name='Homework',
+            color='#9ca3af',
+            order=0,
+        )
+        AssignmentType.objects.create(
+            course=self.course,
+            global_type=gt,
+            name='Homework',
+            color='#9ca3af',
+            weight=40,
+            order=0,
+        )
+
+        sync_course_assignment_types_from_global(self.course)
+        at = AssignmentType.objects.get(course=self.course, global_type=gt)
+        self.assertEqual(at.weight, 40)

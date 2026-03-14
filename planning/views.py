@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from accounts.decorators import role_required
-from courses.models import AssignmentType, Course, GlobalAssignmentType
+from courses.models import AssignmentType, Course, sync_course_assignment_types_from_global
 
 from .models import (
     AssignmentPlanItem,
@@ -47,24 +47,7 @@ def plan_course_view(request, course_id):
     weeks = list(range(1, course.duration_weeks + 1))
     days = list(range(1, min(course.frequency_days, 5) + 1))
 
-    if not AssignmentType.objects.filter(course=course).exists():
-        global_types = (
-            GlobalAssignmentType.objects
-            .filter(parent=request.user)
-            .order_by('order', 'name')
-        )
-        AssignmentType.objects.bulk_create([
-            AssignmentType(
-                course=course,
-                global_type=gt,
-                name=gt.name,
-                color=gt.color,
-                is_hidden=gt.is_hidden,
-                weight=0,
-                order=gt.order,
-            )
-            for gt in global_types
-        ])
+    sync_course_assignment_types_from_global(course)
 
     assignment_types = (
         AssignmentType.objects

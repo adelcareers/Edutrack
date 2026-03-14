@@ -25,8 +25,8 @@ from .models import (
     CourseArchive,
     CourseEnrollment,
     DEFAULT_ASSIGNMENT_TYPES,
-    GlobalAssignmentType,
     Subject,
+    sync_course_assignment_types_from_global,
 )
 
 
@@ -224,44 +224,8 @@ def course_new_view(request):
             course.parent = request.user
             course.save()
             form.save_m2m()
-
-            # Seed unified assignment types from parent settings when available.
-            global_types = list(
-                GlobalAssignmentType.objects
-                .filter(parent=request.user)
-                .order_by('order', 'name')
-            )
-            if global_types:
-                for gt in global_types:
-                    AssignmentType.objects.create(
-                        course=course,
-                        global_type=gt,
-                        name=gt.name,
-                        color=gt.color,
-                        is_hidden=gt.is_hidden,
-                        weight=0,
-                        order=gt.order,
-                    )
-            elif course.use_assignment_weights:
-                AssignmentType.objects.create(
-                    course=course,
-                    name='Homework',
-                    color='#9ca3af',
-                    weight=100,
-                    order=0,
-                )
-            else:
-                for i, name in enumerate(DEFAULT_ASSIGNMENT_TYPES):
-                    AssignmentType.objects.create(
-                        course=course,
-                        name=name,
-                        color='#9ca3af',
-                        weight=0,
-                        order=i,
-                    )
-
-            # Handle dynamically submitted assignment type rows
-            _save_assignment_types(request, course)
+            sync_course_assignment_types_from_global(course)
+            _save_assignment_weights(request, course)
 
             messages.success(request, f'Course "{course.name}" created.')
             return redirect('courses:course_detail', course_id=course.pk)
@@ -272,6 +236,7 @@ def course_new_view(request):
         'form': form,
         'editing': False,
         'default_assignment_types': DEFAULT_ASSIGNMENT_TYPES,
+        'assignment_types': [],
     })
 
 
@@ -282,6 +247,8 @@ def course_detail_view(request, course_id):
     except PermissionError:
         return HttpResponseForbidden('You do not have permission to view this course.')
 
+    sync_course_assignment_types_from_global(course)
+
     enrollments = (
         CourseEnrollment.objects
         .filter(course=course)
@@ -290,7 +257,7 @@ def course_detail_view(request, course_id):
     )
     active_enrollments = enrollments.filter(status='active')
     completed_enrollments = enrollments.filter(status='completed')
-    assignment_types = course.assignment_types.all()
+    assignment_types = course.assignment_types.filter(is_hidden=False)
 
     return render(request, 'courses/course_detail.html', {
         'course': course,
@@ -315,11 +282,14 @@ def course_edit_view(request, course_id):
         form = CourseForm(request.POST, request.FILES, instance=course, user=request.user)
         if form.is_valid():
             form.save()
-            _save_assignment_types(request, course)
+            sync_course_assignment_types_from_global(course)
+            _save_assignment_weights(request, course)
             messages.success(request, f'Course "{course.name}" updated.')
             return redirect('courses:course_detail', course_id=course.pk)
     else:
         form = CourseForm(instance=course, user=request.user)
+
+    sync_course_assignment_types_from_global(course)
 
     enrollments = (
         CourseEnrollment.objects
@@ -379,7 +349,11 @@ def course_edit_view(request, course_id):
         'course': course,
         'editing': True,
         'default_assignment_types': DEFAULT_ASSIGNMENT_TYPES,
-        'assignment_types': list(course.assignment_types.values('id', 'name', 'weight', 'order')),
+        'assignment_types': list(
+            course.assignment_types
+            .filter(is_hidden=False)
+            .values('id', 'name', 'weight', 'order')
+        ),
         'enrollments': enrollments,
         'active_enrollment_data': active_enrollment_data,
         'completed_enrollment_data': completed_enrollment_data,
@@ -632,59 +606,25 @@ def subject_list_view(request):
 # ── Private helpers ────────────────────────────────────────────────────────
 
 
-def _save_assignment_types(request, course):
-    """Parse dynamically submitted assignment-type rows from POST data.
-
-    Expects form fields named:
-      at_id_<N>     (existing pk, or '' for new)
-      at_name_<N>   (name string)
-      at_weight_<N> (int 0-100)
-    where N is an integer index.  Any existing types not included are deleted,
-    unless the form didn't submit any typed rows at all (which means the JS
-    form section wasn't present — we skip in that case).
-    """
-    # Detect if the JS-driven section was submitted
+def _save_assignment_weights(request, course):
+    """Persist only per-course weights for globally-defined assignment types."""
     indices = set()
     for key in request.POST:
-        if key.startswith('at_name_'):
+        if key.startswith('at_id_'):
             try:
-                idx = int(key.split('_')[-1])
-                indices.add(idx)
+                indices.add(int(key.split('_')[-1]))
             except ValueError:
-                pass
+                continue
 
-    if not indices:
-        return  # No assignment-type rows submitted — leave existing untouched
-
-    seen_ids = []
     for idx in sorted(indices):
-        name = request.POST.get(f'at_name_{idx}', '').strip()
-        weight_raw = request.POST.get(f'at_weight_{idx}', '0')
         at_id = request.POST.get(f'at_id_{idx}', '').strip()
-
-        if not name:
+        if not at_id:
             continue
 
+        weight_raw = request.POST.get(f'at_weight_{idx}', '0')
         try:
             weight = max(0, min(100, int(weight_raw)))
         except ValueError:
             weight = 0
 
-        if at_id:
-            try:
-                at = AssignmentType.objects.get(pk=int(at_id), course=course)
-                at.name = name
-                at.weight = weight
-                at.order = idx
-                at.save()
-                seen_ids.append(at.pk)
-            except (AssignmentType.DoesNotExist, ValueError):
-                pass
-        else:
-            at = AssignmentType.objects.create(
-                course=course, name=name, weight=weight, order=idx
-            )
-            seen_ids.append(at.pk)
-
-    # Remove types that were not in the submitted rows
-    course.assignment_types.exclude(pk__in=seen_ids).delete()
+        AssignmentType.objects.filter(pk=at_id, course=course).update(weight=weight)

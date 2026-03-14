@@ -621,34 +621,20 @@
                       {% for at in assignment_types %}
                         <div class="at-row" data-index="{{ forloop.counter0 }}">
                           {% if at.id %}<input type="hidden" name="at_id_{{ forloop.counter0 }}" value="{{ at.id }}">{% endif %}
-                          <input type="text" name="at_name_{{ forloop.counter0 }}" value="{{ at.name }}"
-                                 class="form-control form-control-sm at-name" placeholder="Type name…">
+                          <input type="text" value="{{ at.name }}"
+                                 class="form-control form-control-sm at-name" readonly>
                           <input type="number" name="at_weight_{{ forloop.counter0 }}" value="{{ at.weight }}"
                                  class="form-control form-control-sm at-weight" min="0" max="100"
                                  onchange="updateTotal()">
                           <span class="at-pct">%</span>
-                          <button type="button" class="btn-remove" onclick="removeAtRow(this)">
-                            <i class="bi bi-x-circle-fill"></i>
-                          </button>
                         </div>
                       {% endfor %}
                     {% else %}
-                      <div class="at-row" data-index="0">
-                        <input type="text" name="at_name_0" value="Homework"
-                               class="form-control form-control-sm at-name" placeholder="Type name…">
-                        <input type="number" name="at_weight_0" value="100"
-                               class="form-control form-control-sm at-weight" min="0" max="100"
-                               onchange="updateTotal()">
-                        <span class="at-pct">%</span>
-                        <button type="button" class="btn-remove" onclick="removeAtRow(this)">
-                          <i class="bi bi-x-circle-fill"></i>
-                        </button>
-                      </div>
+                      <p class="text-muted small mb-0">
+                        Assignment types are managed in Settings. Save the course first, then edit weights here.
+                      </p>
                     {% endif %}
                   </div>
-                  <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="addAtRow()">
-                    <i class="bi bi-plus-lg me-1"></i>Add Type
-                  </button>
                   <div class="total-weight-row mt-2">
                     Total <span id="totalWeightBadge" class="total-weight-badge ok">100%</span>
                   </div>
@@ -835,32 +821,6 @@ if (weightsCheckbox) {
   weightsCheckbox.addEventListener('change', function() {
     atBlock.style.display = this.checked ? '' : 'none';
   });
-}
-
-let atIndex = document.querySelectorAll('.at-row').length;
-
-function addAtRow() {
-  const row = document.createElement('div');
-  row.className = 'at-row';
-  row.dataset.index = atIndex;
-  row.innerHTML = `
-    <input type="text" name="at_name_${atIndex}" value=""
-           class="form-control form-control-sm at-name" placeholder="Type name…">
-    <input type="number" name="at_weight_${atIndex}" value="0"
-           class="form-control form-control-sm at-weight" min="0" max="100"
-           onchange="updateTotal()">
-    <span class="at-pct">%</span>
-    <button type="button" class="btn-remove" onclick="removeAtRow(this)">
-      <i class="bi bi-x-circle-fill"></i>
-    </button>`;
-  document.getElementById('atRows').appendChild(row);
-  atIndex++;
-  updateTotal();
-}
-
-function removeAtRow(btn) {
-  btn.closest('.at-row').remove();
-  updateTotal();
 }
 
 function updateTotal() {

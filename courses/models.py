@@ -201,6 +201,88 @@ class AssignmentType(models.Model):
         return f'{self.name} ({self.weight}%)'
 
 
+def sync_course_assignment_types_from_global(course):
+    """Sync a course's assignment types from the parent's global type list.
+
+    This enforces a single source of truth for type definitions (name/color/
+    visibility/order) while preserving course-specific weights.
+    """
+    global_types = list(
+        GlobalAssignmentType.objects
+        .filter(parent=course.parent)
+        .order_by('order', 'name')
+    )
+    global_ids = {gt.pk for gt in global_types}
+
+    existing = list(AssignmentType.objects.filter(course=course))
+    by_global_id = {at.global_type_id: at for at in existing if at.global_type_id}
+
+    # Legacy rows created before global linking can be adopted by name.
+    by_legacy_name = {}
+    for at in existing:
+        if at.global_type_id is None:
+            key = (at.name or '').strip().lower()
+            if key and key not in by_legacy_name:
+                by_legacy_name[key] = at
+
+    kept_ids = set()
+    for gt in global_types:
+        at = by_global_id.get(gt.pk)
+        if at is None:
+            at = by_legacy_name.get(gt.name.strip().lower())
+
+        if at is None:
+            at = AssignmentType.objects.create(
+                course=course,
+                global_type=gt,
+                name=gt.name,
+                color=gt.color,
+                is_hidden=gt.is_hidden,
+                weight=0,
+                order=gt.order,
+            )
+        else:
+            changed = []
+            if at.global_type_id != gt.pk:
+                at.global_type = gt
+                changed.append('global_type')
+            if at.name != gt.name:
+                at.name = gt.name
+                changed.append('name')
+            if at.color != gt.color:
+                at.color = gt.color
+                changed.append('color')
+            if at.is_hidden != gt.is_hidden:
+                at.is_hidden = gt.is_hidden
+                changed.append('is_hidden')
+            if at.order != gt.order:
+                at.order = gt.order
+                changed.append('order')
+            if changed:
+                at.save(update_fields=changed)
+
+        kept_ids.add(at.pk)
+
+    # Rows no longer represented by global settings are removed unless in use.
+    for at in existing:
+        if at.pk in kept_ids:
+            continue
+
+        has_templates = at.templates.exists()
+        if has_templates:
+            changed = []
+            if at.is_hidden is not True:
+                at.is_hidden = True
+                changed.append('is_hidden')
+            if at.global_type_id in global_ids or at.global_type_id is not None:
+                at.global_type = None
+                changed.append('global_type')
+            if changed:
+                at.save(update_fields=changed)
+        else:
+            at.delete()
+
+
 ENROLLMENT_STATUS_CHOICES = [
     ('active', 'Active'),
     ('completed', 'Completed'),
