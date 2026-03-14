@@ -14,6 +14,7 @@ from pathlib import Path
 from decouple import config, Csv
 import warnings
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,23 +23,34 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-# Use the configured secret if present; otherwise fall back to a clearly
-# insecure default so CI and local checks can run. Emit a warning when the
-# fallback is used to encourage setting a real secret in production.
-SECRET_KEY = config('DJANGO_SECRET_KEY', default=None)
-if not SECRET_KEY:
-    SECRET_KEY = 'insecure-default-for-ci'
-    warnings.warn(
-        'DJANGO_SECRET_KEY not set; using insecure default. '
-        'Set DJANGO_SECRET_KEY in environment for production.',
-        UserWarning,
-    )
-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DJANGO_DEBUG', cast=bool, default=False)
 
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = (config('DJANGO_SECRET_KEY', default='') or '').strip()
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = 'dev-only-insecure-secret-key-change-me'
+        warnings.warn(
+            'DJANGO_SECRET_KEY not set; using development-only fallback. '
+            'Set DJANGO_SECRET_KEY in environment for production.',
+            UserWarning,
+        )
+    else:
+        raise ImproperlyConfigured(
+            'DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is False.'
+        )
+
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv(), default="localhost,127.0.0.1")
+
+# Security defaults for production; configurable via env for edge cases.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', cast=bool, default=not DEBUG)
+SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', cast=bool, default=not DEBUG)
+CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', cast=bool, default=not DEBUG)
+SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', cast=int, default=31536000 if not DEBUG else 0)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = config('SECURE_HSTS_INCLUDE_SUBDOMAINS', cast=bool, default=not DEBUG)
+SECURE_HSTS_PRELOAD = config('SECURE_HSTS_PRELOAD', cast=bool, default=not DEBUG)
 
 
 # Application definition

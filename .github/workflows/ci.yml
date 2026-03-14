@@ -11,7 +11,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+      DJANGO_SECRET_KEY: ci-secret-key-for-testing-only-please-change-in-production-1234567890
+      DJANGO_DEBUG: "False"
+      ALLOWED_HOSTS: "localhost,127.0.0.1"
       # Use SQLite for CI — no database secret required.
       # Heroku uses its own DATABASE_URL config var at runtime.
       DATABASE_URL: "sqlite:////tmp/ci-test-db.sqlite3"
@@ -23,7 +25,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Set up Java (for html5 validator)
         uses: actions/setup-java@v4
@@ -49,19 +51,30 @@ jobs:
         run: |
           python manage.py check
 
+      - name: Run Django deploy checks
+        env:
+          SECURE_SSL_REDIRECT: "True"
+          SESSION_COOKIE_SECURE: "True"
+          CSRF_COOKIE_SECURE: "True"
+          SECURE_HSTS_SECONDS: "31536000"
+          SECURE_HSTS_INCLUDE_SUBDOMAINS: "True"
+          SECURE_HSTS_PRELOAD: "True"
+        run: |
+          python manage.py check --deploy --fail-level WARNING
+
       - name: Run tests
         run: |
           python manage.py test --verbosity=2
 
       - name: Code style checks
         run: |
-          black --check . || true
-          isort --check-only . || true
-          flake8 || true
+          black --check .
+          isort --check-only .
+          flake8
 
       - name: HTML validation (templates)
         run: |
-          html5validator --root templates/ || true
+          html5validator --root templates/
 
       - name: Run gitleaks scan
         uses: gitleaks/gitleaks-action@v2
