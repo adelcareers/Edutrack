@@ -1,0 +1,231 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Gradebook Detail | EduTrack{% endblock %}
+{% block nav_gradebooks %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .status-chip {
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    padding: 0.3rem 0.58rem;
+  }
+  .status-chip.status-pending {
+    background: #eef2ff;
+    color: #3730a3;
+    border: 1px solid #c7d2fe;
+  }
+  .status-chip.status-overdue {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+  }
+  .status-chip.status-complete {
+    background: #ecfdf5;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h4 mb-1">{{ enrollment.child.first_name }} - {{ enrollment.course.name }}</h1>
+      <div class="text-muted small">
+        Grade: {{ summary.final_percent }}% ({{ summary.letter_grade|default:'-' }})
+      </div>
+    </div>
+    <a href="{% url 'reports:gradebook_list' %}" class="btn btn-outline-secondary btn-sm">Back</a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card h-100"><div class="card-body"><div class="text-muted small">Graded</div><div class="h5 mb-0">{{ summary.graded_assignments_count }}</div></div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card h-100"><div class="card-body"><div class="text-muted small">Total</div><div class="h5 mb-0">{{ summary.total_assignments_count }}</div></div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card h-100"><div class="card-body"><div class="text-muted small">Missing</div><div class="h5 mb-0">{{ summary.missing_assignments_count }}</div></div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card h-100"><div class="card-body"><div class="text-muted small">Late</div><div class="h5 mb-0">{{ summary.late_assignments_count }}</div></div></div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center gap-2 flex-wrap">
+      <strong>Assignment Grades</strong>
+      <form method="get" class="d-flex align-items-center gap-2">
+        <label class="small text-muted" for="sort-select">Sort</label>
+        <select class="form-select form-select-sm" id="sort-select" name="sort" style="width: 160px;">
+          <option value="due" {% if sort_by == 'due' %}selected{% endif %}>Due Date</option>
+          <option value="status" {% if sort_by == 'status' %}selected{% endif %}>Status</option>
+          <option value="type" {% if sort_by == 'type' %}selected{% endif %}>Type</option>
+          <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Assignment Name</option>
+          <option value="percent" {% if sort_by == 'percent' %}selected{% endif %}>Percent</option>
+        </select>
+        <select class="form-select form-select-sm" name="order" style="width: 110px;">
+          <option value="asc" {% if sort_order == 'asc' %}selected{% endif %}>Asc</option>
+          <option value="desc" {% if sort_order == 'desc' %}selected{% endif %}>Desc</option>
+        </select>
+        <button type="submit" class="btn btn-sm btn-outline-secondary">Apply</button>
+      </form>
+    </div>
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Assignment</th>
+            <th>Type</th>
+            <th>Due</th>
+            <th>Status</th>
+            <th>Percent</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for assignment in assignments %}
+          <tr
+            class="gradebook-row"
+            role="button"
+            tabindex="0"
+            data-assignment-id="{{ assignment.id }}"
+            data-assignment-name="{{ assignment.plan_item.template.name|escape }}"
+            data-assignment-type="{{ assignment.plan_item.template.assignment_type.name|escape }}"
+            data-assignment-course="{{ enrollment.course.name|escape }}"
+            data-status="{{ assignment.status }}"
+            data-score="{{ assignment.score|default:'' }}"
+            data-points="{{ assignment.points_available|default:'' }}"
+            data-percent="{{ assignment.score_percent|default:'' }}"
+            data-due-date="{{ assignment.due_date|date:'Y-m-d' }}"
+            data-display-status="{{ assignment.display_status }}"
+            data-edit-url="{{ assignment.edit_url }}"
+            data-notes="{{ assignment.grading_notes|default:''|escape }}"
+          >
+            <td>{{ assignment.plan_item.template.name }}</td>
+            <td>
+              <span class="badge text-bg-secondary">
+                {{ assignment.plan_item.template.assignment_type.name }}
+              </span>
+            </td>
+            <td>{{ assignment.due_date }}</td>
+            <td>
+              {% if assignment.display_status == 'complete' %}
+                <span class="status-chip status-complete">Complete</span>
+              {% elif assignment.display_status == 'overdue' %}
+                <span class="status-chip status-overdue">Overdue</span>
+              {% else %}
+                <span class="status-chip status-pending">Pending</span>
+              {% endif %}
+            </td>
+            <td>{{ assignment.effective_percent }}%</td>
+            <td class="text-end text-muted small">Open</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-muted">
+              No assignments yet for this enrollment.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="gradeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title" id="gradeModalTitle">Assignment</h5>
+          <div class="small text-muted" id="gradeModalSubTitle"></div>
+        </div>
+        <span class="badge ms-2" id="gradeModalStatusBadge">Pending</span>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" id="gradeModalForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_modal">
+        <input type="hidden" name="assignment_id" id="gradeAssignmentId">
+
+        <div class="modal-body">
+          <ul class="nav nav-tabs mb-3" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-grade" type="button" role="tab">Grade</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-comments" type="button" role="tab">Comments</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-submissions" type="button" role="tab">Submissions</button>
+            </li>
+          </ul>
+
+          <div class="tab-content">
+            <div class="tab-pane fade show active" id="tab-grade" role="tabpanel">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label">Status</label>
+                  <select class="form-select" name="status" id="gradeStatusInput">
+                    <option value="pending">Pending</option>
+                    <option value="complete">Complete</option>
+                    <option value="overdue">Overdue</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Due Date</label>
+                  <input type="date" class="form-control" name="due_date" id="gradeDueDateInput">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                  <a href="#" class="btn btn-outline-secondary w-100" id="gradeEditLink" target="_blank">
+                    Edit Assignment Details
+                  </a>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Points Earned</label>
+                  <input type="number" step="0.01" min="0" name="score" id="gradeScoreInput" class="form-control">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Points Available</label>
+                  <input type="number" step="0.01" min="0" name="points_available" id="gradePointsInput" class="form-control">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Percent</label>
+                  <input type="number" step="0.01" min="0" max="100" name="score_percent" id="gradePercentInput" class="form-control">
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Grading Notes</label>
+                  <textarea class="form-control" rows="3" name="grading_notes" id="gradeNotesInput"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-pane fade" id="tab-comments" role="tabpanel">
+              <p class="text-muted mb-0">Comments workflow placeholder: teacher/parent feedback thread will be integrated here.</p>
+            </div>
+
+            <div class="tab-pane fade" id="tab-submissions" role="tabpanel">
+              <p class="text-muted mb-0">Submissions workflow placeholder: assignment evidence and uploads will appear in this tab.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="{% static 'js/gradebook.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+
+{% block title %}Transcript | EduTrack{% endblock %}
+{% block nav_gradebooks %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .status-chip {
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    padding: 0.3rem 0.58rem;
+  }
+  .status-chip.status-pending {
+    background: #eef2ff;
+    color: #3730a3;
+    border: 1px solid #c7d2fe;
+  }
+  .status-chip.status-overdue {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+  }
+  .status-chip.status-complete {
+    background: #ecfdf5;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h4 mb-1">Transcript - {{ child.first_name }}</h1>
+      <div class="text-muted small">Academic summary across all enrolled courses</div>
+    </div>
+    <a
+      href="{% url 'reports:gradebook_transcript' child.id %}?format=pdf"
+      class="btn btn-outline-secondary btn-sm"
+    >
+      Export PDF
+    </a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card h-100"><div class="card-body"><div class="text-muted small">Overall Percent</div><div class="h5 mb-0">{{ overall_percent }}%</div></div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card h-100"><div class="card-body"><div class="text-muted small">Overall GPA</div><div class="h5 mb-0">{{ overall_gpa }}</div></div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card h-100"><div class="card-body"><div class="text-muted small">Missing</div><div class="h5 mb-0">{{ total_missing }}</div></div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card h-100"><div class="card-body"><div class="text-muted small">Late</div><div class="h5 mb-0">{{ total_late }}</div></div></div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-white"><strong>Course Totals</strong></div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0 align-middle">
+        <thead>
+          <tr>
+            <th>Course</th>
+            <th>Credits</th>
+            <th>Final %</th>
+            <th>Letter</th>
+            <th>GPA</th>
+            <th>Assignment-Type Breakdown</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in transcript_rows %}
+          <tr>
+            <td>{{ row.enrollment.course.name }}</td>
+            <td>{{ row.credits }}</td>
+            <td>{{ row.summary.final_percent }}%</td>
+            <td>{{ row.summary.letter_grade|default:'-' }}</td>
+            <td>{{ row.summary.gpa_points|default:'0.00' }}</td>
+            <td>
+              {% for type_name, stats in row.summary.assignment_type_breakdown.items %}
+                <span class="badge text-bg-light me-1 mb-1">
+                  {{ type_name }}: {{ stats.average_percent }}% ({{ stats.count }})
+                </span>
+              {% empty %}
+                <span class="text-muted">-</span>
+              {% endfor %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="text-muted">No course grade records yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-header bg-white"><strong>Per-Assignment Rows</strong></div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0 align-middle">
+        <thead>
+          <tr>
+            <th>Course</th>
+            <th>Assignment</th>
+            <th>Type</th>
+            <th>Due Date</th>
+            <th>Status</th>
+            <th>Score</th>
+            <th>Points</th>
+            <th>Percent</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in assignment_rows %}
+          <tr>
+            <td>{{ row.course }}</td>
+            <td>{{ row.name }}</td>
+            <td>{{ row.type }}</td>
+            <td>{{ row.due_date }}</td>
+            <td>
+              {% if row.status == 'complete' %}
+                <span class="status-chip status-complete">Complete</span>
+              {% elif row.status == 'overdue' %}
+                <span class="status-chip status-overdue">Overdue</span>
+              {% else %}
+                <span class="status-chip status-pending">Pending</span>
+              {% endif %}
+            </td>
+            <td>{{ row.score|default:'-' }}</td>
+            <td>{{ row.points_available|default:'-' }}</td>
+            <td>{{ row.percent }}%</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" class="text-muted">No assignment records yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -192,6 +192,14 @@ class AssignmentType(models.Model):
         default=0,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
     )
+    default_points_available = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        help_text='Default points available for assignments of this type.',
+    )
     order = models.IntegerField(default=0)
 
     class Meta:
