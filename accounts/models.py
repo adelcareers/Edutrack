@@ -12,6 +12,7 @@ class UserProfile(models.Model):
 
     ROLE_CHOICES = [
         ("parent", "Parent"),
+        ("teacher", "Teacher"),
         ("student", "Student"),
         ("admin", "Admin"),
     ]

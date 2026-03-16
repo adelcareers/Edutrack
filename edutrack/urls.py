@@ -28,8 +28,7 @@ def home(request):
 def root_redirect(request):
     """Redirect authenticated users to their role's landing page.
 
-    - parent  → /dashboard/
-    - student → /calendar/  (S2.1)
+    - parent/teacher/student → /home/
     - others / unauthenticated → home page
     """
     if request.user.is_authenticated:
@@ -37,10 +36,8 @@ def root_redirect(request):
             role = request.user.profile.role
         except AttributeError:
             role = None
-        if role == "parent":
-            return redirect("scheduler:child_list")
-        if role == "student":
-            return redirect("/calendar/")
+        if role in {"parent", "student", "teacher"}:
+            return redirect("tracker:home_assignments")
     return render(request, "home.html")
 
 

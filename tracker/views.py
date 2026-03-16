@@ -2,15 +2,16 @@ import datetime
 import uuid
 
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from accounts.decorators import role_required
 from accounts.models import ParentSettings
+from courses.models import AssignmentType, Course, Subject
 from planning.models import StudentAssignment
-from scheduler.models import ScheduledLesson, Vacation
+from scheduler.models import Child, ScheduledLesson, Vacation
 from tracker.models import EvidenceFile, LessonLog
 
 
@@ -30,6 +31,167 @@ def _effective_assignment_status(assignment, today=None):
     if assignment.due_date < today:
         return "overdue"
     return "incomplete"
+
+
+def _due_text(due_date, today):
+    """Return human-readable due text for assignment cards."""
+    delta = (due_date - today).days
+    if delta == 0:
+        return "Due today"
+    if delta == 1:
+        return "Due tomorrow"
+    if delta > 1:
+        return f"Due in {delta} days"
+    if delta == -1:
+        return "Due yesterday"
+    return f"Due {abs(delta)} days ago"
+
+
+def _safe_int(raw_value):
+    try:
+        return int(raw_value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _base_assignment_queryset_for_role(user, role):
+    """Return active student assignments visible to the requesting user."""
+    queryset = StudentAssignment.objects.filter(enrollment__status="active")
+    if role == "student":
+        child = getattr(user, "child_profile", None)
+        if child is None:
+            return StudentAssignment.objects.none()
+        return queryset.filter(enrollment__child=child)
+
+    if role in {"parent", "teacher"}:
+        return queryset.filter(enrollment__course__parent=user)
+
+    return StudentAssignment.objects.none()
+
+
+@login_required
+def home_assignments_view(request):
+    """Render a three-column, role-aware assignments dashboard for Home."""
+    role = getattr(getattr(request.user, "profile", None), "role", None)
+    if role not in {"parent", "student", "teacher"}:
+        return HttpResponseForbidden("You do not have permission to access this page.")
+
+    today = timezone.localdate()
+    scoped_qs = (
+        _base_assignment_queryset_for_role(request.user, role)
+        .select_related(
+            "enrollment__child",
+            "enrollment__course",
+            "plan_item__template",
+            "plan_item__template__assignment_type",
+        )
+        .order_by("due_date", "id")
+    )
+
+    total_count = scoped_qs.count()
+
+    selected_student_id = _safe_int(request.GET.get("student"))
+    selected_course_id = _safe_int(request.GET.get("course"))
+    selected_subject_id = _safe_int(request.GET.get("subject"))
+    selected_type_id = _safe_int(request.GET.get("assignment_type"))
+    selected_status = (request.GET.get("status") or "").strip().lower()
+    hide_completed = request.GET.get("hide_completed", "1") in {"1", "true", "on"}
+    selected_assignment_id = _safe_int(request.GET.get("selected"))
+
+    if role in {"parent", "teacher"} and selected_student_id:
+        scoped_qs = scoped_qs.filter(enrollment__child_id=selected_student_id)
+    if selected_course_id:
+        scoped_qs = scoped_qs.filter(enrollment__course_id=selected_course_id)
+    if selected_subject_id:
+        scoped_qs = scoped_qs.filter(
+            enrollment__course__subjects__id=selected_subject_id
+        )
+    if selected_type_id:
+        scoped_qs = scoped_qs.filter(
+            plan_item__template__assignment_type_id=selected_type_id
+        )
+
+    scoped_qs = scoped_qs.distinct()
+    assignments = list(scoped_qs)
+    for assignment in assignments:
+        assignment.effective_status = _effective_assignment_status(
+            assignment, today=today
+        )
+        assignment.due_text = _due_text(assignment.due_date, today)
+
+    if selected_status in {"done", "incomplete", "overdue"}:
+        assignments = [a for a in assignments if a.effective_status == selected_status]
+    if hide_completed:
+        assignments = [a for a in assignments if a.effective_status != "done"]
+
+    base_query = request.GET.copy()
+    if "selected" in base_query:
+        del base_query["selected"]
+    for assignment in assignments:
+        assignment_query = base_query.copy()
+        assignment_query["selected"] = str(assignment.pk)
+        assignment.select_url = f"?{assignment_query.urlencode()}"
+
+    selected_assignment = None
+    if selected_assignment_id is not None:
+        selected_assignment = next(
+            (a for a in assignments if a.pk == selected_assignment_id),
+            None,
+        )
+
+    base_options_qs = _base_assignment_queryset_for_role(request.user, role)
+    student_options = []
+    if role in {"parent", "teacher"}:
+        student_options = list(
+            Child.objects.filter(course_enrollments__assignments__in=base_options_qs)
+            .distinct()
+            .order_by("first_name")
+        )
+
+    course_options = list(
+        Course.objects.filter(enrollments__assignments__in=base_options_qs)
+        .distinct()
+        .order_by("name")
+    )
+    subject_options = list(
+        Subject.objects.filter(courses__enrollments__assignments__in=base_options_qs)
+        .distinct()
+        .order_by("name")
+    )
+    type_options = list(
+        AssignmentType.objects.filter(
+            templates__plan_items__student_assignments__in=base_options_qs
+        )
+        .distinct()
+        .order_by("name")
+    )
+
+    selected_label = None
+    if selected_assignment is not None:
+        selected_label = selected_assignment.effective_status.replace("_", " ").title()
+
+    return render(
+        request,
+        "tracker/home_assignments.html",
+        {
+            "role": role,
+            "assignments": assignments,
+            "selected_assignment": selected_assignment,
+            "selected_status_label": selected_label,
+            "total_count": total_count,
+            "filtered_count": len(assignments),
+            "student_options": student_options,
+            "course_options": course_options,
+            "subject_options": subject_options,
+            "type_options": type_options,
+            "selected_student_id": selected_student_id,
+            "selected_course_id": selected_course_id,
+            "selected_subject_id": selected_subject_id,
+            "selected_type_id": selected_type_id,
+            "selected_status": selected_status,
+            "hide_completed": hide_completed,
+        },
+    )
 
 
 def _build_calendar_context(
@@ -177,8 +339,8 @@ def _can_access_student_assignment(user, assignment):
     if profile is None:
         return False
 
-    if profile.role == "parent":
-        return assignment.enrollment.child.parent_id == user.pk
+    if profile.role in {"parent", "teacher"}:
+        return assignment.enrollment.course.parent_id == user.pk
 
     if profile.role == "student":
         child = getattr(user, "child_profile", None)

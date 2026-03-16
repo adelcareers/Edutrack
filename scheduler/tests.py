@@ -866,7 +866,7 @@ class ParentDashboardTests(TestCase):
     def test_root_redirects_parent_to_dashboard(self):
         self.client.force_login(self.parent)
         response = self.client.get("/")
-        self.assertRedirects(response, self.url)
+        self.assertRedirects(response, reverse("tracker:home_assignments"))
 
     def test_root_shows_home_for_unauthenticated(self):
         response = self.client.get("/")

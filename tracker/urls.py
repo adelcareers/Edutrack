@@ -5,6 +5,7 @@ from . import views
 app_name = "tracker"
 
 urlpatterns = [
+    path("home/", views.home_assignments_view, name="home_assignments"),
     path("calendar/", views.calendar_view, name="calendar"),
     path("calendar/<int:year>/<int:week>/", views.calendar_view, name="calendar_week"),
     path("calendar/export.ics", views.export_ical_view, name="export_ical"),

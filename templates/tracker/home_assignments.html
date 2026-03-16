@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+
+{% block title %}Home | EduTrack{% endblock %}
+{% block nav_home %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  :root {
+    --card-bg: #ffffff;
+    --line: #e5e7eb;
+    --muted: #6b7280;
+    --text: #111827;
+    --brand: #4f46e5;
+    --brand-soft: #e0e7ff;
+  }
+
+  .home-grid {
+    display: grid;
+    grid-template-columns: 320px minmax(360px, 1fr) minmax(380px, 1fr);
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .panel {
+    background: var(--card-bg);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+  }
+
+  .panel-head {
+    padding: 1rem 1.1rem 0.7rem;
+    border-bottom: 1px solid var(--line);
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .filters-body {
+    padding: 1rem 1.1rem;
+  }
+
+  .filter-label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: #374151;
+  }
+
+  .filter-block {
+    margin-bottom: 0.9rem;
+  }
+
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0.4rem 0 0.8rem;
+    font-size: 0.95rem;
+    color: #374151;
+  }
+
+  .list-panel {
+    min-height: 72vh;
+  }
+
+  .list-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.1rem 0.8rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .list-title {
+    margin: 0;
+    font-size: 1.85rem;
+    line-height: 1;
+    color: #1f2937;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .list-count {
+    font-size: 0.9rem;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  .assignment-list {
+    padding: 0.8rem;
+    max-height: calc(100vh - 170px);
+    overflow: auto;
+  }
+
+  .assignment-card {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 0.85rem 0.95rem;
+    margin-bottom: 0.7rem;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .assignment-card:hover {
+    border-color: #c7d2fe;
+    box-shadow: 0 5px 20px rgba(99, 102, 241, 0.08);
+  }
+
+  .assignment-card.is-active {
+    border-color: var(--brand);
+    box-shadow: inset 3px 0 0 var(--brand);
+    background: #fbfcff;
+  }
+
+  .assignment-name {
+    font-size: 1.04rem;
+    font-weight: 700;
+    color: #1f2937;
+  }
+
+  .assignment-meta {
+    margin-top: 0.2rem;
+    font-size: 0.9rem;
+    color: #4b5563;
+  }
+
+  .pill-row {
+    margin-top: 0.55rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .pill {
+    padding: 0.25rem 0.72rem;
+    border-radius: 999px;
+    font-size: 0.79rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .pill-grade {
+    background: #4338ca;
+    color: #fff;
+  }
+
+  .pill-type {
+    color: #0f172a;
+    background: #dbeafe;
+  }
+
+  .pill-status-done {
+    color: #166534;
+    background: #dcfce7;
+  }
+
+  .pill-status-overdue {
+    color: #b91c1c;
+    background: #fee2e2;
+  }
+
+  .pill-status-incomplete {
+    color: #334155;
+    background: #e2e8f0;
+  }
+
+  .detail-panel {
+    min-height: 72vh;
+  }
+
+  .detail-empty {
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9ca3af;
+    font-size: 1.05rem;
+    font-style: italic;
+    text-align: center;
+    padding: 0 1rem;
+  }
+
+  .detail-body {
+    padding: 1.1rem 1.2rem 1.3rem;
+  }
+
+  .detail-title {
+    font-size: 2rem;
+    line-height: 1;
+    font-weight: 800;
+    color: #1f2937;
+    margin-bottom: 0.9rem;
+  }
+
+  .detail-line {
+    margin-bottom: 0.65rem;
+    font-size: 0.95rem;
+    color: #374151;
+  }
+
+  .detail-label {
+    color: #6b7280;
+    font-weight: 600;
+    margin-right: 0.25rem;
+  }
+
+  .detail-note {
+    margin-top: 1rem;
+    border-top: 1px solid var(--line);
+    padding-top: 0.9rem;
+    white-space: pre-wrap;
+    color: #334155;
+  }
+
+  @media (max-width: 1199px) {
+    .home-grid {
+      grid-template-columns: 280px minmax(320px, 1fr);
+    }
+    .detail-panel {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .home-grid {
+      grid-template-columns: 1fr;
+    }
+    .list-panel,
+    .detail-panel {
+      min-height: auto;
+    }
+    .assignment-list {
+      max-height: none;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-lg-4 py-4">
+  <div class="home-grid">
+    <aside class="panel">
+      <div class="panel-head">Filters</div>
+      <div class="filters-body">
+        <form method="get" id="assignmentFilterForm">
+          {% if role == 'parent' or role == 'teacher' %}
+          <div class="filter-block">
+            <label class="filter-label" for="studentFilter">Students</label>
+            <select id="studentFilter" name="student" class="form-select">
+              <option value="">All Students</option>
+              {% for student in student_options %}
+              <option value="{{ student.id }}" {% if selected_student_id == student.id %}selected{% endif %}>{{ student.first_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+
+          <div class="filter-block">
+            <label class="filter-label" for="courseFilter">Courses</label>
+            <select id="courseFilter" name="course" class="form-select">
+              <option value="">All Courses</option>
+              {% for course in course_options %}
+              <option value="{{ course.id }}" {% if selected_course_id == course.id %}selected{% endif %}>{{ course.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="filter-block">
+            <label class="filter-label" for="subjectFilter">Subjects</label>
+            <select id="subjectFilter" name="subject" class="form-select">
+              <option value="">All Subjects</option>
+              {% for subject in subject_options %}
+              <option value="{{ subject.id }}" {% if selected_subject_id == subject.id %}selected{% endif %}>{{ subject.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="filter-block">
+            <label class="filter-label" for="typeFilter">Assignment Type</label>
+            <select id="typeFilter" name="assignment_type" class="form-select">
+              <option value="">All Types</option>
+              {% for assignment_type in type_options %}
+              <option value="{{ assignment_type.id }}" {% if selected_type_id == assignment_type.id %}selected{% endif %}>{{ assignment_type.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="filter-block">
+            <label class="filter-label" for="statusFilter">Assignment Status</label>
+            <select id="statusFilter" name="status" class="form-select">
+              <option value="" {% if not selected_status %}selected{% endif %}>All Statuses</option>
+              <option value="incomplete" {% if selected_status == 'incomplete' %}selected{% endif %}>Incomplete</option>
+              <option value="overdue" {% if selected_status == 'overdue' %}selected{% endif %}>Overdue</option>
+              <option value="done" {% if selected_status == 'done' %}selected{% endif %}>Completed</option>
+            </select>
+          </div>
+
+          <label class="checkbox-row">
+            <input type="checkbox" name="hide_completed" value="1" {% if hide_completed %}checked{% endif %}>
+            Hide Completed
+          </label>
+
+          <div class="d-grid gap-2 mt-3">
+            <button type="submit" class="btn btn-primary">Apply Filters</button>
+            <a href="{% url 'tracker:home_assignments' %}" class="btn btn-light border">Reset Filters</a>
+          </div>
+        </form>
+      </div>
+    </aside>
+
+    <section class="panel list-panel">
+      <div class="list-head">
+        <h2 class="list-title">Active Assignments</h2>
+        <span class="list-count">{{ filtered_count }} of {{ total_count }}</span>
+      </div>
+      <div class="assignment-list">
+        {% for assignment in assignments %}
+        <a href="{{ assignment.select_url }}" class="assignment-card {% if selected_assignment and selected_assignment.id == assignment.id %}is-active{% endif %}">
+          <div class="assignment-name">{{ assignment.plan_item.template.name }}</div>
+          <div class="assignment-meta">{{ assignment.due_text }}</div>
+          <div class="pill-row">
+            <span class="pill pill-grade">{{ assignment.enrollment.child.school_year }}</span>
+            <span class="pill pill-type" style="background: {{ assignment.plan_item.template.assignment_type.color }}33;">{{ assignment.plan_item.template.assignment_type.name }}</span>
+            <span class="pill pill-status-{{ assignment.effective_status }}">{{ assignment.effective_status|title }}</span>
+          </div>
+        </a>
+        {% empty %}
+        <div class="text-muted p-3">No assignments match your current filters.</div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="panel detail-panel">
+      {% if selected_assignment %}
+      <div class="panel-head">Assignment Details</div>
+      <div class="detail-body">
+        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+          <h3 class="detail-title">{{ selected_assignment.plan_item.template.name }}</h3>
+          {% if selected_status_label %}
+          <span class="pill pill-status-{{ selected_assignment.effective_status }}">{{ selected_status_label }}</span>
+          {% endif %}
+        </div>
+
+        <div class="detail-line"><span class="detail-label">Course:</span>{{ selected_assignment.enrollment.course.name }}</div>
+        <div class="detail-line"><span class="detail-label">Student:</span>{{ selected_assignment.enrollment.child.first_name }}</div>
+        <div class="detail-line"><span class="detail-label">Type:</span>{{ selected_assignment.plan_item.template.assignment_type.name }}</div>
+        <div class="detail-line"><span class="detail-label">Due date:</span>{{ selected_assignment.due_date|date:"D, M j, Y" }}</div>
+        <div class="detail-line"><span class="detail-label">Status:</span>{{ selected_assignment.effective_status|title }}</div>
+
+        {% if selected_assignment.plan_item.notes %}
+        <div class="detail-note">
+          <strong>Notes</strong><br>
+          {{ selected_assignment.plan_item.notes }}
+        </div>
+        {% endif %}
+      </div>
+      {% else %}
+      <div class="detail-empty">Select an assignment to see details</div>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

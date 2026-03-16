@@ -11,11 +11,8 @@ from django.urls import reverse
 from accounts.models import UserProfile
 from courses.models import AssignmentType, Course
 from curriculum.models import Lesson
-from planning.models import (
-    AssignmentPlanItem,
-    CourseAssignmentTemplate,
-    StudentAssignment,
-)
+from planning.models import (AssignmentPlanItem, CourseAssignmentTemplate,
+                             StudentAssignment)
 from scheduler.models import Child, EnrolledSubject, ScheduledLesson
 from tracker.models import EvidenceFile, LessonLog
 
@@ -1565,3 +1562,102 @@ class AssignmentCalendarEndpointTests(TestCase):
         self.assignment.refresh_from_db()
         self.assertEqual(self.assignment.status, "pending")
         self.assertEqual(response.json()["status"], "overdue")
+
+
+class HomeAssignmentsDashboardTests(TestCase):
+    URL = "tracker:home_assignments"
+
+    def setUp(self):
+        self.parent = _make_parent(username="home_parent")
+        self.student = _make_student(username="home_student")
+        self.child = _make_child(
+            self.parent,
+            first_name="Amina",
+            student_user=self.student,
+        )
+
+        self.teacher = User.objects.create_user(
+            username="home_teacher", password="TestPass123!"
+        )
+        UserProfile.objects.create(user=self.teacher, role="teacher")
+
+        self.course = Course.objects.create(
+            parent=self.parent,
+            name="Mathematics",
+            duration_weeks=10,
+            frequency_days=3,
+        )
+        self.enrollment = self.course.enrollments.create(
+            child=self.child,
+            start_date=datetime.date(2026, 1, 6),
+            days_of_week="0,2,4",
+            status="active",
+        )
+        self.assignment_type = AssignmentType.objects.create(
+            course=self.course,
+            name="Quiz",
+            color="#9ca3af",
+            order=0,
+        )
+        self.template = CourseAssignmentTemplate.objects.create(
+            course=self.course,
+            assignment_type=self.assignment_type,
+            name="Algebra Quiz",
+            description="Answer all questions",
+            is_graded=True,
+            due_offset_days=0,
+            order=0,
+        )
+        self.plan_item = AssignmentPlanItem.objects.create(
+            course=self.course,
+            template=self.template,
+            week_number=1,
+            day_number=2,
+            due_in_days=0,
+            order=0,
+            notes="Bring a calculator",
+        )
+        self.assignment = StudentAssignment.objects.create(
+            enrollment=self.enrollment,
+            plan_item=self.plan_item,
+            due_date=datetime.date.today(),
+            status="pending",
+        )
+
+    def test_parent_sees_assignments_dashboard(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(reverse(self.URL))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "tracker/home_assignments.html")
+        self.assertContains(response, "Active Assignments")
+        self.assertContains(response, "Algebra Quiz")
+
+    def test_student_only_sees_own_assignments(self):
+        self.client.force_login(self.student)
+        response = self.client.get(reverse(self.URL))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Algebra Quiz")
+
+    def test_selected_assignment_renders_details_panel(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(
+            reverse(self.URL),
+            {"selected": self.assignment.pk},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Assignment Details")
+        self.assertContains(response, "Bring a calculator")
+
+    def test_status_filter_done_hides_pending_assignment(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(
+            reverse(self.URL),
+            {"status": "done", "hide_completed": "0"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "No assignments match your current filters")
+
+    def test_teacher_has_access_to_home_dashboard(self):
+        self.client.force_login(self.teacher)
+        response = self.client.get(reverse(self.URL))
+        self.assertEqual(response.status_code, 200)
