@@ -148,6 +148,7 @@
   .status-pill.pending { background: #e5e7eb; color: #6b7280; }
   .status-pill.complete { background: #dcfce7; color: #16a34a; }
   .status-pill.overdue { background: #fee2e2; color: #dc2626; }
+  .status-pill.not-assigned { background: #f3f4f6; color: #9ca3af; }
   .assignment-actions {
     display: inline-flex;
     align-items: center;
@@ -488,7 +489,7 @@
             <input type="hidden" name="assign_enrollment_selection_present" value="1">
             {% if enrollment_rows %}
               {% for row in enrollment_rows %}
-                <div class="student-row">
+                <div class="student-row" data-has-assignment="{% if row.student_assignment %}1{% else %}0{% endif %}">
                   <div class="student-meta">
                     <label class="d-inline-flex align-items-center gap-2 mb-0">
                       <input
@@ -511,7 +512,7 @@
                     {% if row.student_assignment %}
                       <span class="status-pill {{ row.student_assignment.status }}">{{ row.student_assignment.status }}</span>
                     {% else %}
-                      <span class="status-pill pending">pending</span>
+                      <span class="status-pill not-assigned student-status-pill">not assigned</span>
                     {% endif %}
                     <select
                       class="form-select student-status-select"
@@ -594,6 +595,8 @@
     document.querySelectorAll('.student-assign-toggle').forEach((toggle) => {
       const row = toggle.closest('.student-row');
       const statusSelect = row ? row.querySelector('.student-status-select') : null;
+      const statusPill = row ? row.querySelector('.student-status-pill') : null;
+      const hasAssignment = row && row.dataset.hasAssignment === '1';
 
       const applyState = () => {
         if (!row) {
@@ -601,7 +604,19 @@
         }
         row.style.opacity = toggle.checked ? '1' : '0.55';
         if (statusSelect) {
-          statusSelect.disabled = !toggle.checked;
+          statusSelect.disabled = !toggle.checked || !hasAssignment;
+        }
+
+        if (statusPill && !hasAssignment) {
+          if (toggle.checked) {
+            statusPill.textContent = 'pending';
+            statusPill.classList.remove('not-assigned');
+            statusPill.classList.add('pending');
+          } else {
+            statusPill.textContent = 'not assigned';
+            statusPill.classList.remove('pending');
+            statusPill.classList.add('not-assigned');
+          }
         }
       };
 

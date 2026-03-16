@@ -153,3 +153,60 @@ class StudentAssignmentSelectionTests(TestCase):
                 enrollment=self.enrollment_two,
             ).exists()
         )
+
+    def test_edit_assignment_can_add_student_assignment(self):
+        response = self.client.get(reverse('planning:plan_course', args=[self.course.pk]))
+        self.assertEqual(response.status_code, 200)
+        assignment_type = response.context['assignment_types'].first()
+
+        template = CourseAssignmentTemplate.objects.create(
+            course=self.course,
+            assignment_type=assignment_type,
+            name='Essay 1',
+            due_offset_days=0,
+            order=0,
+        )
+        plan_item = AssignmentPlanItem.objects.create(
+            course=self.course,
+            template=template,
+            week_number=1,
+            day_number=1,
+            due_in_days=0,
+            order=0,
+        )
+
+        StudentAssignment.objects.create(
+            enrollment=self.enrollment_one,
+            plan_item=plan_item,
+            due_date=datetime.date(2026, 1, 6),
+            status='pending',
+        )
+
+        post_data = {
+            'plan_item_id': str(plan_item.pk),
+            'assignment_name': 'Essay 1',
+            'assignment_type': str(assignment_type.pk),
+            'week_number': '1',
+            'day_number': '1',
+            'due_in_days': '0',
+            'description': '',
+            'teacher_notes': '',
+            'assign_enrollment_selection_present': '1',
+            'assign_enrollment_ids': [
+                str(self.enrollment_one.pk),
+                str(self.enrollment_two.pk),
+            ],
+        }
+
+        response = self.client.post(
+            reverse('planning:plan_course', args=[self.course.pk]),
+            data=post_data,
+        )
+        self.assertEqual(response.status_code, 302)
+
+        self.assertTrue(
+            StudentAssignment.objects.filter(
+                plan_item=plan_item,
+                enrollment=self.enrollment_two,
+            ).exists()
+        )
