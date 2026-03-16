@@ -84,7 +84,7 @@ jobs:
             exit 0
           fi
 
-          CHANGED_PY_FILES=$(git diff --name-only "${BASE_SHA}" "${{ github.sha }}" -- '*.py' | tr '\n' ' ')
+          CHANGED_PY_FILES=$(git diff --name-only --diff-filter=d "${BASE_SHA}" "${{ github.sha }}" -- '*.py' | tr '\n' ' ')
 
           if [ -z "${CHANGED_PY_FILES}" ]; then
             echo "No changed Python files. Skipping black/isort/flake8."

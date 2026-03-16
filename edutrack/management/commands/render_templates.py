@@ -50,7 +50,7 @@ class Command(BaseCommand):
         if created:
             user.set_password("testpass")
             user.save()
-        from accounts.models import UserProfile, ParentSettings
+        from accounts.models import ParentSettings, UserProfile
 
         profile, _ = UserProfile.objects.get_or_create(user=user)
         ParentSettings.objects.get_or_create(user_profile=profile)
