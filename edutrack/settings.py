@@ -10,10 +10,11 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
-from pathlib import Path
-from decouple import config, Csv
 import warnings
+from pathlib import Path
+
 import dj_database_url
+from decouple import Csv, config
 from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -24,33 +25,37 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DJANGO_DEBUG', cast=bool, default=False)
+DEBUG = config("DJANGO_DEBUG", cast=bool, default=False)
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = (config('DJANGO_SECRET_KEY', default='') or '').strip()
+SECRET_KEY = (config("DJANGO_SECRET_KEY", default="") or "").strip()
 if not SECRET_KEY:
     if DEBUG:
-        SECRET_KEY = 'dev-only-insecure-secret-key-change-me'
+        SECRET_KEY = "dev-only-insecure-secret-key-change-me"
         warnings.warn(
-            'DJANGO_SECRET_KEY not set; using development-only fallback. '
-            'Set DJANGO_SECRET_KEY in environment for production.',
+            "DJANGO_SECRET_KEY not set; using development-only fallback. "
+            "Set DJANGO_SECRET_KEY in environment for production.",
             UserWarning,
         )
     else:
         raise ImproperlyConfigured(
-            'DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is False.'
+            "DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is False."
         )
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv(), default="localhost,127.0.0.1")
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv(), default="localhost,127.0.0.1")
 
 # Security defaults for production; configurable via env for edge cases.
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', cast=bool, default=not DEBUG)
-SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', cast=bool, default=not DEBUG)
-CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', cast=bool, default=not DEBUG)
-SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', cast=int, default=31536000 if not DEBUG else 0)
-SECURE_HSTS_INCLUDE_SUBDOMAINS = config('SECURE_HSTS_INCLUDE_SUBDOMAINS', cast=bool, default=not DEBUG)
-SECURE_HSTS_PRELOAD = config('SECURE_HSTS_PRELOAD', cast=bool, default=not DEBUG)
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", cast=bool, default=not DEBUG)
+SESSION_COOKIE_SECURE = config("SESSION_COOKIE_SECURE", cast=bool, default=not DEBUG)
+CSRF_COOKIE_SECURE = config("CSRF_COOKIE_SECURE", cast=bool, default=not DEBUG)
+SECURE_HSTS_SECONDS = config(
+    "SECURE_HSTS_SECONDS", cast=int, default=31536000 if not DEBUG else 0
+)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = config(
+    "SECURE_HSTS_INCLUDE_SUBDOMAINS", cast=bool, default=not DEBUG
+)
+SECURE_HSTS_PRELOAD = config("SECURE_HSTS_PRELOAD", cast=bool, default=not DEBUG)
 
 
 # Application definition
@@ -76,12 +81,12 @@ INSTALLED_APPS = [
     "planning",
 ]
 
-CRISPY_TEMPLATE_PACK = 'bootstrap5'
+CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 # Auth redirects
-LOGIN_URL = '/accounts/login/'
-LOGIN_REDIRECT_URL = '/'
-LOGOUT_REDIRECT_URL = '/'
+LOGIN_URL = "/accounts/login/"
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -99,7 +104,7 @@ ROOT_URLCONF = "edutrack.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / 'templates'],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -122,18 +127,26 @@ WSGI_APPLICATION = "edutrack.wsgi.application"
 # environment (loaded via python-decouple), use dj_database_url to parse it.
 # If the variable is present but empty (e.g. `DATABASE_URL=` in .env), fall
 # back to a local sqlite DB so management commands still work locally.
-_db_url = (config('DATABASE_URL', default=None) or '').strip() or None
-_VALID_DB_SCHEMES = ('postgres://', 'postgresql://', 'postgis://', 'mysql://', 'sqlite://')
+_db_url = (config("DATABASE_URL", default=None) or "").strip() or None
+_VALID_DB_SCHEMES = (
+    "postgres://",
+    "postgresql://",
+    "postgis://",
+    "mysql://",
+    "sqlite://",
+)
 _db_url_valid = bool(_db_url) and any(_db_url.startswith(s) for s in _VALID_DB_SCHEMES)
 if _db_url_valid:
     DATABASES = {
-        'default': dj_database_url.parse(_db_url, conn_max_age=600, conn_health_checks=True)
+        "default": dj_database_url.parse(
+            _db_url, conn_max_age=600, conn_health_checks=True
+        )
     }
 else:
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': str(BASE_DIR / 'db.sqlite3'),
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": str(BASE_DIR / "db.sqlite3"),
         }
     }
 
@@ -174,7 +187,7 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_DIRS = [BASE_DIR / 'static']
+STATICFILES_DIRS = [BASE_DIR / "static"]
 if DEBUG:
     STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
 else:
@@ -183,12 +196,13 @@ else:
 # Cloudinary media storage
 # All user-uploaded files go to Cloudinary in both dev and production.
 # CLOUDINARY_URL must be set in .env (dev) or Heroku Config Vars (prod).
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
-_cloudinary_url = config('CLOUDINARY_URL', default='cloudinary://key:secret@cloud')
-CLOUDINARY_STORAGE = {'CLOUDINARY_URL': _cloudinary_url}
+DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
+_cloudinary_url = config("CLOUDINARY_URL", default="cloudinary://key:secret@cloud")
+CLOUDINARY_STORAGE = {"CLOUDINARY_URL": _cloudinary_url}
 # Export to os.environ so the cloudinary SDK can read it directly
 import os as _os
-_os.environ.setdefault('CLOUDINARY_URL', _cloudinary_url)
+
+_os.environ.setdefault("CLOUDINARY_URL", _cloudinary_url)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -196,5 +210,5 @@ _os.environ.setdefault('CLOUDINARY_URL', _cloudinary_url)
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Stripe Configuration (Epic E8)
-STRIPE_ENABLED = config('STRIPE_ENABLED', cast=bool, default=False)
-STRIPE_PUBLISHABLE_KEY = config('STRIPE_PUBLISHABLE_KEY', default='')
+STRIPE_ENABLED = config("STRIPE_ENABLED", cast=bool, default=False)
+STRIPE_PUBLISHABLE_KEY = config("STRIPE_PUBLISHABLE_KEY", default="")

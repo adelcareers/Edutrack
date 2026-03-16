@@ -7,13 +7,20 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('courses', '0006_assignmenttype_global_type_color_hidden'),
+        ("courses", "0006_assignmenttype_global_type_color_hidden"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='assignmenttype',
-            name='default_points_available',
-            field=models.DecimalField(blank=True, decimal_places=2, help_text='Default points available for assignments of this type.', max_digits=6, null=True, validators=[django.core.validators.MinValueValidator(0)]),
+            model_name="assignmenttype",
+            name="default_points_available",
+            field=models.DecimalField(
+                blank=True,
+                decimal_places=2,
+                help_text="Default points available for assignments of this type.",
+                max_digits=6,
+                null=True,
+                validators=[django.core.validators.MinValueValidator(0)],
+            ),
         ),
     ]

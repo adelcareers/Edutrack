@@ -1,10 +1,11 @@
 from django.urls import path
+
 from . import views
 
-app_name = 'payments'
+app_name = "payments"
 
 urlpatterns = [
-    path('payments/plans/', views.pricing_page_view, name='pricing'),
-    path('payments/checkout/', views.checkout_view, name='checkout'),
-    path('payments/success/', views.success_view, name='success'),
+    path("payments/plans/", views.pricing_page_view, name="pricing"),
+    path("payments/checkout/", views.checkout_view, name="checkout"),
+    path("payments/success/", views.success_view, name="success"),
 ]

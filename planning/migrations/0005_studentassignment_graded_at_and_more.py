@@ -9,34 +9,56 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('planning', '0004_delete_courseassignmenttype'),
+        ("planning", "0004_delete_courseassignmenttype"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='studentassignment',
-            name='graded_at',
+            model_name="studentassignment",
+            name="graded_at",
             field=models.DateTimeField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='studentassignment',
-            name='graded_by',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='graded_assignments', to=settings.AUTH_USER_MODEL),
+            model_name="studentassignment",
+            name="graded_by",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="graded_assignments",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='studentassignment',
-            name='grading_notes',
-            field=models.TextField(blank=True, default=''),
+            model_name="studentassignment",
+            name="grading_notes",
+            field=models.TextField(blank=True, default=""),
         ),
         migrations.AddField(
-            model_name='studentassignment',
-            name='points_available',
-            field=models.DecimalField(blank=True, decimal_places=2, max_digits=6, null=True, validators=[django.core.validators.MinValueValidator(0)]),
+            model_name="studentassignment",
+            name="points_available",
+            field=models.DecimalField(
+                blank=True,
+                decimal_places=2,
+                max_digits=6,
+                null=True,
+                validators=[django.core.validators.MinValueValidator(0)],
+            ),
         ),
         migrations.AddField(
-            model_name='studentassignment',
-            name='score_percent',
-            field=models.DecimalField(blank=True, decimal_places=2, help_text='Direct percentage entry when grading style is percent-based.', max_digits=5, null=True, validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(100)]),
+            model_name="studentassignment",
+            name="score_percent",
+            field=models.DecimalField(
+                blank=True,
+                decimal_places=2,
+                help_text="Direct percentage entry when grading style is percent-based.",
+                max_digits=5,
+                null=True,
+                validators=[
+                    django.core.validators.MinValueValidator(0),
+                    django.core.validators.MaxValueValidator(100),
+                ],
+            ),
         ),
     ]

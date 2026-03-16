@@ -66,4 +66,3 @@ class StudentCreationForm(forms.Form):
         if User.objects.filter(username=username).exists():
             raise forms.ValidationError("This username is already taken.")
         return username
-        return cleaned_data

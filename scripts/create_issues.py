@@ -4,8 +4,8 @@ Script to create all GitHub Issues for EduTrack product backlog.
 Reads from AGENT_DELIVERY_PLAN.md and creates issues via GitHub CLI.
 Run: python scripts/create_issues.py
 """
-import subprocess
 import json
+import subprocess
 import sys
 
 REPO = "adelcareers/Edutrack"
@@ -33,7 +33,7 @@ def create_milestone(title, desc):
         f"repos/{REPO}/milestones",
         method="POST",
         fields={"title": title, "description": desc, "state": "open"},
-        jq=".number"
+        jq=".number",
     )
     if out:
         print(f"  Milestone #{out}: {title}")
@@ -44,7 +44,8 @@ def create_milestone(title, desc):
 def get_milestones():
     result = subprocess.run(
         ["gh", "api", f"repos/{REPO}/milestones", "--paginate"],
-        capture_output=True, text=True
+        capture_output=True,
+        text=True,
     )
     if result.returncode != 0:
         return {}
@@ -54,11 +55,17 @@ def get_milestones():
 
 def create_issue(title, body, labels, milestone_title):
     cmd = [
-        "gh", "issue", "create",
-        "--repo", REPO,
-        "--title", title,
-        "--body", body,
-        "--milestone", milestone_title,
+        "gh",
+        "issue",
+        "create",
+        "--repo",
+        REPO,
+        "--title",
+        title,
+        "--body",
+        body,
+        "--milestone",
+        milestone_title,
     ]
     for label in labels:
         cmd += ["--label", label]
@@ -323,7 +330,6 @@ Live on Heroku. Admin works. Curriculum seeded. DEBUG=False. No secrets in repo.
 ## LO Coverage
 LO5.2, LO6.1, LO6.2, LO6.3""",
         },
-
         # ── SPRINT 1 ── E2 Auth & Roles ──────────────────────────────────────
         {
             "title": "[S1.1] Parent Registration",
@@ -430,7 +436,6 @@ Student login created and linked to Child. Ownership check. Student can log in.
 ## LO Coverage
 LO3.1, LO3.3""",
         },
-
         # ── SPRINT 1 ── E3 Scheduling ─────────────────────────────────────────
         {
             "title": "[S1.5] Add Child Profile",
@@ -586,7 +591,6 @@ All Sprint 1 features work on Heroku. No errors. Role checks enforced.
 ## LO Coverage
 LO5.2, LO6.1""",
         },
-
         # ── SPRINT 2 ── E4 Calendar ───────────────────────────────────────────
         {
             "title": "[S2.1] Weekly Calendar View Structure",
@@ -660,7 +664,6 @@ Colour system applied. Status badges visible. Contrast readable.
 ## LO Coverage
 LO1.1""",
         },
-
         # ── SPRINT 2 ── E5 Lesson Tracking ───────────────────────────────────
         {
             "title": "[S2.4] Lesson Detail Modal",
@@ -813,7 +816,6 @@ Parent sees read-only calendar. No action buttons. Ownership enforced.
 ## LO Coverage
 LO1.1, LO3.3""",
         },
-
         # ── SPRINT 2 ── E6 Evidence ───────────────────────────────────────────
         {
             "title": "[S2.10] Evidence File Upload",
@@ -889,7 +891,6 @@ All Sprint 2 features work on Heroku. Cloudinary uploads confirmed.
 ## LO Coverage
 LO5.2, LO6.1""",
         },
-
         # ── SPRINT 3 ── E7 Reports ────────────────────────────────────────────
         {
             "title": "[S3.1] Report Creation Form",
@@ -969,7 +970,6 @@ Token URL works without login. Invalid = 404. Expired = 403. Copy button works.
 ## LO Coverage
 LO2.4, LO3.1, LO3.3""",
         },
-
         # ── SPRINT 3 ── E8 Payments ───────────────────────────────────────────
         {
             "title": "[S3.4] Stripe Pricing Page",
@@ -1021,7 +1021,6 @@ Pricing→checkout flow complete. Feature flag works. Gate on reports.
 ## LO Coverage
 LO1.1, LO2.2""",
         },
-
         # ── SPRINT 3 ── E9 Testing & Final Deploy ─────────────────────────────
         {
             "title": "[S3.6] Automated Python Tests",
@@ -1154,7 +1153,9 @@ LO6.1, LO6.3""",
     for issue in issues:
         milestone_title = issue["milestone"]
         if milestone_title not in MILESTONE_MAP:
-            print(f"  WARNING: no milestone for '{milestone_title}', skipping '{issue['title']}'")
+            print(
+                f"  WARNING: no milestone for '{milestone_title}', skipping '{issue['title']}'"
+            )
             continue
         create_issue(
             title=issue["title"],

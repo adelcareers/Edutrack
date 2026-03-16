@@ -7,26 +7,41 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('courses', '0004_alter_globalassignmenttype_id'),
+        ("courses", "0004_alter_globalassignmenttype_id"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='CourseArchive',
+            name="CourseArchive",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('original_course_id', models.IntegerField(db_index=True)),
-                ('course_name', models.CharField(max_length=200)),
-                ('remark', models.CharField(default='course deleted', max_length=255)),
-                ('archived_at', models.DateTimeField(auto_now_add=True)),
-                ('course_data', models.JSONField(default=dict)),
-                ('enrollment_history', models.JSONField(default=list)),
-                ('assignment_history', models.JSONField(default=list)),
-                ('parent', models.ForeignKey(on_delete=models.deletion.CASCADE, related_name='course_archives', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("original_course_id", models.IntegerField(db_index=True)),
+                ("course_name", models.CharField(max_length=200)),
+                ("remark", models.CharField(default="course deleted", max_length=255)),
+                ("archived_at", models.DateTimeField(auto_now_add=True)),
+                ("course_data", models.JSONField(default=dict)),
+                ("enrollment_history", models.JSONField(default=list)),
+                ("assignment_history", models.JSONField(default=list)),
+                (
+                    "parent",
+                    models.ForeignKey(
+                        on_delete=models.deletion.CASCADE,
+                        related_name="course_archives",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-archived_at'],
+                "ordering": ["-archived_at"],
             },
         ),
     ]

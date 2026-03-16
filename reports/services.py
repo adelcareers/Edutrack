@@ -26,20 +26,19 @@ def generate_pdf(report):
         str: The Cloudinary secure URL for the generated PDF.
     """
     logs = (
-        LessonLog.objects
-        .filter(
+        LessonLog.objects.filter(
             scheduled_lesson__child=report.child,
             scheduled_lesson__scheduled_date__gte=report.date_from,
             scheduled_lesson__scheduled_date__lte=report.date_to,
-            status='complete',
+            status="complete",
         )
         .select_related(
-            'scheduled_lesson__lesson',
-            'scheduled_lesson__enrolled_subject',
+            "scheduled_lesson__lesson",
+            "scheduled_lesson__enrolled_subject",
         )
         .order_by(
-            'scheduled_lesson__enrolled_subject__subject_name',
-            'scheduled_lesson__scheduled_date',
+            "scheduled_lesson__enrolled_subject__subject_name",
+            "scheduled_lesson__scheduled_date",
         )
     )
 
@@ -48,43 +47,42 @@ def generate_pdf(report):
         name = log.scheduled_lesson.enrolled_subject.subject_name
         if name not in subjects:
             subjects[name] = {
-                'name': name,
-                'total': 0,
-                'green': 0,
-                'amber': 0,
-                'red': 0,
-                'unset': 0,
-                'logs': [],
+                "name": name,
+                "total": 0,
+                "green": 0,
+                "amber": 0,
+                "red": 0,
+                "unset": 0,
+                "logs": [],
             }
         s = subjects[name]
-        s['total'] += 1
+        s["total"] += 1
         s[log.mastery] += 1
-        s['logs'].append(log)
+        s["logs"].append(log)
 
     context = {
-        'report': report,
-        'child': report.child,
-        'subjects': list(subjects.values()),
+        "report": report,
+        "child": report.child,
+        "subjects": list(subjects.values()),
     }
 
-    html = render_to_string('reports/pdf_template.html', context)
+    html = render_to_string("reports/pdf_template.html", context)
 
     pdf_buffer = io.BytesIO()
     pisa.CreatePDF(html, dest=pdf_buffer)
     pdf_buffer.seek(0)
 
-    public_id = (
-        f'reports/report_{report.id}_{report.child.first_name}_{report.date_from}'
-        .replace(' ', '_')
+    public_id = f"reports/report_{report.id}_{report.child.first_name}_{report.date_from}".replace(
+        " ", "_"
     )
     result = cloudinary.uploader.upload(
         pdf_buffer.read(),
         public_id=public_id,
-        resource_type='raw',
-        format='pdf',
+        resource_type="raw",
+        format="pdf",
     )
 
-    report.pdf_file = result['public_id']
-    report.save(update_fields=['pdf_file'])
+    report.pdf_file = result["public_id"]
+    report.save(update_fields=["pdf_file"])
 
-    return result['secure_url']
+    return result["secure_url"]

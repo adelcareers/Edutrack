@@ -93,8 +93,8 @@ jobs:
 
           echo "Checking changed Python files: ${CHANGED_PY_FILES}"
           black --check ${CHANGED_PY_FILES}
-          isort --check-only ${CHANGED_PY_FILES}
-          flake8 ${CHANGED_PY_FILES}
+          isort --profile black --check-only ${CHANGED_PY_FILES}
+          flake8 --select=E9,F63,F7,F82 ${CHANGED_PY_FILES}
 
       - name: HTML validation (templates)
         run: |

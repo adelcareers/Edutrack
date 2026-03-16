@@ -16,13 +16,13 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path, include
-from django.shortcuts import render, redirect
+from django.shortcuts import redirect, render
+from django.urls import include, path
 
 
 def home(request):
     """Placeholder homepage view — shown to unauthenticated visitors."""
-    return render(request, 'home.html')
+    return render(request, "home.html")
 
 
 def root_redirect(request):
@@ -37,21 +37,21 @@ def root_redirect(request):
             role = request.user.profile.role
         except AttributeError:
             role = None
-        if role == 'parent':
-            return redirect('scheduler:child_list')
-        if role == 'student':
-            return redirect('/calendar/')
-    return render(request, 'home.html')
+        if role == "parent":
+            return redirect("scheduler:child_list")
+        if role == "student":
+            return redirect("/calendar/")
+    return render(request, "home.html")
 
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('accounts/', include('accounts.urls')),
-    path('', include('scheduler.urls')),
-    path('', include('tracker.urls')),
-    path('', include('reports.urls')),
-    path('', include('payments.urls')),
-    path('', include('courses.urls')),
-    path('', include('planning.urls')),
-    path('', root_redirect, name='home'),
+    path("admin/", admin.site.urls),
+    path("accounts/", include("accounts.urls")),
+    path("", include("scheduler.urls")),
+    path("", include("tracker.urls")),
+    path("", include("reports.urls")),
+    path("", include("payments.urls")),
+    path("", include("courses.urls")),
+    path("", include("planning.urls")),
+    path("", root_redirect, name="home"),
 ]

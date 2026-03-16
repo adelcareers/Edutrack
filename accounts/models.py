@@ -1,6 +1,6 @@
-from django.db import models
-from django.contrib.auth.models import User
 from cloudinary.models import CloudinaryField
+from django.contrib.auth.models import User
+from django.db import models
 
 
 class UserProfile(models.Model):
@@ -11,23 +11,21 @@ class UserProfile(models.Model):
     """
 
     ROLE_CHOICES = [
-        ('parent', 'Parent'),
-        ('student', 'Student'),
-        ('admin', 'Admin'),
+        ("parent", "Parent"),
+        ("student", "Student"),
+        ("admin", "Admin"),
     ]
 
     TIER_CHOICES = [
-        ('essential', 'Essential'),
-        ('premium', 'Premium'),
+        ("essential", "Essential"),
+        ("premium", "Premium"),
     ]
 
-    user = models.OneToOneField(
-        User, on_delete=models.CASCADE, related_name='profile'
-    )
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
-    avatar = CloudinaryField('avatar', blank=True, null=True)
+    avatar = CloudinaryField("avatar", blank=True, null=True)
     subscription_tier = models.CharField(
-        max_length=20, choices=TIER_CHOICES, default='essential'
+        max_length=20, choices=TIER_CHOICES, default="essential"
     )
     storage_limit_gb = models.IntegerField(default=20)  # in GB
     subscription_active = models.BooleanField(
@@ -36,38 +34,40 @@ class UserProfile(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = 'User Profile'
-        verbose_name_plural = 'User Profiles'
+        verbose_name = "User Profile"
+        verbose_name_plural = "User Profiles"
 
     def __str__(self):
-        return f'{self.user.username} ({self.role})'
+        return f"{self.user.username} ({self.role})"
 
     def get_storage_limit_gb(self):
         """Return storage limit in GB based on subscription tier."""
-        return 200 if self.subscription_tier == 'premium' else 20
+        return 200 if self.subscription_tier == "premium" else 20
 
 
 class ParentSettings(models.Model):
     """Per-parent settings for calendar and assignment configuration."""
 
     WEEKDAY_CHOICES = [
-        (0, 'Monday'),
-        (1, 'Tuesday'),
-        (2, 'Wednesday'),
-        (3, 'Thursday'),
-        (4, 'Friday'),
-        (5, 'Saturday'),
-        (6, 'Sunday'),
+        (0, "Monday"),
+        (1, "Tuesday"),
+        (2, "Wednesday"),
+        (3, "Thursday"),
+        (4, "Friday"),
+        (5, "Saturday"),
+        (6, "Sunday"),
     ]
 
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='settings')
-    first_day_of_week = models.PositiveSmallIntegerField(choices=WEEKDAY_CHOICES, default=0)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="settings")
+    first_day_of_week = models.PositiveSmallIntegerField(
+        choices=WEEKDAY_CHOICES, default=0
+    )
     show_empty_assignments = models.BooleanField(default=False)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = 'Parent Settings'
-        verbose_name_plural = 'Parent Settings'
+        verbose_name = "Parent Settings"
+        verbose_name_plural = "Parent Settings"
 
     def __str__(self):
-        return f'Settings for {self.user.username}'
+        return f"Settings for {self.user.username}"

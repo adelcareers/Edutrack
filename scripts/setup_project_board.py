@@ -6,11 +6,11 @@ Script to:
 2. Add all 40 issues (#2 through #41) to the project
 3. Set all issues to Backlog status
 """
-import subprocess
 import json
+import os
+import subprocess
 import sys
 import tempfile
-import os
 
 REPO = "adelcareers/Edutrack"
 PROJECT_ID = "PVT_kwHOC5bZZM4BRJDe"
@@ -64,11 +64,11 @@ mutation($fieldId: ID!, $opts: [ProjectV2SingleSelectFieldOptionInput!]!) {
     variables = {
         "fieldId": STATUS_FIELD_ID,
         "opts": [
-            {"name": "Backlog",      "color": "BLUE",   "description": ""},
-            {"name": "In Analysis",  "color": "PURPLE", "description": ""},
-            {"name": "In Progress",  "color": "YELLOW", "description": ""},
-            {"name": "In Review",    "color": "ORANGE", "description": ""},
-            {"name": "Done",         "color": "GREEN",  "description": ""},
+            {"name": "Backlog", "color": "BLUE", "description": ""},
+            {"name": "In Analysis", "color": "PURPLE", "description": ""},
+            {"name": "In Progress", "color": "YELLOW", "description": ""},
+            {"name": "In Review", "color": "ORANGE", "description": ""},
+            {"name": "Done", "color": "GREEN", "description": ""},
         ],
     }
     data = run_graphql(query, variables)
@@ -90,7 +90,9 @@ query($owner: String!, $repo: String!, $number: Int!) {
     issue(number: $number) { id }
   }
 }"""
-    data = run_graphql(query, {"owner": "adelcareers", "repo": "Edutrack", "number": issue_number})
+    data = run_graphql(
+        query, {"owner": "adelcareers", "repo": "Edutrack", "number": issue_number}
+    )
     if not data:
         return None
     try:
@@ -123,12 +125,15 @@ mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
     projectV2Item { id }
   }
 }"""
-    result = run_graphql(mutate, {
-        "projectId": PROJECT_ID,
-        "itemId": item_id,
-        "fieldId": STATUS_FIELD_ID,
-        "optionId": option_id,
-    })
+    result = run_graphql(
+        mutate,
+        {
+            "projectId": PROJECT_ID,
+            "itemId": item_id,
+            "fieldId": STATUS_FIELD_ID,
+            "optionId": option_id,
+        },
+    )
     return result is not None
 
 

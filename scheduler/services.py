@@ -63,15 +63,15 @@ def generate_schedule(child, enrolled_subjects: List[EnrolledSubject]) -> int:
     for subject in enrolled_subjects:
         lesson_year = subject.source_year if subject.source_year else child.school_year
         queues[subject.id] = list(
-            Lesson.objects
-            .filter(subject_name=subject.subject_name, year=lesson_year)
-            .order_by('unit_slug', 'lesson_number')
+            Lesson.objects.filter(
+                subject_name=subject.subject_name, year=lesson_year
+            ).order_by("unit_slug", "lesson_number")
         )
 
     # Parse days-of-week sets per subject (0=Mon … 4=Fri)
     subject_days = {}
     for subject in enrolled_subjects:
-        parts = subject.days_of_week.split(',') if subject.days_of_week else []
+        parts = subject.days_of_week.split(",") if subject.days_of_week else []
         days = {int(d) for d in parts if d.isdigit() and 0 <= int(d) <= 4}
         subject_days[subject.id] = days if days else {0, 1, 2, 3, 4}
 
@@ -110,13 +110,15 @@ def generate_schedule(child, enrolled_subjects: List[EnrolledSubject]) -> int:
             used = week_day_counts[subject.id].get(wd, 0)
             while used < allowed and queues[subject.id]:
                 lesson = queues[subject.id].pop(0)
-                to_create.append(ScheduledLesson(
-                    child=child,
-                    lesson=lesson,
-                    enrolled_subject=subject,
-                    scheduled_date=day,
-                    order_on_day=order,
-                ))
+                to_create.append(
+                    ScheduledLesson(
+                        child=child,
+                        lesson=lesson,
+                        enrolled_subject=subject,
+                        scheduled_date=day,
+                        order_on_day=order,
+                    )
+                )
                 used += 1
                 order += 1
             week_day_counts[subject.id][wd] = used

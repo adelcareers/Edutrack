@@ -8,10 +8,11 @@ If --commit is provided the script will run `git add` and commit the updated fil
 """
 
 from __future__ import annotations
+
 import re
+import subprocess
 import sys
 from datetime import date
-import subprocess
 
 try:
     import yaml
@@ -72,7 +73,10 @@ def main():
 
     if "--commit" in sys.argv:
         subprocess.run(["git", "add", PLAN_PATH], check=False)
-        subprocess.run(["git", "commit", "-m", "chore: update PROJECT_STATE last_updated"], check=False)
+        subprocess.run(
+            ["git", "commit", "-m", "chore: update PROJECT_STATE last_updated"],
+            check=False,
+        )
         print("Committed changes (if git configured).")
 
 

@@ -14,7 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'edutrack.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "edutrack.settings")
 import django
 
 django.setup()
@@ -22,10 +22,10 @@ from django.db import connection
 
 try:
     with connection.cursor() as cur:
-        cur.execute('SELECT 1;')
+        cur.execute("SELECT 1;")
         row = cur.fetchone()
-    print('DB connectivity OK:', row)
+    print("DB connectivity OK:", row)
     sys.exit(0)
 except Exception as exc:
-    print('DB connectivity FAILED:', repr(exc))
+    print("DB connectivity FAILED:", repr(exc))
     sys.exit(2)

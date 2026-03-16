@@ -1,12 +1,16 @@
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.utils import timezone
 
 from courses.models import CourseEnrollment
-from reports.models import EnrollmentGradeSummary, GradeScaleProfile, default_grade_scale_bands
+from reports.models import (
+    EnrollmentGradeSummary,
+    GradeScaleProfile,
+    default_grade_scale_bands,
+)
 
-ZERO = Decimal('0')
-HUNDRED = Decimal('100')
+ZERO = Decimal("0")
+HUNDRED = Decimal("100")
 
 
 def _to_decimal(value, default=ZERO):
@@ -18,7 +22,7 @@ def _to_decimal(value, default=ZERO):
 
 
 def _round2(value):
-    return _to_decimal(value).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    return _to_decimal(value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def get_effective_points_available(student_assignment):
@@ -74,13 +78,13 @@ def map_percent_to_letter_and_gpa(percent, scale_bands):
     """Map final percent to letter grade and GPA from scale bands."""
     value = _to_decimal(percent)
     for band in scale_bands:
-        lower = _to_decimal(band.get('min', 0))
-        upper = _to_decimal(band.get('max', 100))
+        lower = _to_decimal(band.get("min", 0))
+        upper = _to_decimal(band.get("max", 100))
         if lower <= value <= upper:
-            letter = band.get('letter', '')
-            gpa = _to_decimal(band.get('gpa', 0))
+            letter = band.get("letter", "")
+            gpa = _to_decimal(band.get("gpa", 0))
             return letter, _round2(gpa)
-    return '', None
+    return "", None
 
 
 def recalculate_enrollment_grade(enrollment):
@@ -89,9 +93,7 @@ def recalculate_enrollment_grade(enrollment):
         return None
 
     assignments = list(
-        enrollment.assignments.select_related(
-            'plan_item__template__assignment_type'
-        )
+        enrollment.assignments.select_related("plan_item__template__assignment_type")
     )
 
     total_count = len(assignments)
@@ -102,11 +104,11 @@ def recalculate_enrollment_grade(enrollment):
 
     by_assignment_type = {}
     for assignment in assignments:
-        if assignment.status != 'complete' and assignment.due_date < today:
+        if assignment.status != "complete" and assignment.due_date < today:
             missing_count += 1
-        if assignment.status == 'overdue':
+        if assignment.status == "overdue":
             late_count += 1
-        if assignment.status == 'complete' and assignment.completed_at:
+        if assignment.status == "complete" and assignment.completed_at:
             if assignment.completed_at.date() > assignment.due_date:
                 late_count += 1
 
@@ -119,12 +121,12 @@ def recalculate_enrollment_grade(enrollment):
         bucket = by_assignment_type.setdefault(
             assignment_type.id,
             {
-                'name': assignment_type.name,
-                'weight': int(assignment_type.weight),
-                'percents': [],
+                "name": assignment_type.name,
+                "weight": int(assignment_type.weight),
+                "percents": [],
             },
         )
-        bucket['percents'].append(percent)
+        bucket["percents"].append(percent)
 
     if not assignments:
         final_percent = ZERO
@@ -132,34 +134,42 @@ def recalculate_enrollment_grade(enrollment):
         weighted_total = ZERO
         total_weight = ZERO
         for bucket in by_assignment_type.values():
-            percents = bucket['percents']
+            percents = bucket["percents"]
             if not percents:
                 continue
             avg = sum(percents, ZERO) / Decimal(len(percents))
-            weight = Decimal(bucket['weight'])
+            weight = Decimal(bucket["weight"])
             weighted_total += avg * weight
             total_weight += weight
 
         if total_weight > ZERO:
             final_percent = weighted_total / total_weight
         else:
-            all_percents = [pct for bucket in by_assignment_type.values() for pct in bucket['percents']]
+            all_percents = [
+                pct
+                for bucket in by_assignment_type.values()
+                for pct in bucket["percents"]
+            ]
             final_percent = sum(all_percents, ZERO) / Decimal(len(all_percents))
     else:
-        all_percents = [pct for bucket in by_assignment_type.values() for pct in bucket['percents']]
+        all_percents = [
+            pct for bucket in by_assignment_type.values() for pct in bucket["percents"]
+        ]
         final_percent = sum(all_percents, ZERO) / Decimal(len(all_percents))
 
     final_percent = _round2(final_percent)
-    letter, gpa = map_percent_to_letter_and_gpa(final_percent, get_effective_grade_scale(enrollment.course))
+    letter, gpa = map_percent_to_letter_and_gpa(
+        final_percent, get_effective_grade_scale(enrollment.course)
+    )
 
     breakdown = {}
     for bucket in by_assignment_type.values():
-        percents = bucket['percents']
+        percents = bucket["percents"]
         avg = (sum(percents, ZERO) / Decimal(len(percents))) if percents else ZERO
-        breakdown[bucket['name']] = {
-            'weight': bucket['weight'],
-            'count': len(percents),
-            'average_percent': float(_round2(avg)),
+        breakdown[bucket["name"]] = {
+            "weight": bucket["weight"],
+            "count": len(percents),
+            "average_percent": float(_round2(avg)),
         }
 
     summary, _ = EnrollmentGradeSummary.objects.get_or_create(enrollment=enrollment)
@@ -178,7 +188,9 @@ def recalculate_enrollment_grade(enrollment):
 
 def recalculate_course_grades(course):
     """Recalculate grade summaries for all enrollments in a course."""
-    for enrollment in course.enrollments.all().select_related('course', 'child', 'course__parent'):
+    for enrollment in course.enrollments.all().select_related(
+        "course", "child", "course__parent"
+    ):
         recalculate_enrollment_grade(enrollment)
 
 

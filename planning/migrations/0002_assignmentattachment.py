@@ -6,21 +6,39 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('planning', '0001_initial'),
+        ("planning", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='AssignmentAttachment',
+            name="AssignmentAttachment",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('file', models.FileField(upload_to='plan_attachments/')),
-                ('original_name', models.CharField(blank=True, default='', max_length=255)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('plan_item', models.ForeignKey(on_delete=models.deletion.CASCADE, related_name='attachments', to='planning.assignmentplanitem')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("file", models.FileField(upload_to="plan_attachments/")),
+                (
+                    "original_name",
+                    models.CharField(blank=True, default="", max_length=255),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "plan_item",
+                    models.ForeignKey(
+                        on_delete=models.deletion.CASCADE,
+                        related_name="attachments",
+                        to="planning.assignmentplanitem",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-created_at'],
+                "ordering": ["-created_at"],
             },
         ),
     ]

@@ -10,9 +10,10 @@ Usage example::
 """
 
 import functools
-from django.shortcuts import redirect
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect
 
 
 def role_required(role):
@@ -42,6 +43,7 @@ def role_required(role):
     Returns:
         Callable: A view decorator.
     """
+
     def decorator(view_func):
         @login_required
         @functools.wraps(view_func)
@@ -54,12 +56,12 @@ def role_required(role):
 
             if user_role != role:
                 messages.error(
-                    request,
-                    f"That page is only accessible to {role} accounts."
+                    request, f"That page is only accessible to {role} accounts."
                 )
-                return redirect('home')
+                return redirect("home")
 
             return view_func(request, *args, **kwargs)
 
         return _wrapped
+
     return decorator
