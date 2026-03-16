@@ -2,5 +2,5 @@
 /accounts/login/
 /accounts/register/
 /courses/
-/reports/gradebook_list/
-/scheduler/child_list/
+/reports/gradebooks/
+/scheduler/children/

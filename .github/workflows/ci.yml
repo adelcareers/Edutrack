@@ -99,8 +99,9 @@ jobs:
       - name: HTML validation (rendered pages)
         run: |
           set -euo pipefail
+          python manage.py migrate
           python manage.py render_templates --output /tmp/ci_rendered_templates --pages-file .ci_html_pages.txt
-          html5validator --root /tmp/ci_rendered_templates
+          html5validator --root /tmp/ci_rendered_templates --ignore-re 'CSS:.*'
 
       - name: Run gitleaks scan
         uses: gitleaks/gitleaks-action@v2

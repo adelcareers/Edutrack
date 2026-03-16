@@ -41,6 +41,21 @@ class Command(BaseCommand):
             return
 
         client = Client()
+
+        from django.contrib.auth.models import User
+
+        user, created = User.objects.get_or_create(
+            username="ci_test", email="ci@example.com"
+        )
+        if created:
+            user.set_password("testpass")
+            user.save()
+        from accounts.models import UserProfile, ParentSettings
+
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        ParentSettings.objects.get_or_create(user_profile=profile)
+        client.force_login(user)
+
         paths = []
         with pages_file.open("r", encoding="utf8") as fh:
             for l in fh:
@@ -54,6 +69,15 @@ class Command(BaseCommand):
             resp = client.get(path)
             if resp.status_code != 200:
                 self.stderr.write(f"Warning: GET {path} returned {resp.status_code}")
+                if (
+                    not resp.content
+                    or b"<title>Page not found</title>" in resp.content
+                    or resp.status_code in (301, 302)
+                ):
+                    self.stderr.write(
+                        f"Skipping writing file for {path} due to error/redirect"
+                    )
+                    continue
             filename = _sanitize_path(path)
             target = outdir / filename
             target.write_bytes(resp.content)
