@@ -6,12 +6,9 @@ from django.contrib.auth.views import LoginView
 from django.shortcuts import redirect, render
 
 from accounts.decorators import role_required
-from courses.models import (
-    GLOBAL_ASSIGNMENT_DEFAULTS,
-    Course,
-    GlobalAssignmentType,
-    sync_course_assignment_types_from_global,
-)
+from courses.models import (Course, GlobalAssignmentType,
+                            seed_global_assignment_types,
+                            sync_course_assignment_types_from_global)
 
 from .forms import CustomUserCreationForm
 from .models import ParentSettings, UserProfile
@@ -79,21 +76,6 @@ def _get_or_create_parent_settings(user):
     return settings
 
 
-def _seed_global_assignment_types(user):
-    if GlobalAssignmentType.objects.filter(parent=user).exists():
-        return
-    to_create = [
-        GlobalAssignmentType(
-            parent=user,
-            name=name,
-            color=color,
-            order=idx,
-        )
-        for idx, (name, color) in enumerate(GLOBAL_ASSIGNMENT_DEFAULTS)
-    ]
-    GlobalAssignmentType.objects.bulk_create(to_create)
-
-
 def _save_global_assignment_types(request, user):
     indices = set()
     for key in request.POST:
@@ -151,7 +133,7 @@ def _save_global_assignment_types(request, user):
 @role_required("parent")
 def settings_view(request):
     settings = _get_or_create_parent_settings(request.user)
-    _seed_global_assignment_types(request.user)
+    seed_global_assignment_types(request.user)
 
     if request.method == "POST":
         first_day_raw = request.POST.get(

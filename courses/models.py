@@ -211,12 +211,30 @@ class AssignmentType(models.Model):
         return f"{self.name} ({self.weight}%)"
 
 
+def seed_global_assignment_types(user):
+    """Seed the default global assignment types for a given user."""
+    if GlobalAssignmentType.objects.filter(parent=user).exists():
+        return
+    to_create = [
+        GlobalAssignmentType(
+            parent=user,
+            name=name,
+            color=color,
+            order=idx,
+        )
+        for idx, (name, color) in enumerate(GLOBAL_ASSIGNMENT_DEFAULTS)
+    ]
+    GlobalAssignmentType.objects.bulk_create(to_create)
+
+
 def sync_course_assignment_types_from_global(course):
     """Sync a course's assignment types from the parent's global type list.
 
     This enforces a single source of truth for type definitions (name/color/
     visibility/order) while preserving course-specific weights.
     """
+    seed_global_assignment_types(course.parent)
+
     global_types = list(
         GlobalAssignmentType.objects.filter(parent=course.parent).order_by(
             "order", "name"

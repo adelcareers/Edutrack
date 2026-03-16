@@ -16,16 +16,10 @@ from scheduler.models import Child, ScheduledLesson
 from tracker.models import LessonLog
 
 from .forms import CompleteEnrollmentForm, CourseForm, EnrollStudentForm
-from .models import (
-    DEFAULT_ASSIGNMENT_TYPES,
-    AssignmentType,
-    Course,
-    CourseArchive,
-    CourseEnrollment,
-    GlobalAssignmentType,
-    Subject,
-    sync_course_assignment_types_from_global,
-)
+from .models import (DEFAULT_ASSIGNMENT_TYPES, AssignmentType, Course,
+                     CourseArchive, CourseEnrollment, GlobalAssignmentType,
+                     Subject, seed_global_assignment_types,
+                     sync_course_assignment_types_from_global)
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -241,6 +235,8 @@ def course_list_view(request):
 
 @role_required("parent")
 def course_new_view(request):
+    seed_global_assignment_types(request.user)
+
     if request.method == "POST":
         form = CourseForm(request.POST, request.FILES, user=request.user)
         if form.is_valid():
@@ -517,12 +513,9 @@ def course_delete_view(request, course_id):
 
     course_name = course.name
     with transaction.atomic():
-        from planning.models import (
-            AssignmentAttachment,
-            AssignmentPlanItem,
-            CourseAssignmentTemplate,
-            StudentAssignment,
-        )
+        from planning.models import (AssignmentAttachment, AssignmentPlanItem,
+                                     CourseAssignmentTemplate,
+                                     StudentAssignment)
 
         _archive_course_snapshot(course, remark="course deleted")
 
