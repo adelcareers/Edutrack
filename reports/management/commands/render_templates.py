@@ -41,16 +41,23 @@ class Command(BaseCommand):
             return
 
         client = Client()
-
+        paths = []
         with pages_file.open("r", encoding="utf8") as fh:
-            paths = [l.strip() for l in fh if l.strip() and not l.strip().startswith("#")]
+            for l in fh:
+                s = l.strip()
+                if not s or s.startswith("#"):
+                    continue
+                paths.append(s)
 
         for path in paths:
             self.stdout.write(f"Rendering: {path}")
             resp = client.get(path)
             if resp.status_code != 200:
-                self.stderr.write(f"Warning: GET {path} returned {resp.status_code}")
+                self.stderr.write(
+                    f"Warning: GET {path} returned {resp.status_code}"
+                )
             filename = _sanitize_path(path)
             target = outdir / filename
             target.write_bytes(resp.content)
             self.stdout.write(f"Wrote: {target}")
+
