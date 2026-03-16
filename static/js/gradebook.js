@@ -20,6 +20,10 @@
   const percentInput = document.getElementById('gradePercentInput');
   const notesInput = document.getElementById('gradeNotesInput');
   const editLink = document.getElementById('gradeEditLink');
+  const quickCompleteBtn = document.getElementById('gradeQuickComplete');
+  const quickRescheduleBtn = document.getElementById('gradeQuickReschedule');
+  const quickEditBtn = document.getElementById('gradeQuickEdit');
+  const stateLabel = document.getElementById('gradeWindowStateLabel');
 
   function getStatusMeta(status) {
     if (status === 'complete') {
@@ -43,6 +47,10 @@
 
     modalStatusBadge.className = `badge ${statusMeta.className}`;
     modalStatusBadge.textContent = statusMeta.label;
+    if (stateLabel) {
+      stateLabel.textContent =
+        status === 'complete' ? 'Complete' : 'Incomplete';
+    }
 
     assignmentIdInput.value = row.dataset.assignmentId || '';
     statusInput.value = row.dataset.status || 'pending';
@@ -66,5 +74,43 @@
         openFromRow(row);
       }
     });
+
+    const openBtn = row.querySelector('.open-grade-modal');
+    if (openBtn) {
+      openBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        openFromRow(row);
+      });
+    }
   });
+
+  if (quickCompleteBtn) {
+    quickCompleteBtn.addEventListener('click', () => {
+      statusInput.value = 'complete';
+      modalStatusBadge.className = 'badge bg-success';
+      modalStatusBadge.textContent = 'Complete';
+      if (stateLabel) {
+        stateLabel.textContent = 'Complete';
+      }
+    });
+  }
+
+  if (quickRescheduleBtn) {
+    quickRescheduleBtn.addEventListener('click', () => {
+      if (dueDateInput) {
+        dueDateInput.focus();
+        dueDateInput.showPicker?.();
+      }
+    });
+  }
+
+  if (quickEditBtn) {
+    quickEditBtn.addEventListener('click', () => {
+      const editUrl = editLink.getAttribute('href');
+      if (editUrl && editUrl !== '#') {
+        window.open(editUrl, '_blank');
+      }
+    });
+  }
 })();

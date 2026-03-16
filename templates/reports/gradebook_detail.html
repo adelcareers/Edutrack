@@ -28,6 +28,28 @@
     color: #166534;
     border: 1px solid #bbf7d0;
   }
+  .grade-window-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 0.6rem 0.75rem;
+    margin-bottom: 0.9rem;
+    background: #fafafa;
+  }
+  .grade-window-actions .action-btn {
+    border: none;
+    background: transparent;
+    color: #374151;
+    font-size: 0.86rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .grade-window-actions .action-btn:hover {
+    color: #1d4ed8;
+  }
 </style>
 {% endblock %}
 
@@ -125,7 +147,14 @@
               {% endif %}
             </td>
             <td>{{ assignment.effective_percent }}%</td>
-            <td class="text-end text-muted small">Open</td>
+            <td class="text-end">
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-primary open-grade-modal"
+              >
+                Open
+              </button>
+            </td>
           </tr>
           {% empty %}
           <tr>
@@ -157,6 +186,19 @@
         <input type="hidden" name="assignment_id" id="gradeAssignmentId">
 
         <div class="modal-body">
+          <div class="grade-window-actions">
+            <span class="text-muted small" id="gradeWindowStateLabel">Incomplete</span>
+            <button type="button" class="action-btn" id="gradeQuickComplete">
+              <i class="bi bi-check-circle"></i> Mark Complete
+            </button>
+            <button type="button" class="action-btn" id="gradeQuickReschedule">
+              <i class="bi bi-calendar-event"></i> Reschedule
+            </button>
+            <button type="button" class="action-btn" id="gradeQuickEdit">
+              <i class="bi bi-pencil-square"></i> Edit
+            </button>
+          </div>
+
           <ul class="nav nav-tabs mb-3" role="tablist">
             <li class="nav-item" role="presentation">
               <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-grade" type="button" role="tab">Grade</button>
