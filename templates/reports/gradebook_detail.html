@@ -403,7 +403,11 @@
             data-edit-url="{{ assignment.edit_url }}"
             data-notes="{{ assignment.grading_notes|default:''|escape }}"
           >
-            <td>{{ assignment.plan_item.template.name }}</td>
+            <td class="d-none assignment-description-html">{% if assignment.plan_item.template.description %}{{ assignment.plan_item.template.description|safe }}{% endif %}</td>
+            <td>
+              {{ assignment.plan_item.template.name }}
+              <div class="d-none assignment-description-html">{% if assignment.plan_item.template.description %}{{ assignment.plan_item.template.description|safe }}{% endif %}</div>
+            </td>
             <td>
               <span class="badge text-bg-secondary">{{ assignment.plan_item.template.assignment_type.name }}</span>
             </td>

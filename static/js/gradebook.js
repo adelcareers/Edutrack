@@ -111,8 +111,13 @@
       weekDayLabel.textContent = week && day ? `Week ${week}, Day ${day}` : '';
     }
     if (descriptionLabel) {
-      descriptionLabel.textContent =
-        row.dataset.assignmentDescription || 'No description available.';
+      const descHtmlEl = row.querySelector('.assignment-description-html');
+      if (descHtmlEl && descHtmlEl.innerHTML && descHtmlEl.innerHTML.trim()) {
+        descriptionLabel.innerHTML = descHtmlEl.innerHTML;
+      } else {
+        descriptionLabel.textContent =
+          row.dataset.assignmentDescription || 'No description available.';
+      }
     }
     if (studentName) {
       studentName.textContent = row.dataset.studentName || 'Student';
