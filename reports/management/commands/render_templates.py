@@ -15,7 +15,9 @@ def _sanitize_path(p: str) -> str:
 
 
 class Command(BaseCommand):
-    help = "Render a list of site pages to static HTML files for HTML validation in CI."
+    help = (
+        "Render a list of site pages to static HTML files for HTML validation in CI."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(
