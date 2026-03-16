@@ -112,6 +112,7 @@ def plan_course_view(request, course_id):
                 AssignmentType,
                 pk=type_id,
                 course=course,
+                is_hidden=False,
             )
 
             if plan_item_id:

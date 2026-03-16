@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.contrib.auth.models import User
 
 from accounts.models import UserProfile
+from courses.models import Course, CourseEnrollment
 from curriculum.models import Lesson
 from scheduler.models import Child, EnrolledSubject, ScheduledLesson
 
@@ -169,6 +170,66 @@ class ChildDetailStudentCredentialManagementTests(TestCase):
         self.student.refresh_from_db()
         self.assertTrue(self.student.check_password('BetterPass123!'))
         self.assertFalse(self.student.check_password('OldPass123!'))
+
+
+class ChildDetailCourseEnrollmentTests(TestCase):
+    """Parent can enroll a student into one or more courses from child detail."""
+
+    def setUp(self):
+        self.parent = _make_parent(username='course_parent')
+        self.child = _make_child(self.parent, first_name='Marya')
+        self.client.force_login(self.parent)
+        self.url = reverse('scheduler:child_detail', kwargs={'child_id': self.child.pk})
+
+        self.course_math = Course.objects.create(
+            parent=self.parent,
+            name='Math',
+            default_days='0,2,4',
+        )
+        self.course_science = Course.objects.create(
+            parent=self.parent,
+            name='Science',
+            default_days='1,3',
+        )
+
+    def test_child_detail_can_enroll_multiple_courses(self):
+        response = self.client.post(self.url, {
+            'enroll_courses': '1',
+            'course_ids': [str(self.course_math.pk), str(self.course_science.pk)],
+        })
+        self.assertRedirects(response, self.url, fetch_redirect_response=False)
+
+        enrollments = CourseEnrollment.objects.filter(child=self.child, status='active')
+        self.assertEqual(enrollments.count(), 2)
+        self.assertTrue(
+            enrollments.filter(course=self.course_math, days_of_week='0,2,4').exists()
+        )
+        self.assertTrue(
+            enrollments.filter(course=self.course_science, days_of_week='1,3').exists()
+        )
+
+    def test_child_detail_skips_duplicate_active_enrollment(self):
+        CourseEnrollment.objects.create(
+            course=self.course_math,
+            child=self.child,
+            start_date=datetime.date.today(),
+            days_of_week='0,2,4',
+            status='active',
+        )
+
+        self.client.post(self.url, {
+            'enroll_courses': '1',
+            'course_ids': [str(self.course_math.pk)],
+        })
+
+        self.assertEqual(
+            CourseEnrollment.objects.filter(
+                child=self.child,
+                course=self.course_math,
+                status='active',
+            ).count(),
+            1,
+        )
 
 
 # ---------------------------------------------------------------------------

@@ -12,6 +12,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.http import HttpResponseForbidden
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 from django.db.models import Count
 
@@ -19,6 +20,7 @@ from accounts.decorators import role_required
 from accounts.forms import StudentCreationForm
 from accounts.models import UserProfile
 from curriculum.models import Lesson
+from courses.models import Course, CourseEnrollment
 from scheduler.forms import NewStudentModalForm
 from scheduler.models import Child, CustomSubjectGroup, EnrolledSubject, ScheduledLesson
 from scheduler.services import generate_schedule
@@ -533,7 +535,113 @@ def child_detail_view(request, child_id):
                     )
                     return redirect('scheduler:child_detail', child_id=child.pk)
 
+        elif 'enroll_courses' in request.POST:
+            selected_ids_raw = request.POST.getlist('course_ids')
+            available_courses_qs = Course.objects.filter(
+                parent=request.user,
+                is_archived=False,
+            )
+            courses_by_id = {
+                course.id: course for course in available_courses_qs
+            }
+
+            selected_ids = []
+            for value in selected_ids_raw:
+                try:
+                    course_id = int(value)
+                except (TypeError, ValueError):
+                    continue
+                if course_id in courses_by_id and course_id not in selected_ids:
+                    selected_ids.append(course_id)
+
+            if not selected_ids:
+                messages.error(request, 'Select at least one course to enroll.')
+                return redirect('scheduler:child_detail', child_id=child.pk)
+
+            today = timezone.localdate()
+            created_count = 0
+            reactivated_count = 0
+            already_active_count = 0
+
+            for course_id in selected_ids:
+                course = courses_by_id[course_id]
+                existing_active = CourseEnrollment.objects.filter(
+                    course=course,
+                    child=child,
+                    status='active',
+                ).exists()
+                if existing_active:
+                    already_active_count += 1
+                    continue
+
+                latest_inactive = (
+                    CourseEnrollment.objects
+                    .filter(course=course, child=child)
+                    .exclude(status='active')
+                    .order_by('-enrolled_at')
+                    .first()
+                )
+
+                if latest_inactive is not None:
+                    latest_inactive.status = 'active'
+                    latest_inactive.completed_school_year = ''
+                    latest_inactive.completed_calendar_year = None
+                    latest_inactive.completed_at = None
+                    latest_inactive.days_of_week = (
+                        latest_inactive.days_of_week
+                        or course.default_days
+                        or '0,1,2,3,4'
+                    )
+                    latest_inactive.save(update_fields=[
+                        'status',
+                        'completed_school_year',
+                        'completed_calendar_year',
+                        'completed_at',
+                        'days_of_week',
+                    ])
+                    reactivated_count += 1
+                else:
+                    CourseEnrollment.objects.create(
+                        course=course,
+                        child=child,
+                        start_date=today,
+                        days_of_week=course.default_days or '0,1,2,3,4',
+                        status='active',
+                    )
+                    created_count += 1
+
+            if created_count or reactivated_count:
+                messages.success(
+                    request,
+                    (
+                        f'Enrollment updated: {created_count} new, '
+                        f'{reactivated_count} reactivated.'
+                    ),
+                )
+            elif already_active_count:
+                messages.info(request, 'Selected courses are already active for this student.')
+
+            return redirect('scheduler:child_detail', child_id=child.pk)
+
     enrolled_subjects = child.enrolled_subjects.filter(is_active=True)
+    course_enrollments = (
+        child.course_enrollments
+        .select_related('course')
+        .order_by('-enrolled_at')
+    )
+    active_course_enrollments = list(course_enrollments.filter(status='active'))
+    completed_course_enrollments = list(course_enrollments.filter(status='completed'))
+    available_courses = list(
+        Course.objects
+        .filter(parent=request.user, is_archived=False)
+        .order_by('name')
+    )
+    active_course_ids = {
+        enrollment.course_id for enrollment in active_course_enrollments
+    }
+    for course in available_courses:
+        course.is_current_enrolled = course.id in active_course_ids
+
     total_days_attended = child.scheduled_lessons.filter(log__status='complete').count()
 
     return render(request, 'scheduler/child_detail.html', {
@@ -545,6 +653,9 @@ def child_detail_view(request, child_id):
         'login_section_open': login_section_open,
         'info_errors': info_errors,
         'enrolled_subjects': enrolled_subjects,
+        'active_course_enrollments': active_course_enrollments,
+        'completed_course_enrollments': completed_course_enrollments,
+        'available_courses': available_courses,
         'total_days_attended': total_days_attended,
     })
 

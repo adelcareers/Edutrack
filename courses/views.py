@@ -263,6 +263,7 @@ def course_new_view(request):
             'color': gt['color'],
             'order': gt['order'],
             'weight': posted_weights.get(gt['id'], 0),
+            'is_hidden': False,
         }
         for gt in global_types
     ]
@@ -386,8 +387,8 @@ def course_edit_view(request, course_id):
         'default_assignment_types': DEFAULT_ASSIGNMENT_TYPES,
         'assignment_types': list(
             course.assignment_types
-            .filter(is_hidden=False)
-            .values('id', 'global_type_id', 'name', 'color', 'weight', 'order')
+            .filter(global_type__isnull=False, global_type__is_hidden=False)
+            .values('id', 'global_type_id', 'name', 'color', 'weight', 'order', 'is_hidden')
         ),
         'enrollments': enrollments,
         'active_enrollment_data': active_enrollment_data,
@@ -643,6 +644,12 @@ def subject_list_view(request):
 
 def _save_assignment_weights(request, course):
     """Persist only per-course weights for globally-defined assignment types."""
+    globally_hidden_ids = set(
+        GlobalAssignmentType.objects
+        .filter(parent=course.parent, is_hidden=True)
+        .values_list('id', flat=True)
+    )
+
     indices = set()
     for key in request.POST:
         if key.startswith('at_id_') or key.startswith('at_global_id_'):
@@ -656,17 +663,32 @@ def _save_assignment_weights(request, course):
         at_global_id = request.POST.get(f'at_global_id_{idx}', '').strip()
 
         weight_raw = request.POST.get(f'at_weight_{idx}', '0')
+        enabled = request.POST.get(f'at_enabled_{idx}') == 'on'
         try:
             weight = max(0, min(100, int(weight_raw)))
         except ValueError:
             weight = 0
 
+        is_hidden = not enabled
+        try:
+            global_type_id_int = int(at_global_id)
+        except (TypeError, ValueError):
+            global_type_id_int = None
+        if global_type_id_int in globally_hidden_ids:
+            is_hidden = True
+
         if at_id:
-            AssignmentType.objects.filter(pk=at_id, course=course).update(weight=weight)
+            AssignmentType.objects.filter(pk=at_id, course=course).update(
+                weight=weight,
+                is_hidden=is_hidden,
+            )
             continue
 
         if at_global_id:
             AssignmentType.objects.filter(
                 course=course,
                 global_type_id=at_global_id,
-            ).update(weight=weight)
+            ).update(
+                weight=weight,
+                is_hidden=is_hidden,
+            )

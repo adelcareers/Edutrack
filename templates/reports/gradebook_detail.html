@@ -13,42 +13,311 @@
     letter-spacing: 0.01em;
     padding: 0.3rem 0.58rem;
   }
+
   .status-chip.status-pending {
     background: #eef2ff;
-    color: #3730a3;
     border: 1px solid #c7d2fe;
+    color: #3730a3;
   }
+
   .status-chip.status-overdue {
     background: #fef2f2;
-    color: #991b1b;
     border: 1px solid #fecaca;
+    color: #991b1b;
   }
+
   .status-chip.status-complete {
     background: #ecfdf5;
-    color: #166534;
     border: 1px solid #bbf7d0;
+    color: #166534;
   }
-  .grade-window-actions {
+
+  .grade-modal .modal-dialog {
+    max-width: 1020px;
+  }
+
+  .grade-modal .modal-content {
+    border: 1px solid #e4e4e7;
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .grade-modal-toolbar {
+    align-items: center;
+    background: #f4f4f5;
+    border-bottom: 1px solid #e4e4e7;
     display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    padding: 0.6rem 0.75rem;
-    margin-bottom: 0.9rem;
-    background: #fafafa;
+    gap: 1rem;
+    justify-content: space-between;
+    padding: 0.95rem 1.2rem;
   }
-  .grade-window-actions .action-btn {
-    border: none;
-    background: transparent;
-    color: #374151;
-    font-size: 0.86rem;
+
+  .grade-modal-toolbar-left {
+    align-items: center;
+    color: #8f8f93;
     display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
+    gap: 0.6rem;
   }
-  .grade-window-actions .action-btn:hover {
-    color: #1d4ed8;
+
+  .grade-modal-toolbar-left strong {
+    font-size: 2rem;
+    font-weight: 700;
+  }
+
+  .grade-modal-toolbar-left i {
+    font-size: 2rem;
+  }
+
+  .grade-modal-actions {
+    align-items: center;
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+  }
+
+  .grade-modal-actions .action-btn {
+    align-items: center;
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    color: #3f3f46;
+    display: inline-flex;
+    font-size: 1.1rem;
+    font-weight: 500;
+    gap: 0.45rem;
+    padding: 0.3rem 0.55rem;
+  }
+
+  .grade-modal-actions .action-btn:hover {
+    background: #e7e7ea;
+  }
+
+  .grade-modal-main {
+    padding: 1.7rem 1.95rem 1.25rem;
+  }
+
+  .grade-modal-title {
+    color: #27272a;
+    font-size: 2.1rem;
+    font-weight: 700;
+    margin: 0 0 1rem;
+  }
+
+  .grade-modal-meta {
+    align-items: center;
+    color: #3f3f46;
+    display: flex;
+    font-size: 1.05rem;
+    justify-content: space-between;
+    margin-bottom: 0.9rem;
+  }
+
+  .grade-modal-description {
+    color: #3f3f46;
+    font-size: 1.1rem;
+    margin-bottom: 1.35rem;
+  }
+
+  .grade-modal-student {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.95rem;
+  }
+
+  .grade-modal-student-left {
+    align-items: center;
+    display: inline-flex;
+    gap: 0.75rem;
+  }
+
+  .grade-avatar {
+    align-items: center;
+    background: #5b7be6;
+    border-radius: 999px;
+    color: #fff;
+    display: inline-flex;
+    font-size: 1.2rem;
+    height: 44px;
+    justify-content: center;
+    width: 44px;
+  }
+
+  .grade-student-name {
+    color: #3f3f46;
+    font-size: 1.95rem;
+    font-weight: 500;
+  }
+
+  .grade-pill-group {
+    display: inline-flex;
+    gap: 0.6rem;
+  }
+
+  .grade-pill {
+    border-radius: 999px;
+    font-size: 1.7rem;
+    font-weight: 700;
+    padding: 0.5rem 1.05rem;
+  }
+
+  .grade-pill-course {
+    background: #35359c;
+    color: #fff;
+  }
+
+  .grade-pill-type {
+    background: #c7f3f2;
+    color: #0694a2;
+  }
+
+  .grade-modal .nav-tabs {
+    border-bottom: 1px solid #d4d4d8;
+    gap: 0.2rem;
+    margin-top: 0.85rem;
+  }
+
+  .grade-modal .nav-tabs .nav-link {
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: #7a7a83;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 0.95rem 1.05rem;
+  }
+
+  .grade-modal .nav-tabs .nav-link.active {
+    border-bottom-color: #4f46e5;
+    color: #27272a;
+  }
+
+  .grade-modal-pane {
+    border-top: 1px solid #d4d4d8;
+    margin-top: -1px;
+    min-height: 165px;
+    padding: 1.55rem 0 0.5rem;
+  }
+
+  .grade-input-grid {
+    align-items: end;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem;
+  }
+
+  .grade-input-block {
+    min-width: 170px;
+  }
+
+  .grade-input-block label {
+    color: #3f3f46;
+    display: block;
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+  }
+
+  .grade-input-block input,
+  .grade-inline-date {
+    border: 1px solid #d4d4d8;
+    border-radius: 12px;
+    color: #3f3f46;
+    font-size: 1.05rem;
+    min-height: 54px;
+    padding: 0.6rem 0.75rem;
+  }
+
+  .grade-divider {
+    color: #3f3f46;
+    font-size: 2.2rem;
+    line-height: 1;
+    margin-bottom: 0.3rem;
+  }
+
+  .grade-save-btn {
+    align-items: center;
+    background: transparent;
+    border: none;
+    color: #3f3f46;
+    display: inline-flex;
+    font-size: 1.5rem;
+    gap: 0.5rem;
+    min-height: 54px;
+    padding: 0.2rem 0.35rem;
+  }
+
+  .grade-save-btn:hover {
+    color: #312e81;
+  }
+
+  .grade-secondary-row {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    margin-top: 0.9rem;
+  }
+
+  .grade-secondary-row label {
+    color: #71717a;
+    font-size: 0.85rem;
+    margin: 0;
+  }
+
+  .grade-secondary-row input,
+  .grade-secondary-row select {
+    border-radius: 9px;
+    font-size: 0.85rem;
+    min-height: 36px;
+    padding: 0.2rem 0.55rem;
+    width: auto;
+  }
+
+  .grade-modal-empty {
+    color: #71717a;
+    font-size: 1rem;
+    padding: 1rem 0;
+  }
+
+  .grade-modal-footer {
+    border-top: 1px solid #e4e4e7;
+    display: flex;
+    justify-content: flex-end;
+    padding: 0.8rem 1rem;
+  }
+
+  @media (max-width: 992px) {
+    .grade-modal-main {
+      padding: 1.2rem;
+    }
+
+    .grade-modal-title,
+    .grade-student-name {
+      font-size: 1.6rem;
+    }
+
+    .grade-pill,
+    .grade-modal-toolbar-left strong,
+    .grade-modal-toolbar-left i,
+    .grade-modal-actions .action-btn,
+    .grade-save-btn {
+      font-size: 1.1rem;
+    }
+
+    .grade-modal-student {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 0.9rem;
+    }
+
+    .grade-input-grid {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .grade-divider {
+      display: none;
+    }
   }
 </style>
 {% endblock %}
@@ -121,6 +390,10 @@
             data-assignment-name="{{ assignment.plan_item.template.name|escape }}"
             data-assignment-type="{{ assignment.plan_item.template.assignment_type.name|escape }}"
             data-assignment-course="{{ enrollment.course.name|escape }}"
+            data-assignment-description="{{ assignment.plan_item.template.description|default:''|escape }}"
+            data-week-number="{{ assignment.plan_item.week_number }}"
+            data-day-number="{{ assignment.plan_item.day_number }}"
+            data-student-name="{{ enrollment.child.first_name|escape }}"
             data-status="{{ assignment.status }}"
             data-score="{{ assignment.score|default:'' }}"
             data-points="{{ assignment.points_available|default:'' }}"
@@ -132,9 +405,7 @@
           >
             <td>{{ assignment.plan_item.template.name }}</td>
             <td>
-              <span class="badge text-bg-secondary">
-                {{ assignment.plan_item.template.assignment_type.name }}
-              </span>
+              <span class="badge text-bg-secondary">{{ assignment.plan_item.template.assignment_type.name }}</span>
             </td>
             <td>{{ assignment.due_date }}</td>
             <td>
@@ -148,19 +419,12 @@
             </td>
             <td>{{ assignment.effective_percent }}%</td>
             <td class="text-end">
-              <button
-                type="button"
-                class="btn btn-sm btn-outline-primary open-grade-modal"
-              >
-                Open
-              </button>
+              <button type="button" class="btn btn-sm btn-outline-primary open-grade-modal">Open</button>
             </td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="6" class="text-muted">
-              No assignments yet for this enrollment.
-            </td>
+            <td colspan="6" class="text-muted">No assignments yet for this enrollment.</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -169,25 +433,20 @@
   </div>
 </div>
 
-<div class="modal fade" id="gradeModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+<div class="modal fade grade-modal" id="gradeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
     <div class="modal-content">
-      <div class="modal-header">
-        <div>
-          <h5 class="modal-title" id="gradeModalTitle">Assignment</h5>
-          <div class="small text-muted" id="gradeModalSubTitle"></div>
-        </div>
-        <span class="badge ms-2" id="gradeModalStatusBadge">Pending</span>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
       <form method="post" id="gradeModalForm">
         {% csrf_token %}
         <input type="hidden" name="action" value="save_modal">
         <input type="hidden" name="assignment_id" id="gradeAssignmentId">
 
-        <div class="modal-body">
-          <div class="grade-window-actions">
-            <span class="text-muted small" id="gradeWindowStateLabel">Incomplete</span>
+        <div class="grade-modal-toolbar">
+          <div class="grade-modal-toolbar-left">
+            <i class="bi bi-circle" id="gradeStateIcon"></i>
+            <strong id="gradeWindowStateLabel">Incomplete</strong>
+          </div>
+          <div class="grade-modal-actions">
             <button type="button" class="action-btn" id="gradeQuickComplete">
               <i class="bi bi-check-circle"></i> Mark Complete
             </button>
@@ -197,77 +456,115 @@
             <button type="button" class="action-btn" id="gradeQuickEdit">
               <i class="bi bi-pencil-square"></i> Edit
             </button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+        </div>
+
+        <div class="grade-modal-main">
+          <h2 class="grade-modal-title" id="gradeModalTitle">Assignment</h2>
+          <div class="grade-modal-meta">
+            <div>
+              <strong id="gradeDateLabel">Due date not set</strong>
+              <span class="ms-2 text-muted" id="gradeModalSubTitle"></span>
+            </div>
+            <div class="text-muted" id="gradeWeekDayLabel"></div>
+          </div>
+          <p class="grade-modal-description" id="gradeDescription">No description available.</p>
+
+          <div class="grade-modal-student">
+            <div class="grade-modal-student-left">
+              <span class="grade-avatar" id="gradeStudentInitial">S</span>
+              <div class="grade-student-name" id="gradeStudentName">Student</div>
+            </div>
+            <div class="grade-pill-group">
+              <span class="grade-pill grade-pill-course" id="gradeCourseBadge">Course</span>
+              <span class="grade-pill grade-pill-type" id="gradeTypeBadge">Type</span>
+            </div>
           </div>
 
-          <ul class="nav nav-tabs mb-3" role="tablist">
+          <ul class="nav nav-tabs" role="tablist">
             <li class="nav-item" role="presentation">
               <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-grade" type="button" role="tab">Grade</button>
             </li>
             <li class="nav-item" role="presentation">
-              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-comments" type="button" role="tab">Comments</button>
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-attachments" type="button" role="tab">Attachments (0)</button>
             </li>
             <li class="nav-item" role="presentation">
-              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-submissions" type="button" role="tab">Submissions</button>
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-comments" type="button" role="tab">Comments (0)</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-submissions" type="button" role="tab">Submissions (0)</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-notes" type="button" role="tab">Teacher's Notes</button>
             </li>
           </ul>
 
           <div class="tab-content">
-            <div class="tab-pane fade show active" id="tab-grade" role="tabpanel">
-              <div class="row g-3">
-                <div class="col-md-4">
-                  <label class="form-label">Status</label>
-                  <select class="form-select" name="status" id="gradeStatusInput">
-                    <option value="pending">Pending</option>
-                    <option value="complete">Complete</option>
-                    <option value="overdue">Overdue</option>
-                  </select>
+            <div class="tab-pane fade show active grade-modal-pane" id="tab-grade" role="tabpanel">
+              <div class="grade-input-grid">
+                <div class="grade-input-block">
+                  <label for="gradeScoreInput">Points Earned</label>
+                  <input type="number" step="0.01" min="0" name="score" id="gradeScoreInput" placeholder="100">
                 </div>
-                <div class="col-md-4">
-                  <label class="form-label">Due Date</label>
-                  <input type="date" class="form-control" name="due_date" id="gradeDueDateInput">
+                <div class="grade-divider">/</div>
+                <div class="grade-input-block">
+                  <label for="gradePointsInput">Points Available</label>
+                  <input type="number" step="0.01" min="0" name="points_available" id="gradePointsInput" placeholder="100">
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
-                  <a href="#" class="btn btn-outline-secondary w-100" id="gradeEditLink" target="_blank">
-                    Edit Assignment Details
-                  </a>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">Points Earned</label>
-                  <input type="number" step="0.01" min="0" name="score" id="gradeScoreInput" class="form-control">
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">Points Available</label>
-                  <input type="number" step="0.01" min="0" name="points_available" id="gradePointsInput" class="form-control">
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">Percent</label>
-                  <input type="number" step="0.01" min="0" max="100" name="score_percent" id="gradePercentInput" class="form-control">
-                </div>
-                <div class="col-12">
-                  <label class="form-label">Grading Notes</label>
-                  <textarea class="form-control" rows="3" name="grading_notes" id="gradeNotesInput"></textarea>
-                </div>
+                <button type="submit" class="grade-save-btn">
+                  <i class="bi bi-floppy"></i> Save Grade
+                </button>
+              </div>
+
+              <div class="grade-secondary-row">
+                <label for="gradeDueDateInput">Due Date</label>
+                <input type="date" class="grade-inline-date" name="due_date" id="gradeDueDateInput">
+                <label for="gradePercentInput">Percent</label>
+                <input type="number" step="0.01" min="0" max="100" name="score_percent" id="gradePercentInput">
+                <label for="gradeStatusInput">Status</label>
+                <select name="status" id="gradeStatusInput">
+                  <option value="pending">Pending</option>
+                  <option value="complete">Complete</option>
+                  <option value="overdue">Overdue</option>
+                </select>
+                <a href="#" class="btn btn-sm btn-outline-secondary" id="gradeEditLink" target="_blank">Edit Assignment Details</a>
               </div>
             </div>
 
-            <div class="tab-pane fade" id="tab-comments" role="tabpanel">
-              <p class="text-muted mb-0">Comments workflow placeholder: teacher/parent feedback thread will be integrated here.</p>
+            <div class="tab-pane fade grade-modal-pane" id="tab-attachments" role="tabpanel">
+              <p class="grade-modal-empty mb-0">Attachments are not wired into this modal yet.</p>
             </div>
 
-            <div class="tab-pane fade" id="tab-submissions" role="tabpanel">
-              <p class="text-muted mb-0">Submissions workflow placeholder: assignment evidence and uploads will appear in this tab.</p>
+            <div class="tab-pane fade grade-modal-pane" id="tab-comments" role="tabpanel">
+              <p class="grade-modal-empty mb-0">Comments workflow will appear here.</p>
+            </div>
+
+            <div class="tab-pane fade grade-modal-pane" id="tab-submissions" role="tabpanel">
+              <p class="grade-modal-empty mb-0">Submissions workflow will appear here.</p>
+            </div>
+
+            <div class="tab-pane fade grade-modal-pane" id="tab-notes" role="tabpanel">
+              <div class="row g-3">
+                <div class="col-12">
+                  <label class="form-label" for="gradeNotesInput">Teacher Notes</label>
+                  <textarea class="form-control" rows="4" name="grading_notes" id="gradeNotesInput"></textarea>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="modal-footer">
+        <div class="grade-modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save Changes</button>
+          <button type="submit" class="btn btn-primary">Save</button>
         </div>
       </form>
     </div>
   </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script src="{% static 'js/gradebook.js' %}"></script>
 {% endblock %}

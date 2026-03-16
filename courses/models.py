@@ -260,7 +260,8 @@ def sync_course_assignment_types_from_global(course):
             if at.color != gt.color:
                 at.color = gt.color
                 changed.append('color')
-            if at.is_hidden != gt.is_hidden:
+            # Global hidden always wins; otherwise preserve per-course visibility.
+            if gt.is_hidden and not at.is_hidden:
                 at.is_hidden = gt.is_hidden
                 changed.append('is_hidden')
             if at.order != gt.order:

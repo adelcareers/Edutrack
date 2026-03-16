@@ -10,7 +10,14 @@
 
   const modalTitle = document.getElementById('gradeModalTitle');
   const modalSubTitle = document.getElementById('gradeModalSubTitle');
-  const modalStatusBadge = document.getElementById('gradeModalStatusBadge');
+  const dateLabel = document.getElementById('gradeDateLabel');
+  const weekDayLabel = document.getElementById('gradeWeekDayLabel');
+  const descriptionLabel = document.getElementById('gradeDescription');
+  const studentInitial = document.getElementById('gradeStudentInitial');
+  const studentName = document.getElementById('gradeStudentName');
+  const courseBadge = document.getElementById('gradeCourseBadge');
+  const typeBadge = document.getElementById('gradeTypeBadge');
+  const stateIcon = document.getElementById('gradeStateIcon');
 
   const assignmentIdInput = document.getElementById('gradeAssignmentId');
   const statusInput = document.getElementById('gradeStatusInput');
@@ -27,29 +34,98 @@
 
   function getStatusMeta(status) {
     if (status === 'complete') {
-      return { label: 'Complete', className: 'bg-success' };
+      return {
+        iconClass: 'bi-check-circle',
+        iconColor: '#16a34a',
+        label: 'Complete',
+        labelColor: '#3f3f46',
+      };
     }
     if (status === 'overdue') {
-      return { label: 'Overdue', className: 'bg-danger' };
+      return {
+        iconClass: 'bi-exclamation-circle',
+        iconColor: '#dc2626',
+        label: 'Overdue',
+        labelColor: '#3f3f46',
+      };
     }
-    return { label: 'Pending', className: 'text-bg-secondary' };
+    return {
+      iconClass: 'bi-circle',
+      iconColor: '#9ca3af',
+      label: 'Incomplete',
+      labelColor: '#8f8f93',
+    };
+  }
+
+  function ordinal(n) {
+    const mod10 = n % 10;
+    const mod100 = n % 100;
+    if (mod10 === 1 && mod100 !== 11) {
+      return `${n}st`;
+    }
+    if (mod10 === 2 && mod100 !== 12) {
+      return `${n}nd`;
+    }
+    if (mod10 === 3 && mod100 !== 13) {
+      return `${n}rd`;
+    }
+    return `${n}th`;
+  }
+
+  function formatDueDate(value) {
+    if (!value) {
+      return 'Due date not set';
+    }
+    const date = new Date(`${value}T12:00:00`);
+    if (Number.isNaN(date.getTime())) {
+      return 'Due date not set';
+    }
+    const weekday = date.toLocaleDateString(undefined, { weekday: 'long' });
+    const month = date.toLocaleDateString(undefined, { month: 'short' });
+    return `Due ${weekday}, ${month} ${ordinal(date.getDate())}`;
+  }
+
+  function setState(status) {
+    const statusMeta = getStatusMeta(status);
+    if (stateLabel) {
+      stateLabel.textContent = statusMeta.label;
+      stateLabel.style.color = statusMeta.labelColor;
+    }
+    if (stateIcon) {
+      stateIcon.className = `bi ${statusMeta.iconClass}`;
+      stateIcon.style.color = statusMeta.iconColor;
+    }
   }
 
   function openFromRow(row) {
     const status = row.dataset.displayStatus || row.dataset.status || 'pending';
-    const statusMeta = getStatusMeta(status);
 
     modalTitle.textContent = row.dataset.assignmentName || 'Assignment';
-    modalSubTitle.textContent = [
-      row.dataset.assignmentCourse,
-      row.dataset.assignmentType,
-    ].filter(Boolean).join(' • ');
-
-    modalStatusBadge.className = `badge ${statusMeta.className}`;
-    modalStatusBadge.textContent = statusMeta.label;
-    if (stateLabel) {
-      stateLabel.textContent =
-        status === 'complete' ? 'Complete' : 'Incomplete';
+    modalSubTitle.textContent = row.dataset.assignmentCourse || '';
+    if (dateLabel) {
+      dateLabel.textContent = formatDueDate(row.dataset.dueDate || '');
+    }
+    if (weekDayLabel) {
+      const week = row.dataset.weekNumber;
+      const day = row.dataset.dayNumber;
+      weekDayLabel.textContent = week && day ? `Week ${week}, Day ${day}` : '';
+    }
+    if (descriptionLabel) {
+      descriptionLabel.textContent =
+        row.dataset.assignmentDescription || 'No description available.';
+    }
+    if (studentName) {
+      studentName.textContent = row.dataset.studentName || 'Student';
+    }
+    if (studentInitial) {
+      const name = row.dataset.studentName || 'Student';
+      studentInitial.textContent = name.charAt(0).toUpperCase();
+    }
+    if (courseBadge) {
+      courseBadge.textContent = row.dataset.assignmentCourse || 'Course';
+    }
+    if (typeBadge) {
+      typeBadge.textContent = row.dataset.assignmentType || 'Type';
     }
 
     assignmentIdInput.value = row.dataset.assignmentId || '';
@@ -62,6 +138,8 @@
 
     const editUrl = row.dataset.editUrl || '#';
     editLink.setAttribute('href', editUrl);
+
+    setState(statusInput.value);
 
     modal.show();
   }
@@ -88,11 +166,7 @@
   if (quickCompleteBtn) {
     quickCompleteBtn.addEventListener('click', () => {
       statusInput.value = 'complete';
-      modalStatusBadge.className = 'badge bg-success';
-      modalStatusBadge.textContent = 'Complete';
-      if (stateLabel) {
-        stateLabel.textContent = 'Complete';
-      }
+      setState('complete');
     });
   }
 
@@ -111,6 +185,12 @@
       if (editUrl && editUrl !== '#') {
         window.open(editUrl, '_blank');
       }
+    });
+  }
+
+  if (statusInput) {
+    statusInput.addEventListener('change', () => {
+      setState(statusInput.value || 'pending');
     });
   }
 })();

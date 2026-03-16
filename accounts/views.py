@@ -8,7 +8,12 @@ from django.contrib import messages
 from .forms import CustomUserCreationForm
 from .models import ParentSettings, UserProfile
 from accounts.decorators import role_required
-from courses.models import GlobalAssignmentType, GLOBAL_ASSIGNMENT_DEFAULTS
+from courses.models import (
+    Course,
+    GlobalAssignmentType,
+    GLOBAL_ASSIGNMENT_DEFAULTS,
+    sync_course_assignment_types_from_global,
+)
 
 
 def register_view(request):
@@ -163,6 +168,8 @@ def settings_view(request):
         settings.save(update_fields=['first_day_of_week', 'show_empty_assignments'])
 
         _save_global_assignment_types(request, request.user)
+        for course in Course.objects.filter(parent=request.user):
+            sync_course_assignment_types_from_global(course)
         messages.success(request, 'Settings saved.')
         return redirect('accounts:settings')
 

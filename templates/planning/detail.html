@@ -405,10 +405,17 @@
           <div class="col-md-4">
             <label>Select Type</label>
             <select class="form-select" name="assignment_type">
-              {% for at in assignment_types %}
-                <option value="{{ at.id }}" {% if editing_item and at.id == editing_item.template.assignment_type.id %}selected{% endif %}>{{ at.name }}</option>
-              {% endfor %}
+              {% if assignment_types %}
+                {% for at in assignment_types %}
+                  <option value="{{ at.id }}" {% if editing_item and at.id == editing_item.template.assignment_type.id %}selected{% endif %}>{{ at.name }}</option>
+                {% endfor %}
+              {% else %}
+                <option value="" selected disabled>No assignment types enabled for this course</option>
+              {% endif %}
             </select>
+            {% if not assignment_types %}
+              <div class="small text-muted mt-1">Enable assignment types from Course settings.</div>
+            {% endif %}
             <div class="form-check mt-2">
               <input class="form-check-input" type="checkbox" name="is_graded" id="is_graded" {% if editing_item and editing_item.template.is_graded %}checked{% endif %}>
               <label class="form-check-label" for="is_graded" style="font-size: 0.78rem;">Graded</label>

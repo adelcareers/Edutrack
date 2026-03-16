@@ -210,3 +210,18 @@ class StudentAssignmentSelectionTests(TestCase):
                 enrollment=self.enrollment_two,
             ).exists()
         )
+
+    def test_hidden_assignment_type_not_shown_in_planning_form(self):
+        response = self.client.get(reverse('planning:plan_course', args=[self.course.pk]))
+        self.assertEqual(response.status_code, 200)
+
+        assignment_type = response.context['assignment_types'].first()
+        assignment_type.is_hidden = True
+        assignment_type.save(update_fields=['is_hidden'])
+
+        response = self.client.get(reverse('planning:plan_course', args=[self.course.pk]))
+        self.assertEqual(response.status_code, 200)
+        assignment_type_ids = list(
+            response.context['assignment_types'].values_list('id', flat=True)
+        )
+        self.assertNotIn(assignment_type.id, assignment_type_ids)

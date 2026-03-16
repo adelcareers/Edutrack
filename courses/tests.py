@@ -221,3 +221,24 @@ class SingleSourceAssignmentTypeSyncTests(TestCase):
         sync_course_assignment_types_from_global(self.course)
         at = AssignmentType.objects.get(course=self.course, global_type=gt)
         self.assertEqual(at.weight, 40)
+
+    def test_sync_preserves_course_hidden_when_global_visible(self):
+        gt = GlobalAssignmentType.objects.create(
+            parent=self.parent,
+            name='Quiz',
+            color='#60a5fa',
+            order=0,
+            is_hidden=False,
+        )
+        AssignmentType.objects.create(
+            course=self.course,
+            global_type=gt,
+            name='Quiz',
+            color='#60a5fa',
+            is_hidden=True,
+            order=0,
+        )
+
+        sync_course_assignment_types_from_global(self.course)
+        at = AssignmentType.objects.get(course=self.course, global_type=gt)
+        self.assertTrue(at.is_hidden)
