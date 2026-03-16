@@ -15,9 +15,7 @@ def _sanitize_path(p: str) -> str:
 
 
 class Command(BaseCommand):
-    help = (
-        "Render a list of site pages to static HTML files for HTML validation in CI."
-    )
+    help = "Render a list of site pages to static HTML files for HTML validation in CI."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -55,13 +53,8 @@ class Command(BaseCommand):
             self.stdout.write(f"Rendering: {path}")
             resp = client.get(path)
             if resp.status_code != 200:
-                self.stderr.write(
-                    f"Warning: GET {path} returned {resp.status_code}"
-                )
+                self.stderr.write(f"Warning: GET {path} returned {resp.status_code}")
             filename = _sanitize_path(path)
             target = outdir / filename
             target.write_bytes(resp.content)
             self.stdout.write(f"Wrote: {target}")
-
-
-
