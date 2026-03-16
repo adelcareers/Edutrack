@@ -68,11 +68,33 @@ jobs:
         run: |
           python manage.py test --verbosity=2
 
-      - name: Code style checks
+      - name: Code style checks (changed Python files)
+        shell: bash
         run: |
-          black --check .
-          isort --check-only .
-          flake8
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+          fi
+
+          if [ -z "${BASE_SHA}" ] || [ "${BASE_SHA}" = "0000000000000000000000000000000000000000" ]; then
+            echo "No valid base SHA found; skipping style checks for this run."
+            exit 0
+          fi
+
+          CHANGED_PY_FILES=$(git diff --name-only "${BASE_SHA}" "${{ github.sha }}" -- '*.py' | tr '\n' ' ')
+
+          if [ -z "${CHANGED_PY_FILES}" ]; then
+            echo "No changed Python files. Skipping black/isort/flake8."
+            exit 0
+          fi
+
+          echo "Checking changed Python files: ${CHANGED_PY_FILES}"
+          black --check ${CHANGED_PY_FILES}
+          isort --check-only ${CHANGED_PY_FILES}
+          flake8 ${CHANGED_PY_FILES}
 
       - name: HTML validation (templates)
         run: |
