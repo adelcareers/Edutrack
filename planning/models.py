@@ -12,7 +12,7 @@ class CourseAssignmentTemplate(models.Model):
         Course, on_delete=models.CASCADE, related_name="assignment_templates"
     )
     assignment_type = models.ForeignKey(
-        AssignmentType, on_delete=models.PROTECT, related_name="templates"
+        AssignmentType, on_delete=models.CASCADE, related_name="templates"
     )
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True, default="")
