@@ -49,6 +49,14 @@
         labelColor: '#3f3f46',
       };
     }
+    if (status === 'needs_grading') {
+      return {
+        iconClass: 'bi-hourglass-split',
+        iconColor: '#d97706',
+        label: 'Needs Grading',
+        labelColor: '#3f3f46',
+      };
+    }
     return {
       iconClass: 'bi-circle',
       iconColor: '#9ca3af',

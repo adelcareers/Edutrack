@@ -32,6 +32,12 @@
     color: #166534;
   }
 
+  .status-chip.status-needs-grading {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+  }
+
   .grade-modal .modal-dialog {
     max-width: 1020px;
   }
@@ -415,6 +421,8 @@
             <td>
               {% if assignment.display_status == 'complete' %}
                 <span class="status-chip status-complete">Complete</span>
+              {% elif assignment.display_status == 'needs_grading' %}
+                <span class="status-chip status-needs-grading">Needs Grading</span>
               {% elif assignment.display_status == 'overdue' %}
                 <span class="status-chip status-overdue">Overdue</span>
               {% else %}
@@ -529,6 +537,7 @@
                 <label for="gradeStatusInput">Status</label>
                 <select name="status" id="gradeStatusInput">
                   <option value="pending">Pending</option>
+                  <option value="needs_grading">Needs Grading</option>
                   <option value="complete">Complete</option>
                   <option value="overdue">Overdue</option>
                 </select>

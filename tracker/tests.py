@@ -1548,6 +1548,20 @@ class AssignmentCalendarEndpointTests(TestCase):
         self.assertEqual(self.assignment.status, "complete")
         self.assertEqual(response.json()["status"], "done")
 
+    def test_student_done_sets_needs_grading_but_response_is_done(self):
+        self.client.force_login(self.student)
+        response = self.client.post(
+            reverse(
+                "tracker:assignment_update",
+                kwargs={"assignment_id": self.assignment.pk},
+            ),
+            {"status": "done"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assignment.refresh_from_db()
+        self.assertEqual(self.assignment.status, "needs_grading")
+        self.assertEqual(response.json()["status"], "done")
+
     def test_student_mark_incomplete_becomes_overdue_when_past_due(self):
         self.assignment.status = "complete"
         self.assignment.save(update_fields=["status"])
@@ -1745,3 +1759,27 @@ class HomeAssignmentsDashboardTests(TestCase):
         self.assertEqual(str(self.assignment.score), "85.00")
         self.assertEqual(self.assignment.status, "complete")
         self.assertEqual(self.assignment.grading_notes, "Great progress.")
+
+    def test_student_mark_complete_persists_needs_grading_in_home(self):
+        self.client.force_login(self.student)
+        response = self.client.post(
+            reverse(
+                "tracker:home_assignment_status",
+                kwargs={"assignment_id": self.assignment.pk},
+            ),
+            {
+                "status": "done",
+                "next": reverse(self.URL),
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assignment.refresh_from_db()
+        self.assertEqual(self.assignment.status, "needs_grading")
+
+    def test_student_home_still_shows_completed_for_needs_grading(self):
+        self.assignment.status = "needs_grading"
+        self.assignment.save(update_fields=["status"])
+        self.client.force_login(self.student)
+        response = self.client.get(reverse(self.URL), {"selected": self.assignment.pk})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Completed")

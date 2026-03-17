@@ -104,11 +104,11 @@ def recalculate_enrollment_grade(enrollment):
 
     by_assignment_type = {}
     for assignment in assignments:
-        if assignment.status != "complete" and assignment.due_date < today:
+        if assignment.status in {"pending", "overdue"} and assignment.due_date < today:
             missing_count += 1
         if assignment.status == "overdue":
             late_count += 1
-        if assignment.status == "complete" and assignment.completed_at:
+        if assignment.status in {"complete", "needs_grading"} and assignment.completed_at:
             if assignment.completed_at.date() > assignment.due_date:
                 late_count += 1
 

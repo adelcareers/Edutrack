@@ -56,6 +56,7 @@ class StudentAssignment(models.Model):
 
     STATUS_CHOICES = [
         ("pending", "Pending"),
+        ("needs_grading", "Needs Grading"),
         ("complete", "Complete"),
         ("overdue", "Overdue"),
     ]

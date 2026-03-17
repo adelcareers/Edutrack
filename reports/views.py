@@ -189,6 +189,7 @@ def gradebook_detail_view(request, enrollment_id):
         percent_raw = (request.POST.get("score_percent") or "").strip()
         status_raw = (request.POST.get("status") or "").strip()
         due_date_raw = (request.POST.get("due_date") or "").strip()
+        notes_raw = request.POST.get("grading_notes", "").strip()
 
         score_value = _parse_decimal(score_raw)
         points_value = _parse_decimal(points_raw)
@@ -197,7 +198,7 @@ def gradebook_detail_view(request, enrollment_id):
         assignment.score = score_value
         assignment.points_available = points_value
         assignment.score_percent = percent_value
-        assignment.grading_notes = request.POST.get("grading_notes", "").strip()
+        assignment.grading_notes = notes_raw
         assignment.graded_at = timezone.now()
         assignment.graded_by = request.user
         update_fields.extend(
@@ -212,14 +213,25 @@ def gradebook_detail_view(request, enrollment_id):
         )
 
         if action == "save_modal":
-            if status_raw in {"pending", "complete", "overdue"}:
+            if status_raw in {
+                "pending",
+                "complete",
+                "overdue",
+                "needs_grading",
+            }:
                 assignment.status = status_raw
                 update_fields.append("status")
 
-            if assignment.status == "complete" and assignment.completed_at is None:
+            if (
+                assignment.status in {"complete", "needs_grading"}
+                and assignment.completed_at is None
+            ):
                 assignment.completed_at = timezone.now()
                 update_fields.append("completed_at")
-            if assignment.status != "complete" and assignment.completed_at is not None:
+            if (
+                assignment.status not in {"complete", "needs_grading"}
+                and assignment.completed_at is not None
+            ):
                 assignment.completed_at = None
                 update_fields.append("completed_at")
 
@@ -231,6 +243,14 @@ def gradebook_detail_view(request, enrollment_id):
                 if due_date is not None:
                     assignment.due_date = due_date
                     update_fields.append("due_date")
+
+        has_grading_input = any(
+            [score_raw, points_raw, percent_raw, notes_raw]
+        )
+        if has_grading_input:
+            assignment.status = "complete"
+            assignment.completed_at = assignment.completed_at or timezone.now()
+            update_fields.extend(["status", "completed_at"])
 
         assignment.save(update_fields=sorted(set(update_fields)))
         recalculate_enrollment_grade(enrollment)
@@ -249,6 +269,8 @@ def gradebook_detail_view(request, enrollment_id):
     for assignment in assignments:
         if assignment.status == "complete":
             assignment.display_status = "complete"
+        elif assignment.status == "needs_grading":
+            assignment.display_status = "needs_grading"
         elif assignment.due_date < today:
             assignment.display_status = "overdue"
         else:
@@ -267,7 +289,12 @@ def gradebook_detail_view(request, enrollment_id):
         sort_order = "asc"
 
     if sort_by == "status":
-        status_rank = {"pending": 0, "overdue": 1, "complete": 2}
+        status_rank = {
+            "pending": 0,
+            "overdue": 1,
+            "needs_grading": 2,
+            "complete": 3,
+        }
         assignments.sort(
             key=lambda item: (
                 status_rank.get(item.display_status, 99),

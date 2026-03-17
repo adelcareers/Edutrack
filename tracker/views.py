@@ -26,12 +26,16 @@ def _get_or_create_settings(user):
     return settings
 
 
-def _effective_assignment_status(assignment, today=None):
+def _effective_assignment_status(assignment, today=None, viewer_role=None):
     """Resolve display status with automatic overdue behaviour."""
     if today is None:
         today = datetime.date.today()
     if assignment.status == "complete":
         return "done"
+    if assignment.status == "needs_grading":
+        if viewer_role == "student":
+            return "done"
+        return "needs_grading"
     if assignment.due_date < today:
         return "overdue"
     return "incomplete"
@@ -144,11 +148,14 @@ def home_assignments_view(request):
     assignments = list(scoped_qs)
     for assignment in assignments:
         assignment.effective_status = _effective_assignment_status(
-            assignment, today=today
+            assignment, today=today, viewer_role=role
         )
+        assignment.effective_status_label = assignment.effective_status.replace(
+            "_", " "
+        ).title()
         assignment.due_text = _due_text(assignment.due_date, today)
 
-    if selected_status in {"done", "incomplete", "overdue"}:
+    if selected_status in {"done", "incomplete", "overdue", "needs_grading"}:
         assignments = [a for a in assignments if a.effective_status == selected_status]
     if hide_completed:
         assignments = [a for a in assignments if a.effective_status != "done"]
@@ -221,7 +228,7 @@ def home_assignments_view(request):
 
     selected_label = None
     if selected_assignment is not None:
-        selected_label = selected_assignment.effective_status.replace("_", " ").title()
+        selected_label = selected_assignment.effective_status_label
 
     return render(
         request,
@@ -270,7 +277,12 @@ def home_assignment_status_view(request, assignment_id):
         return redirect(_home_next_url(request, assignment))
 
     if requested == "done":
-        assignment.status = "complete"
+        assignment.status = (
+            "needs_grading"
+            if getattr(getattr(request.user, "profile", None), "role", None)
+            == "student"
+            else "complete"
+        )
         assignment.completed_at = timezone.now()
     else:
         assignment.status = "pending"
@@ -301,10 +313,15 @@ def home_assignment_grade_view(request, assignment_id):
             return None
 
     update_fields = []
+    score_raw = request.POST.get("score")
+    points_raw = request.POST.get("points_available")
+    percent_raw = request.POST.get("score_percent")
+    notes_raw = (request.POST.get("grading_notes") or "").strip()
+
     assignment.score = _parse_decimal(request.POST.get("score"))
     assignment.points_available = _parse_decimal(request.POST.get("points_available"))
     assignment.score_percent = _parse_decimal(request.POST.get("score_percent"))
-    assignment.grading_notes = (request.POST.get("grading_notes") or "").strip()
+    assignment.grading_notes = notes_raw
     assignment.graded_at = timezone.now()
     assignment.graded_by = request.user
     update_fields.extend(
@@ -319,14 +336,27 @@ def home_assignment_grade_view(request, assignment_id):
     )
 
     status_raw = (request.POST.get("status") or "").strip()
-    if status_raw in {"pending", "complete", "overdue"}:
+    if status_raw in {"pending", "complete", "overdue", "needs_grading"}:
         assignment.status = status_raw
         update_fields.append("status")
-        if status_raw == "complete":
+        if status_raw in {"complete", "needs_grading"}:
             assignment.completed_at = timezone.now()
         else:
             assignment.completed_at = None
         update_fields.append("completed_at")
+
+    has_grading_input = any(
+        [
+            (score_raw or "").strip(),
+            (points_raw or "").strip(),
+            (percent_raw or "").strip(),
+            notes_raw,
+        ]
+    )
+    if has_grading_input:
+        assignment.status = "complete"
+        assignment.completed_at = assignment.completed_at or timezone.now()
+        update_fields.extend(["status", "completed_at"])
 
     due_date_raw = (request.POST.get("due_date") or "").strip()
     if due_date_raw:
@@ -392,6 +422,7 @@ def _build_calendar_context(
     child_name=None,
     first_day_of_week=0,
     show_empty_assignments=False,
+    viewer_role=None,
 ):
     """Shared helper: build the full context dict for the calendar template.
 
@@ -444,7 +475,7 @@ def _build_calendar_context(
         )
         for assignment in assignment_qs:
             assignment.effective_status = _effective_assignment_status(
-                assignment, today=today
+                assignment, today=today, viewer_role=viewer_role
             )
             assignments_by_date.setdefault(assignment.due_date, []).append(assignment)
 
@@ -516,6 +547,7 @@ def calendar_view(request, year=None, week=None):
         is_readonly=False,
         first_day_of_week=settings.first_day_of_week if settings else 0,
         show_empty_assignments=settings.show_empty_assignments if settings else False,
+        viewer_role="student",
     )
     ctx["can_edit_assignments"] = True
     return render(request, "tracker/calendar.html", ctx)
@@ -553,7 +585,8 @@ def assignment_detail_view(request, assignment_id):
     if not _can_access_student_assignment(request.user, assignment):
         return JsonResponse({"error": "forbidden"}, status=403)
 
-    effective_status = _effective_assignment_status(assignment)
+    role = getattr(getattr(request.user, "profile", None), "role", None)
+    effective_status = _effective_assignment_status(assignment, viewer_role=role)
     return JsonResponse(
         {
             "id": assignment.pk,
@@ -586,14 +619,20 @@ def update_assignment_status_view(request, assignment_id):
         return JsonResponse({"error": "invalid status"}, status=400)
 
     if requested == "done":
-        assignment.status = "complete"
+        assignment.status = (
+            "needs_grading"
+            if getattr(getattr(request.user, "profile", None), "role", None)
+            == "student"
+            else "complete"
+        )
         assignment.completed_at = timezone.now()
     else:
         assignment.status = "pending"
         assignment.completed_at = None
 
     assignment.save(update_fields=["status", "completed_at"])
-    effective_status = _effective_assignment_status(assignment)
+    role = getattr(getattr(request.user, "profile", None), "role", None)
+    effective_status = _effective_assignment_status(assignment, viewer_role=role)
     return JsonResponse(
         {
             "success": True,
@@ -934,6 +973,7 @@ def parent_calendar_view(request, child_id, year=None, week=None):
         child_name=child.first_name,
         first_day_of_week=settings.first_day_of_week if settings else 0,
         show_empty_assignments=settings.show_empty_assignments if settings else False,
+        viewer_role="parent",
     )
     ctx["can_edit_assignments"] = True
     ctx["siblings"] = siblings

@@ -169,6 +169,11 @@
     background: #e2e8f0;
   }
 
+  .pill-status-needs_grading {
+    color: #92400e;
+    background: #fef3c7;
+  }
+
   .detail-panel {
     min-height: 72vh;
   }
@@ -370,6 +375,7 @@
               <option value="" {% if not selected_status %}selected{% endif %}>All Statuses</option>
               <option value="incomplete" {% if selected_status == 'incomplete' %}selected{% endif %}>Incomplete</option>
               <option value="overdue" {% if selected_status == 'overdue' %}selected{% endif %}>Overdue</option>
+              <option value="needs_grading" {% if selected_status == 'needs_grading' %}selected{% endif %}>Needs Grading</option>
               <option value="done" {% if selected_status == 'done' %}selected{% endif %}>Completed</option>
             </select>
           </div>
@@ -400,7 +406,7 @@
           <div class="pill-row">
             <span class="pill pill-grade">{{ assignment.enrollment.child.school_year }}</span>
             <span class="pill pill-type" style="background: {{ assignment.plan_item.template.assignment_type.color }}33;">{{ assignment.plan_item.template.assignment_type.name }}</span>
-            <span class="pill pill-status-{{ assignment.effective_status }}">{{ assignment.effective_status|title }}</span>
+            <span class="pill pill-status-{{ assignment.effective_status }}">{{ assignment.effective_status_label }}</span>
           </div>
         </a>
         {% empty %}
@@ -424,7 +430,7 @@
         <div class="detail-line"><span class="detail-label">Student:</span>{{ selected_assignment.enrollment.child.first_name }}</div>
         <div class="detail-line"><span class="detail-label">Type:</span>{{ selected_assignment.plan_item.template.assignment_type.name }}</div>
         <div class="detail-line"><span class="detail-label">Due date:</span>{{ selected_assignment.due_date|date:"D, M j, Y" }}</div>
-        <div class="detail-line"><span class="detail-label">Status:</span>{{ selected_assignment.effective_status|title }}</div>
+        <div class="detail-line"><span class="detail-label">Status:</span>{{ selected_status_label }}</div>
 
         <div class="detail-actions">
           <form method="post" action="{% url 'tracker:home_assignment_status' assignment_id=selected_assignment.id %}">

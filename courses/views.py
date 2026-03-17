@@ -44,6 +44,8 @@ def _effective_assignment_status(student_assignment, today=None):
         today = timezone.localdate()
     if student_assignment.status == "complete":
         return "complete"
+    if student_assignment.status == "needs_grading":
+        return "needs_grading"
     if student_assignment.due_date < today:
         return "overdue"
     return "pending"

@@ -638,6 +638,7 @@ class GradebookViewsAndServiceTests(TestCase):
         self.assertEqual(self.student_assignment.grading_notes, "Good work")
         self.assertIsNotNone(self.student_assignment.graded_at)
         self.assertEqual(self.student_assignment.graded_by, self.parent)
+        self.assertEqual(self.student_assignment.status, "complete")
 
     def test_gradebook_detail_modal_save_updates_status_and_due_date(self):
         response = self.client.post(
@@ -664,6 +665,18 @@ class GradebookViewsAndServiceTests(TestCase):
             datetime.date(2026, 2, 1),
         )
         self.assertIsNotNone(self.student_assignment.completed_at)
+
+    def test_gradebook_detail_shows_needs_grading_chip(self):
+        self.student_assignment.status = "needs_grading"
+        self.student_assignment.save(update_fields=["status"])
+
+        response = self.client.get(
+            reverse(
+                "reports:gradebook_detail", kwargs={"enrollment_id": self.enrollment.id}
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Needs Grading")
 
     def test_gradebook_transcript_view_renders_child_summary(self):
         self.student_assignment.score = 8
