@@ -1,5 +1,6 @@
 import datetime
 import io
+from collections import defaultdict
 from decimal import Decimal, InvalidOperation
 
 import cloudinary.utils
@@ -10,11 +11,17 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 from xhtml2pdf import pisa
 
 from accounts.decorators import role_required
 from courses.models import CourseEnrollment
-from planning.models import StudentAssignment
+from planning.models import (
+    AssignmentAttachment,
+    AssignmentComment,
+    AssignmentSubmission,
+    StudentAssignment,
+)
 from reports.models import Report
 from reports.services_gradebook import (
     get_assignment_percent,
@@ -26,6 +33,28 @@ from tracker.models import LessonLog
 
 from .forms import ReportForm
 from .services import generate_pdf
+
+
+def _user_role(user):
+    return getattr(getattr(user, "profile", None), "role", None)
+
+
+def _is_gradebook_owner_role(role):
+    return role in {"parent", "teacher"}
+
+
+def _can_submit_assignment(user, assignment):
+    if _user_role(user) != "student":
+        return False
+    child = getattr(user, "child_profile", None)
+    return child is not None and assignment.enrollment.child_id == child.pk
+
+
+def _assignment_next_url(request, assignment):
+    next_url = (request.POST.get("next") or "").strip()
+    if next_url.startswith("/"):
+        return next_url
+    return reverse("reports:gradebook_detail", args=[assignment.enrollment_id])
 
 
 @login_required
@@ -114,19 +143,30 @@ def token_report_view(request, token):
 
 
 @login_required
-@role_required("parent")
 def gradebook_list_view(request):
-    """Parent-facing gradebook index grouped by student."""
+    """Role-aware gradebook index grouped by student."""
+    role = _user_role(request.user)
+    if role not in {"parent", "teacher", "student"}:
+        return HttpResponseForbidden()
+
     tab = request.GET.get("tab", "current")
     if tab not in {"current", "completed"}:
         tab = "current"
 
     status_filter = "completed" if tab == "completed" else "active"
-    enrollments = list(
-        CourseEnrollment.objects.select_related("child", "course")
-        .filter(course__parent=request.user, status=status_filter)
-        .order_by("child__first_name", "course__name")
+    enrollment_qs = CourseEnrollment.objects.select_related("child", "course").filter(
+        status=status_filter
     )
+    if _is_gradebook_owner_role(role):
+        enrollment_qs = enrollment_qs.filter(course__parent=request.user)
+    else:
+        child = getattr(request.user, "child_profile", None)
+        if child is None:
+            enrollment_qs = CourseEnrollment.objects.none()
+        else:
+            enrollment_qs = enrollment_qs.filter(child=child)
+
+    enrollments = list(enrollment_qs.order_by("child__first_name", "course__name"))
 
     by_child = {}
     for enrollment in enrollments:
@@ -151,21 +191,36 @@ def gradebook_list_view(request):
         {
             "tab": tab,
             "children_rows": children_rows,
+            "can_export": _is_gradebook_owner_role(role),
+            "user_role": role,
         },
     )
 
 
 @login_required
-@role_required("parent")
 def gradebook_detail_view(request, enrollment_id):
     """Gradebook details for one enrollment with modal grading updates."""
-    enrollment = get_object_or_404(
-        CourseEnrollment.objects.select_related("course", "child"),
-        pk=enrollment_id,
-        course__parent=request.user,
+    role = _user_role(request.user)
+    if role not in {"parent", "teacher", "student"}:
+        return HttpResponseForbidden()
+
+    enrollment_qs = CourseEnrollment.objects.select_related("course", "child").filter(
+        pk=enrollment_id
     )
+    if _is_gradebook_owner_role(role):
+        enrollment_qs = enrollment_qs.filter(course__parent=request.user)
+    else:
+        child = getattr(request.user, "child_profile", None)
+        if child is None:
+            return HttpResponseForbidden()
+        enrollment_qs = enrollment_qs.filter(child=child)
+
+    enrollment = get_object_or_404(enrollment_qs)
 
     if request.method == "POST":
+        if not _is_gradebook_owner_role(role):
+            return HttpResponseForbidden()
+
         action = request.POST.get("action", "save_grade")
         assignment_id = request.POST.get("assignment_id")
         assignment = get_object_or_404(
@@ -263,6 +318,31 @@ def gradebook_detail_view(request, enrollment_id):
             "plan_item__template__assignment_type"
         ).order_by("due_date", "id")
     )
+    plan_item_ids = [assignment.plan_item_id for assignment in assignments]
+    assignment_ids = [assignment.id for assignment in assignments]
+
+    attachments_by_plan_item = defaultdict(list)
+    for attachment in AssignmentAttachment.objects.filter(
+        plan_item_id__in=plan_item_ids
+    ).order_by("created_at"):
+        attachments_by_plan_item[attachment.plan_item_id].append(attachment)
+
+    comments_by_assignment = defaultdict(list)
+    for comment in (
+        AssignmentComment.objects.filter(assignment_id__in=assignment_ids)
+        .select_related("author")
+        .order_by("created_at")
+    ):
+        comments_by_assignment[comment.assignment_id].append(comment)
+
+    submissions_by_assignment = defaultdict(list)
+    for submission in (
+        AssignmentSubmission.objects.filter(assignment_id__in=assignment_ids)
+        .select_related("uploaded_by")
+        .order_by("-created_at")
+    ):
+        submissions_by_assignment[submission.assignment_id].append(submission)
+
     today = timezone.localdate()
     for assignment in assignments:
         if assignment.status == "complete":
@@ -278,6 +358,29 @@ def gradebook_detail_view(request, enrollment_id):
             f"{reverse('planning:plan_course', args=[enrollment.course.id])}"
             f"?edit={assignment.plan_item_id}"
         )
+        assignment.attachments_for_modal = attachments_by_plan_item.get(
+            assignment.plan_item_id, []
+        )
+        assignment.comments_for_modal = comments_by_assignment.get(assignment.id, [])
+        assignment.submissions_for_modal = submissions_by_assignment.get(
+            assignment.id, []
+        )
+        assignment.attachments_count = len(assignment.attachments_for_modal)
+        assignment.comments_count = len(assignment.comments_for_modal)
+        assignment.submissions_count = len(assignment.submissions_for_modal)
+        assignment.status_action_url = reverse(
+            "reports:gradebook_assignment_status",
+            kwargs={"assignment_id": assignment.id},
+        )
+        assignment.comment_action_url = reverse(
+            "reports:gradebook_assignment_comment_create",
+            kwargs={"assignment_id": assignment.id},
+        )
+        assignment.submission_action_url = reverse(
+            "reports:gradebook_assignment_submission_upload",
+            kwargs={"assignment_id": assignment.id},
+        )
+        assignment.can_submit = _can_submit_assignment(request.user, assignment)
 
     sort_by = request.GET.get("sort", "due")
     sort_order = request.GET.get("order", "asc")
@@ -327,6 +430,17 @@ def gradebook_detail_view(request, enrollment_id):
         assignments.reverse()
 
     summary = lazy_backfill_enrollment_grade_summary(enrollment)
+    progress_done = len(
+        [
+            assignment
+            for assignment in assignments
+            if assignment.status in {"complete", "needs_grading"}
+        ]
+    )
+    progress_total = len(assignments)
+    progress_percent = (
+        int((progress_done / progress_total) * 100) if progress_total else 0
+    )
 
     return render(
         request,
@@ -337,8 +451,109 @@ def gradebook_detail_view(request, enrollment_id):
             "assignments": assignments,
             "sort_by": sort_by,
             "sort_order": sort_order,
+            "user_role": role,
+            "can_grade": _is_gradebook_owner_role(role),
+            "can_respond": role in {"parent", "teacher", "student"},
+            "progress_done": progress_done,
+            "progress_total": progress_total,
+            "progress_percent": progress_percent,
+            "next_url": request.get_full_path(),
         },
     )
+
+
+@login_required
+@require_POST
+def gradebook_assignment_status_view(request, assignment_id):
+    assignment = get_object_or_404(
+        StudentAssignment.objects.select_related(
+            "enrollment__course", "enrollment__child"
+        ),
+        pk=assignment_id,
+    )
+    role = _user_role(request.user)
+
+    if role == "student":
+        child = getattr(request.user, "child_profile", None)
+        if child is None or assignment.enrollment.child_id != child.pk:
+            return HttpResponseForbidden()
+    elif _is_gradebook_owner_role(role):
+        if assignment.enrollment.course.parent_id != request.user.pk:
+            return HttpResponseForbidden()
+    else:
+        return HttpResponseForbidden()
+
+    requested = (request.POST.get("status") or "").strip().lower()
+    if requested not in {"done", "incomplete"}:
+        return redirect(_assignment_next_url(request, assignment))
+
+    if requested == "done":
+        assignment.status = "needs_grading" if role == "student" else "complete"
+        assignment.completed_at = timezone.now()
+    else:
+        assignment.status = "pending"
+        assignment.completed_at = None
+
+    assignment.save(update_fields=["status", "completed_at"])
+    recalculate_enrollment_grade(assignment.enrollment)
+    return redirect(_assignment_next_url(request, assignment))
+
+
+@login_required
+@require_POST
+def gradebook_assignment_comment_create_view(request, assignment_id):
+    assignment = get_object_or_404(
+        StudentAssignment.objects.select_related(
+            "enrollment__course", "enrollment__child"
+        ),
+        pk=assignment_id,
+    )
+    role = _user_role(request.user)
+
+    if role == "student":
+        child = getattr(request.user, "child_profile", None)
+        if child is None or assignment.enrollment.child_id != child.pk:
+            return HttpResponseForbidden()
+    elif _is_gradebook_owner_role(role):
+        if assignment.enrollment.course.parent_id != request.user.pk:
+            return HttpResponseForbidden()
+    else:
+        return HttpResponseForbidden()
+
+    body = (request.POST.get("comment") or "").strip()
+    if body:
+        AssignmentComment.objects.create(
+            assignment=assignment,
+            author=request.user,
+            body=body,
+        )
+    return redirect(_assignment_next_url(request, assignment))
+
+
+@login_required
+@require_POST
+def gradebook_assignment_submission_upload_view(request, assignment_id):
+    assignment = get_object_or_404(
+        StudentAssignment.objects.select_related(
+            "enrollment__course", "enrollment__child"
+        ),
+        pk=assignment_id,
+    )
+
+    if not _can_submit_assignment(request.user, assignment):
+        return HttpResponseForbidden()
+
+    uploaded_file = request.FILES.get("submission")
+    if uploaded_file is not None:
+        AssignmentSubmission.objects.create(
+            assignment=assignment,
+            uploaded_by=request.user,
+            file=uploaded_file,
+            original_name=uploaded_file.name,
+            content_type=(uploaded_file.content_type or "")[:120],
+            file_size=getattr(uploaded_file, "size", 0) or 0,
+        )
+    return redirect(_assignment_next_url(request, assignment))
 
 
 @login_required

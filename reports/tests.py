@@ -5,6 +5,7 @@ import uuid
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -17,7 +18,9 @@ from courses.models import (
 )
 from curriculum.models import Lesson
 from planning.models import (
+    AssignmentComment,
     AssignmentPlanItem,
+    AssignmentSubmission,
     CourseAssignmentTemplate,
     StudentAssignment,
 )
@@ -45,7 +48,7 @@ def _make_student(username="rpt_student", password="TestPass123!"):
     return user
 
 
-def _make_child(parent, first_name="Alex"):
+def _make_child(parent, first_name="Alex", student_user=None):
     return Child.objects.create(
         parent=parent,
         first_name=first_name,
@@ -53,6 +56,7 @@ def _make_child(parent, first_name="Alex"):
         birth_year=2013,
         school_year="Year 8",
         academic_year_start=datetime.date(2025, 9, 1),
+        student_user=student_user,
     )
 
 
@@ -558,7 +562,12 @@ class TokenReportViewTests(TestCase):
 class GradebookViewsAndServiceTests(TestCase):
     def setUp(self):
         self.parent = _make_parent(username="gb_parent")
-        self.child = _make_child(self.parent, first_name="GradeChild")
+        self.student_user = _make_student(username="gb_student")
+        self.child = _make_child(
+            self.parent,
+            first_name="GradeChild",
+            student_user=self.student_user,
+        )
         self.client.force_login(self.parent)
 
         self.course = Course.objects.create(
@@ -677,6 +686,148 @@ class GradebookViewsAndServiceTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Needs Grading")
+
+    def test_student_can_view_own_gradebook_list_and_detail(self):
+        self.client.force_login(self.student_user)
+
+        list_response = self.client.get(reverse("reports:gradebook_list"))
+        self.assertEqual(list_response.status_code, 200)
+        self.assertContains(list_response, "Your Gradebooks")
+        self.assertContains(list_response, "Science")
+        self.assertNotContains(list_response, "Generate Transcript")
+
+        detail_response = self.client.get(
+            reverse(
+                "reports:gradebook_detail", kwargs={"enrollment_id": self.enrollment.id}
+            )
+        )
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertContains(detail_response, "Assignment Progress")
+        self.assertContains(detail_response, "Mark Complete")
+        self.assertNotContains(detail_response, "Save Grade")
+
+    def test_student_cannot_submit_gradebook_grading_post(self):
+        self.client.force_login(self.student_user)
+        response = self.client.post(
+            reverse(
+                "reports:gradebook_detail", kwargs={"enrollment_id": self.enrollment.id}
+            ),
+            {
+                "assignment_id": self.student_assignment.id,
+                "score": "10",
+                "points_available": "10",
+                "grading_notes": "tamper",
+            },
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_student_cannot_view_other_students_gradebook(self):
+        other_parent = _make_parent(username="gb_other_parent")
+        other_student = _make_student(username="gb_other_student")
+        other_child = _make_child(
+            other_parent,
+            first_name="OtherChild",
+            student_user=other_student,
+        )
+        other_course = Course.objects.create(
+            parent=other_parent,
+            name="History",
+            grading_style="point_graded",
+            use_assignment_weights=True,
+            duration_weeks=10,
+            frequency_days=3,
+        )
+        GlobalAssignmentType.objects.create(
+            parent=other_parent,
+            name="Homework",
+            color="#9ca3af",
+            order=0,
+        )
+        sync_course_assignment_types_from_global(other_course)
+        other_enrollment = other_course.enrollments.create(
+            child=other_child,
+            start_date=datetime.date(2026, 1, 1),
+            days_of_week="0,2,4",
+            status="active",
+        )
+
+        self.client.force_login(self.student_user)
+        response = self.client.get(
+            reverse(
+                "reports:gradebook_detail",
+                kwargs={"enrollment_id": other_enrollment.id},
+            )
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_student_can_update_status_comment_and_submission_from_gradebook(self):
+        self.client.force_login(self.student_user)
+
+        status_response = self.client.post(
+            reverse(
+                "reports:gradebook_assignment_status",
+                kwargs={"assignment_id": self.student_assignment.id},
+            ),
+            {
+                "status": "done",
+                "next": reverse(
+                    "reports:gradebook_detail",
+                    kwargs={"enrollment_id": self.enrollment.id},
+                ),
+            },
+        )
+        self.assertEqual(status_response.status_code, 302)
+        self.student_assignment.refresh_from_db()
+        self.assertEqual(self.student_assignment.status, "needs_grading")
+
+        comment_response = self.client.post(
+            reverse(
+                "reports:gradebook_assignment_comment_create",
+                kwargs={"assignment_id": self.student_assignment.id},
+            ),
+            {
+                "comment": "I finished this and attached my work.",
+                "next": reverse(
+                    "reports:gradebook_detail",
+                    kwargs={"enrollment_id": self.enrollment.id},
+                ),
+            },
+        )
+        self.assertEqual(comment_response.status_code, 302)
+        self.assertTrue(
+            AssignmentComment.objects.filter(
+                assignment=self.student_assignment,
+                author=self.student_user,
+                body="I finished this and attached my work.",
+            ).exists()
+        )
+
+        upload = SimpleUploadedFile(
+            "student-work.pdf",
+            b"pdf bytes",
+            content_type="application/pdf",
+        )
+        submission_response = self.client.post(
+            reverse(
+                "reports:gradebook_assignment_submission_upload",
+                kwargs={"assignment_id": self.student_assignment.id},
+            ),
+            {
+                "submission": upload,
+                "next": reverse(
+                    "reports:gradebook_detail",
+                    kwargs={"enrollment_id": self.enrollment.id},
+                ),
+            },
+        )
+        self.assertEqual(submission_response.status_code, 302)
+        self.assertTrue(
+            AssignmentSubmission.objects.filter(
+                assignment=self.student_assignment,
+                uploaded_by=self.student_user,
+                original_name="student-work.pdf",
+            ).exists()
+        )
 
     def test_gradebook_transcript_view_renders_child_summary(self):
         self.student_assignment.score = 8

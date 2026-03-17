@@ -7,6 +7,21 @@ app_name = "reports"
 urlpatterns = [
     path("gradebooks/", views.gradebook_list_view, name="gradebook_list"),
     path(
+        "gradebooks/assignments/<int:assignment_id>/status/",
+        views.gradebook_assignment_status_view,
+        name="gradebook_assignment_status",
+    ),
+    path(
+        "gradebooks/assignments/<int:assignment_id>/comments/",
+        views.gradebook_assignment_comment_create_view,
+        name="gradebook_assignment_comment_create",
+    ),
+    path(
+        "gradebooks/assignments/<int:assignment_id>/submissions/",
+        views.gradebook_assignment_submission_upload_view,
+        name="gradebook_assignment_submission_upload",
+    ),
+    path(
         "gradebooks/transcript/<int:child_id>/",
         views.gradebook_transcript_view,
         name="gradebook_transcript",

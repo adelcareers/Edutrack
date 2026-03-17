@@ -340,6 +340,18 @@
     <a href="{% url 'reports:gradebook_list' %}" class="btn btn-outline-secondary btn-sm">Back</a>
   </div>
 
+  <div class="card mb-4 shadow-sm">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <strong>Assignment Progress</strong>
+        <span class="text-muted small">{{ progress_done }} of {{ progress_total }} ({{ progress_percent }}%)</span>
+      </div>
+      <div class="progress" role="progressbar" aria-label="Assignment progress" aria-valuenow="{{ progress_percent }}" aria-valuemin="0" aria-valuemax="100">
+        <div class="progress-bar bg-success" style="width: {{ progress_percent }}%"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="row g-3 mb-4">
     <div class="col-md-3">
       <div class="card h-100"><div class="card-body"><div class="text-muted small">Graded</div><div class="h5 mb-0">{{ summary.graded_assignments_count }}</div></div></div>
@@ -408,6 +420,13 @@
             data-display-status="{{ assignment.display_status }}"
             data-edit-url="{{ assignment.edit_url }}"
             data-notes="{{ assignment.grading_notes|default:''|escape }}"
+            data-status-url="{{ assignment.status_action_url }}"
+            data-comment-url="{{ assignment.comment_action_url }}"
+            data-submission-url="{{ assignment.submission_action_url }}"
+            data-attachments-count="{{ assignment.attachments_count }}"
+            data-comments-count="{{ assignment.comments_count }}"
+            data-submissions-count="{{ assignment.submissions_count }}"
+            data-can-submit="{{ assignment.can_submit|yesno:'true,false' }}"
           >
             <td class="d-none assignment-description-html">{% if assignment.plan_item.template.description %}{{ assignment.plan_item.template.description|safe }}{% endif %}</td>
             <td>
@@ -433,6 +452,45 @@
             <td class="text-end">
               <button type="button" class="btn btn-sm btn-outline-primary open-grade-modal">Open</button>
             </td>
+            <td class="d-none assignment-attachments-html">
+              {% if assignment.attachments_for_modal %}
+                <ul class="list-unstyled mb-0">
+                  {% for attachment in assignment.attachments_for_modal %}
+                  <li><a href="{{ attachment.file.url }}" target="_blank">{{ attachment.original_name|default:attachment.file.name }}</a></li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <p class="grade-modal-empty mb-0">No attachments.</p>
+              {% endif %}
+            </td>
+            <td class="d-none assignment-comments-html">
+              {% if assignment.comments_for_modal %}
+                <div class="d-flex flex-column gap-2">
+                  {% for comment in assignment.comments_for_modal %}
+                  <div class="border rounded p-2 small">
+                    <div class="text-muted mb-1">{{ comment.author.username }} · {{ comment.created_at|date:"M d, Y H:i" }}</div>
+                    <div>{{ comment.body }}</div>
+                  </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <p class="grade-modal-empty mb-0">No comments yet.</p>
+              {% endif %}
+            </td>
+            <td class="d-none assignment-submissions-html">
+              {% if assignment.submissions_for_modal %}
+                <ul class="list-unstyled mb-0">
+                  {% for submission in assignment.submissions_for_modal %}
+                  <li>
+                    <a href="{{ submission.file.url }}" target="_blank">{{ submission.original_name|default:submission.file.name }}</a>
+                    <span class="text-muted small"> · {{ submission.uploaded_by.username }} · {{ submission.created_at|date:"M d, Y H:i" }}</span>
+                  </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <p class="grade-modal-empty mb-0">No submissions yet.</p>
+              {% endif %}
+            </td>
           </tr>
           {% empty %}
           <tr>
@@ -445,20 +503,16 @@
   </div>
 </div>
 
-<div class="modal fade grade-modal" id="gradeModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade grade-modal" id="gradeModal" tabindex="-1" aria-hidden="true" data-role="{{ user_role }}" data-can-grade="{{ can_grade|yesno:'true,false' }}" data-can-respond="{{ can_respond|yesno:'true,false' }}">
   <div class="modal-dialog modal-dialog-scrollable">
     <div class="modal-content">
-      <form method="post" id="gradeModalForm">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="save_modal">
-        <input type="hidden" name="assignment_id" id="gradeAssignmentId">
-
         <div class="grade-modal-toolbar">
           <div class="grade-modal-toolbar-left">
             <i class="bi bi-circle" id="gradeStateIcon"></i>
             <strong id="gradeWindowStateLabel">Incomplete</strong>
           </div>
           <div class="grade-modal-actions">
+            {% if can_grade %}
             <button type="button" class="action-btn" id="gradeQuickComplete">
               <i class="bi bi-check-circle"></i> Mark Complete
             </button>
@@ -468,6 +522,16 @@
             <button type="button" class="action-btn" id="gradeQuickEdit">
               <i class="bi bi-pencil-square"></i> Edit
             </button>
+            {% else %}
+            <form method="post" id="studentStatusForm" class="d-inline">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ next_url }}">
+              <input type="hidden" name="status" id="studentStatusValue" value="done">
+              <button type="submit" class="action-btn" id="studentToggleStatusBtn">
+                <i class="bi bi-check-circle"></i> <span id="studentToggleStatusLabel">Mark Complete</span>
+              </button>
+            </form>
+            {% endif %}
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
         </div>
@@ -499,21 +563,28 @@
               <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-grade" type="button" role="tab">Grade</button>
             </li>
             <li class="nav-item" role="presentation">
-              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-attachments" type="button" role="tab">Attachments (0)</button>
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-attachments" type="button" role="tab" id="tabAttachmentsBtn">Attachments (0)</button>
             </li>
             <li class="nav-item" role="presentation">
-              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-comments" type="button" role="tab">Comments (0)</button>
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-comments" type="button" role="tab" id="tabCommentsBtn">Comments (0)</button>
             </li>
             <li class="nav-item" role="presentation">
-              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-submissions" type="button" role="tab">Submissions (0)</button>
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-submissions" type="button" role="tab" id="tabSubmissionsBtn">Submissions (0)</button>
             </li>
+            {% if can_grade %}
             <li class="nav-item" role="presentation">
               <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-notes" type="button" role="tab">Teacher's Notes</button>
             </li>
+            {% endif %}
           </ul>
 
           <div class="tab-content">
             <div class="tab-pane fade show active grade-modal-pane" id="tab-grade" role="tabpanel">
+              {% if can_grade %}
+              <form method="post" id="gradeModalForm">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_modal">
+                <input type="hidden" name="assignment_id" id="gradeAssignmentId">
               <div class="grade-input-grid">
                 <div class="grade-input-block">
                   <label for="gradeScoreInput">Points Earned</label>
@@ -543,36 +614,74 @@
                 </select>
                 <a href="#" class="btn btn-sm btn-outline-secondary" id="gradeEditLink" target="_blank">Edit Assignment Details</a>
               </div>
+              </form>
+              {% else %}
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <div class="text-muted small">Points Earned</div>
+                  <div class="h5 mb-0" id="studentScoreText">-</div>
+                </div>
+                <div class="col-md-4">
+                  <div class="text-muted small">Points Available</div>
+                  <div class="h5 mb-0" id="studentPointsText">-</div>
+                </div>
+                <div class="col-md-4">
+                  <div class="text-muted small">Percent</div>
+                  <div class="h5 mb-0" id="studentPercentText">-</div>
+                </div>
+              </div>
+              {% endif %}
             </div>
 
             <div class="tab-pane fade grade-modal-pane" id="tab-attachments" role="tabpanel">
-              <p class="grade-modal-empty mb-0">Attachments are not wired into this modal yet.</p>
+              <div id="gradeAttachmentsList"></div>
             </div>
 
             <div class="tab-pane fade grade-modal-pane" id="tab-comments" role="tabpanel">
-              <p class="grade-modal-empty mb-0">Comments workflow will appear here.</p>
+              <div id="gradeCommentsList" class="mb-3"></div>
+              {% if can_respond %}
+              <form method="post" id="gradeCommentForm">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next_url }}">
+                <textarea class="form-control mb-2" name="comment" rows="2" placeholder="Add a comment..."></textarea>
+                <button type="submit" class="btn btn-sm btn-primary">Post Comment</button>
+              </form>
+              {% endif %}
             </div>
 
             <div class="tab-pane fade grade-modal-pane" id="tab-submissions" role="tabpanel">
-              <p class="grade-modal-empty mb-0">Submissions workflow will appear here.</p>
+              <div id="gradeSubmissionsList" class="mb-3"></div>
+              <form method="post" enctype="multipart/form-data" id="gradeSubmissionForm" class="d-none">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next_url }}">
+                <input class="form-control form-control-sm mb-2" type="file" name="submission" accept=".pdf,.png,.jpg,.jpeg,.webp,.gif">
+                <button type="submit" class="btn btn-sm btn-outline-primary">Upload File</button>
+              </form>
             </div>
 
+            {% if can_grade %}
             <div class="tab-pane fade grade-modal-pane" id="tab-notes" role="tabpanel">
               <div class="row g-3">
                 <div class="col-12">
                   <label class="form-label" for="gradeNotesInput">Teacher Notes</label>
-                  <textarea class="form-control" rows="4" name="grading_notes" id="gradeNotesInput"></textarea>
+                  <textarea class="form-control" rows="4" name="grading_notes" id="gradeNotesInput" form="gradeModalForm"></textarea>
                 </div>
               </div>
             </div>
+            {% endif %}
           </div>
         </div>
 
+        {% if can_grade %}
         <div class="grade-modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="button" class="btn btn-primary" id="gradeFooterSaveBtn">Save</button>
         </div>
-      </form>
+        {% else %}
+        <div class="grade-modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+        {% endif %}
     </div>
   </div>
 </div>
