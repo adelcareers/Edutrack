@@ -217,6 +217,80 @@
     color: #334155;
   }
 
+  .detail-actions {
+    display: flex;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.95rem;
+  }
+
+  .detail-section {
+    margin-top: 1rem;
+    border-top: 1px solid var(--line);
+    padding-top: 0.85rem;
+  }
+
+  .detail-section h6 {
+    margin-bottom: 0.55rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #374151;
+  }
+
+  .detail-description {
+    color: #374151;
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+
+  .detail-description a {
+    color: #4f46e5;
+    text-decoration: underline;
+  }
+
+  .detail-list {
+    margin: 0;
+    padding-left: 1rem;
+    color: #374151;
+    font-size: 0.9rem;
+  }
+
+  .comment-list {
+    max-height: 200px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .comment-item {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 0.55rem 0.65rem;
+    background: #fafafa;
+  }
+
+  .comment-meta {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-bottom: 0.2rem;
+  }
+
+  .grade-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.55rem;
+  }
+
+  .grade-grid .full {
+    grid-column: 1 / -1;
+  }
+
+  .muted-small {
+    font-size: 0.82rem;
+    color: #6b7280;
+  }
+
   @media (max-width: 1199px) {
     .home-grid {
       grid-template-columns: 280px minmax(320px, 1fr);
@@ -351,6 +425,124 @@
         <div class="detail-line"><span class="detail-label">Type:</span>{{ selected_assignment.plan_item.template.assignment_type.name }}</div>
         <div class="detail-line"><span class="detail-label">Due date:</span>{{ selected_assignment.due_date|date:"D, M j, Y" }}</div>
         <div class="detail-line"><span class="detail-label">Status:</span>{{ selected_assignment.effective_status|title }}</div>
+
+        <div class="detail-actions">
+          <form method="post" action="{% url 'tracker:home_assignment_status' assignment_id=selected_assignment.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next_url }}">
+            <input type="hidden" name="status" value="done">
+            <button type="submit" class="btn btn-sm btn-outline-success">Mark Complete</button>
+          </form>
+          <form method="post" action="{% url 'tracker:home_assignment_status' assignment_id=selected_assignment.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next_url }}">
+            <input type="hidden" name="status" value="incomplete">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Mark Incomplete</button>
+          </form>
+          <a href="{{ selected_assignment.edit_url }}" target="_blank" class="btn btn-sm btn-outline-dark">Edit Assignment</a>
+        </div>
+
+        <div class="detail-section">
+          <h6>Description</h6>
+          <div class="detail-description">
+            {% if selected_assignment.plan_item.template.description %}
+              {{ selected_assignment.plan_item.template.description|safe }}
+            {% else %}
+              <span class="muted-small">No description provided.</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h6>Attachments</h6>
+          {% if selected_attachments %}
+          <ul class="detail-list">
+            {% for attachment in selected_attachments %}
+            <li>
+              <a href="{{ attachment.file.url }}" target="_blank">{{ attachment.original_name|default:attachment.file.name }}</a>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <div class="muted-small">No attachments for this assignment.</div>
+          {% endif %}
+        </div>
+
+        <div class="detail-section">
+          <h6>Comments</h6>
+          <div class="comment-list mb-2">
+            {% for comment in selected_comments %}
+            <div class="comment-item">
+              <div class="comment-meta">{{ comment.author.username }} · {{ comment.created_at|date:"M d, Y H:i" }}</div>
+              <div>{{ comment.body }}</div>
+            </div>
+            {% empty %}
+            <div class="muted-small">No comments yet.</div>
+            {% endfor %}
+          </div>
+          <form method="post" action="{% url 'tracker:home_assignment_comment_create' assignment_id=selected_assignment.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next_url }}">
+            <textarea class="form-control form-control-sm mb-2" name="comment" rows="2" placeholder="Add a comment..."></textarea>
+            <button type="submit" class="btn btn-sm btn-primary">Post Comment</button>
+          </form>
+        </div>
+
+        <div class="detail-section">
+          <h6>Submissions</h6>
+          {% if can_submit %}
+          <form method="post" enctype="multipart/form-data" action="{% url 'tracker:home_assignment_submission_upload' assignment_id=selected_assignment.id %}" class="mb-2">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next_url }}">
+            <input class="form-control form-control-sm mb-2" type="file" name="submission" accept=".pdf,.png,.jpg,.jpeg,.webp,.gif">
+            <button type="submit" class="btn btn-sm btn-outline-primary">Upload File</button>
+          </form>
+          {% endif %}
+          {% if selected_submissions %}
+          <ul class="detail-list">
+            {% for submission in selected_submissions %}
+            <li>
+              <a href="{{ submission.file.url }}" target="_blank">{{ submission.original_name|default:submission.file.name }}</a>
+              <span class="muted-small"> · {{ submission.uploaded_by.username }} · {{ submission.created_at|date:"M d, Y H:i" }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <div class="muted-small">No submissions yet.</div>
+          {% endif %}
+        </div>
+
+        <div class="detail-section">
+          <h6>Teacher Feedback</h6>
+          {% if selected_assignment.grading_notes %}
+          <div class="detail-description">{{ selected_assignment.grading_notes }}</div>
+          {% else %}
+          <div class="muted-small">No feedback yet.</div>
+          {% endif %}
+        </div>
+
+        {% if can_grade %}
+        <div class="detail-section">
+          <h6>Grading</h6>
+          <form method="post" action="{% url 'tracker:home_assignment_grade' assignment_id=selected_assignment.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next_url }}">
+            <div class="grade-grid">
+              <input class="form-control form-control-sm" type="number" step="0.01" min="0" name="score" placeholder="Points Earned" value="{{ selected_assignment.score|default:'' }}">
+              <input class="form-control form-control-sm" type="number" step="0.01" min="0" name="points_available" placeholder="Points Available" value="{{ selected_assignment.points_available|default:'' }}">
+              <input class="form-control form-control-sm" type="number" step="0.01" min="0" max="100" name="score_percent" placeholder="Percent" value="{{ selected_assignment.score_percent|default:'' }}">
+              <select class="form-select form-select-sm" name="status">
+                <option value="pending" {% if selected_assignment.status == 'pending' %}selected{% endif %}>Pending</option>
+                <option value="complete" {% if selected_assignment.status == 'complete' %}selected{% endif %}>Complete</option>
+                <option value="overdue" {% if selected_assignment.status == 'overdue' %}selected{% endif %}>Overdue</option>
+              </select>
+              <input class="form-control form-control-sm full" type="date" name="due_date" value="{{ selected_assignment.due_date|date:'Y-m-d' }}">
+              <textarea class="form-control form-control-sm full" name="grading_notes" rows="3" placeholder="Teacher feedback...">{{ selected_assignment.grading_notes|default:'' }}</textarea>
+            </div>
+            <button type="submit" class="btn btn-sm btn-success mt-2">Save Grade</button>
+          </form>
+        </div>
+        {% endif %}
 
         {% if selected_assignment.plan_item.notes %}
         <div class="detail-note">

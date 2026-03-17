@@ -11,7 +11,8 @@ from django.urls import reverse
 from accounts.models import UserProfile
 from courses.models import AssignmentType, Course
 from curriculum.models import Lesson
-from planning.models import (AssignmentPlanItem, CourseAssignmentTemplate,
+from planning.models import (AssignmentComment, AssignmentPlanItem,
+                             AssignmentSubmission, CourseAssignmentTemplate,
                              StudentAssignment)
 from scheduler.models import Child, EnrolledSubject, ScheduledLesson
 from tracker.models import EvidenceFile, LessonLog
@@ -1661,3 +1662,86 @@ class HomeAssignmentsDashboardTests(TestCase):
         self.client.force_login(self.teacher)
         response = self.client.get(reverse(self.URL))
         self.assertEqual(response.status_code, 200)
+
+    def test_parent_can_post_comment_from_home(self):
+        self.client.force_login(self.parent)
+        response = self.client.post(
+            reverse(
+                "tracker:home_assignment_comment_create",
+                kwargs={"assignment_id": self.assignment.pk},
+            ),
+            {
+                "comment": "Please upload your work by tonight.",
+                "next": f"/home/?selected={self.assignment.pk}",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            AssignmentComment.objects.filter(
+                assignment=self.assignment,
+                author=self.parent,
+                body="Please upload your work by tonight.",
+            ).exists()
+        )
+
+    def test_student_can_upload_submission_from_home(self):
+        self.client.force_login(self.student)
+        upload = SimpleUploadedFile(
+            "answer.pdf",
+            b"pdf bytes",
+            content_type="application/pdf",
+        )
+        response = self.client.post(
+            reverse(
+                "tracker:home_assignment_submission_upload",
+                kwargs={"assignment_id": self.assignment.pk},
+            ),
+            {
+                "submission": upload,
+                "next": f"/home/?selected={self.assignment.pk}",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            AssignmentSubmission.objects.filter(
+                assignment=self.assignment,
+                uploaded_by=self.student,
+                original_name="answer.pdf",
+            ).exists()
+        )
+
+    def test_student_cannot_grade_from_home(self):
+        self.client.force_login(self.student)
+        response = self.client.post(
+            reverse(
+                "tracker:home_assignment_grade",
+                kwargs={"assignment_id": self.assignment.pk},
+            ),
+            {
+                "score": "80",
+                "points_available": "100",
+            },
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_parent_can_grade_from_home(self):
+        self.client.force_login(self.parent)
+        response = self.client.post(
+            reverse(
+                "tracker:home_assignment_grade",
+                kwargs={"assignment_id": self.assignment.pk},
+            ),
+            {
+                "score": "85",
+                "points_available": "100",
+                "score_percent": "85",
+                "status": "complete",
+                "grading_notes": "Great progress.",
+                "next": f"/home/?selected={self.assignment.pk}",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assignment.refresh_from_db()
+        self.assertEqual(str(self.assignment.score), "85.00")
+        self.assertEqual(self.assignment.status, "complete")
+        self.assertEqual(self.assignment.grading_notes, "Great progress.")

@@ -1,16 +1,20 @@
 import datetime
 import uuid
+from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from accounts.decorators import role_required
 from accounts.models import ParentSettings
 from courses.models import AssignmentType, Course, Subject
-from planning.models import StudentAssignment
+from planning.models import (AssignmentAttachment, AssignmentComment,
+                             AssignmentSubmission, StudentAssignment)
+from reports.services_gradebook import recalculate_enrollment_grade
 from scheduler.models import Child, ScheduledLesson, Vacation
 from tracker.models import EvidenceFile, LessonLog
 
@@ -67,6 +71,31 @@ def _base_assignment_queryset_for_role(user, role):
         return queryset.filter(enrollment__course__parent=user)
 
     return StudentAssignment.objects.none()
+
+
+def _home_next_url(request, assignment=None):
+    """Return safe redirect URL back to Home dashboard with selection context."""
+    next_url = (request.POST.get("next") or "").strip()
+    if next_url.startswith("/"):
+        return next_url
+
+    base = reverse("tracker:home_assignments")
+    if assignment is None:
+        return base
+    return f"{base}?selected={assignment.pk}"
+
+
+def _can_grade_assignment(user):
+    role = getattr(getattr(user, "profile", None), "role", None)
+    return role in {"parent", "teacher"}
+
+
+def _can_submit_assignment(user, assignment):
+    role = getattr(getattr(user, "profile", None), "role", None)
+    if role != "student":
+        return False
+    child = getattr(user, "child_profile", None)
+    return child is not None and assignment.enrollment.child_id == child.pk
 
 
 @login_required
@@ -139,6 +168,30 @@ def home_assignments_view(request):
             None,
         )
 
+    selected_attachments = []
+    selected_comments = []
+    selected_submissions = []
+    if selected_assignment is not None:
+        selected_attachments = list(
+            AssignmentAttachment.objects.filter(
+                plan_item=selected_assignment.plan_item
+            ).order_by("created_at")
+        )
+        selected_comments = list(
+            AssignmentComment.objects.filter(assignment=selected_assignment)
+            .select_related("author")
+            .order_by("created_at")
+        )
+        selected_submissions = list(
+            AssignmentSubmission.objects.filter(assignment=selected_assignment)
+            .select_related("uploaded_by")
+            .order_by("-created_at")
+        )
+        selected_assignment.edit_url = (
+            f"{reverse('planning:plan_course', args=[selected_assignment.enrollment.course.id])}"
+            f"?edit={selected_assignment.plan_item_id}"
+        )
+
     base_options_qs = _base_assignment_queryset_for_role(request.user, role)
     student_options = []
     if role in {"parent", "teacher"}:
@@ -190,8 +243,143 @@ def home_assignments_view(request):
             "selected_type_id": selected_type_id,
             "selected_status": selected_status,
             "hide_completed": hide_completed,
+            "selected_attachments": selected_attachments,
+            "selected_comments": selected_comments,
+            "selected_submissions": selected_submissions,
+            "can_grade": _can_grade_assignment(request.user),
+            "can_submit": (
+                _can_submit_assignment(request.user, selected_assignment)
+                if selected_assignment is not None
+                else False
+            ),
+            "next_url": request.get_full_path(),
         },
     )
+
+
+@login_required
+@require_POST
+def home_assignment_status_view(request, assignment_id):
+    """Update assignment completion status from Home details panel."""
+    assignment = get_object_or_404(StudentAssignment, pk=assignment_id)
+    if not _can_access_student_assignment(request.user, assignment):
+        return HttpResponseForbidden()
+
+    requested = (request.POST.get("status") or "").strip().lower()
+    if requested not in {"done", "incomplete"}:
+        return redirect(_home_next_url(request, assignment))
+
+    if requested == "done":
+        assignment.status = "complete"
+        assignment.completed_at = timezone.now()
+    else:
+        assignment.status = "pending"
+        assignment.completed_at = None
+
+    assignment.save(update_fields=["status", "completed_at"])
+    recalculate_enrollment_grade(assignment.enrollment)
+    return redirect(_home_next_url(request, assignment))
+
+
+@login_required
+@require_POST
+def home_assignment_grade_view(request, assignment_id):
+    """Save grading fields from Home details panel (parent/teacher only)."""
+    assignment = get_object_or_404(StudentAssignment, pk=assignment_id)
+    if not _can_access_student_assignment(request.user, assignment):
+        return HttpResponseForbidden()
+    if not _can_grade_assignment(request.user):
+        return HttpResponseForbidden()
+
+    def _parse_decimal(raw):
+        raw_value = (raw or "").strip()
+        if raw_value == "":
+            return None
+        try:
+            return Decimal(raw_value)
+        except (InvalidOperation, ValueError):
+            return None
+
+    update_fields = []
+    assignment.score = _parse_decimal(request.POST.get("score"))
+    assignment.points_available = _parse_decimal(request.POST.get("points_available"))
+    assignment.score_percent = _parse_decimal(request.POST.get("score_percent"))
+    assignment.grading_notes = (request.POST.get("grading_notes") or "").strip()
+    assignment.graded_at = timezone.now()
+    assignment.graded_by = request.user
+    update_fields.extend(
+        [
+            "score",
+            "points_available",
+            "score_percent",
+            "grading_notes",
+            "graded_at",
+            "graded_by",
+        ]
+    )
+
+    status_raw = (request.POST.get("status") or "").strip()
+    if status_raw in {"pending", "complete", "overdue"}:
+        assignment.status = status_raw
+        update_fields.append("status")
+        if status_raw == "complete":
+            assignment.completed_at = timezone.now()
+        else:
+            assignment.completed_at = None
+        update_fields.append("completed_at")
+
+    due_date_raw = (request.POST.get("due_date") or "").strip()
+    if due_date_raw:
+        try:
+            assignment.due_date = datetime.date.fromisoformat(due_date_raw)
+            update_fields.append("due_date")
+        except ValueError:
+            pass
+
+    assignment.save(update_fields=sorted(set(update_fields)))
+    recalculate_enrollment_grade(assignment.enrollment)
+    return redirect(_home_next_url(request, assignment))
+
+
+@login_required
+@require_POST
+def home_assignment_comment_create_view(request, assignment_id):
+    """Create shared thread comment for an assignment."""
+    assignment = get_object_or_404(StudentAssignment, pk=assignment_id)
+    if not _can_access_student_assignment(request.user, assignment):
+        return HttpResponseForbidden()
+
+    body = (request.POST.get("comment") or "").strip()
+    if body:
+        AssignmentComment.objects.create(
+            assignment=assignment,
+            author=request.user,
+            body=body,
+        )
+    return redirect(_home_next_url(request, assignment))
+
+
+@login_required
+@require_POST
+def home_assignment_submission_upload_view(request, assignment_id):
+    """Upload student assignment file submission from Home details panel."""
+    assignment = get_object_or_404(StudentAssignment, pk=assignment_id)
+    if not _can_access_student_assignment(request.user, assignment):
+        return HttpResponseForbidden()
+    if not _can_submit_assignment(request.user, assignment):
+        return HttpResponseForbidden()
+
+    uploaded_file = request.FILES.get("submission")
+    if uploaded_file is not None:
+        AssignmentSubmission.objects.create(
+            assignment=assignment,
+            uploaded_by=request.user,
+            file=uploaded_file,
+            original_name=uploaded_file.name,
+            content_type=(uploaded_file.content_type or "")[:120],
+            file_size=getattr(uploaded_file, "size", 0) or 0,
+        )
+    return redirect(_home_next_url(request, assignment))
 
 
 def _build_calendar_context(

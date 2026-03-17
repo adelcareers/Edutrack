@@ -6,6 +6,26 @@ app_name = "tracker"
 
 urlpatterns = [
     path("home/", views.home_assignments_view, name="home_assignments"),
+    path(
+        "home/assignments/<int:assignment_id>/status/",
+        views.home_assignment_status_view,
+        name="home_assignment_status",
+    ),
+    path(
+        "home/assignments/<int:assignment_id>/grade/",
+        views.home_assignment_grade_view,
+        name="home_assignment_grade",
+    ),
+    path(
+        "home/assignments/<int:assignment_id>/comments/",
+        views.home_assignment_comment_create_view,
+        name="home_assignment_comment_create",
+    ),
+    path(
+        "home/assignments/<int:assignment_id>/submissions/",
+        views.home_assignment_submission_upload_view,
+        name="home_assignment_submission_upload",
+    ),
     path("calendar/", views.calendar_view, name="calendar"),
     path("calendar/<int:year>/<int:week>/", views.calendar_view, name="calendar_week"),
     path("calendar/export.ics", views.export_ical_view, name="export_ical"),

@@ -120,3 +120,53 @@ class AssignmentAttachment(models.Model):
 
     def __str__(self):
         return self.original_name or self.file.name
+
+
+class AssignmentComment(models.Model):
+    """Shared discussion thread entries for a student assignment."""
+
+    assignment = models.ForeignKey(
+        StudentAssignment,
+        on_delete=models.CASCADE,
+        related_name="comments",
+    )
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="assignment_comments",
+    )
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"Comment by {self.author.username} on assignment {self.assignment_id}"
+
+
+class AssignmentSubmission(models.Model):
+    """Files submitted by a student for a specific assignment."""
+
+    assignment = models.ForeignKey(
+        StudentAssignment,
+        on_delete=models.CASCADE,
+        related_name="submissions",
+    )
+    uploaded_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="assignment_submissions",
+    )
+    file = models.FileField(upload_to="assignment_submissions/")
+    original_name = models.CharField(max_length=255, blank=True, default="")
+    content_type = models.CharField(max_length=120, blank=True, default="")
+    file_size = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.original_name or self.file.name
