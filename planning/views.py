@@ -1,5 +1,6 @@
 import datetime
 
+from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -96,6 +97,7 @@ def plan_course_view(request, course_id):
             request.POST.get("day_number", selected_day), selected_day
         )
         due_in_days = _safe_int(request.POST.get("due_in_days", "0"), 0)
+        view_mode = request.GET.get("view", "day")
         description = request.POST.get("description", "").strip()
         teacher_notes = request.POST.get("teacher_notes", "").strip()
         is_graded = request.POST.get("is_graded") == "on"
@@ -175,6 +177,11 @@ def plan_course_view(request, course_id):
                     file=attachment,
                     original_name=attachment.name,
                 )
+            if attachments:
+                messages.success(
+                    request,
+                    f"Uploaded {len(attachments)} attachment(s) successfully.",
+                )
 
             for enrollment in active_enrollments:
                 base_date = enrollment.start_date + datetime.timedelta(
@@ -225,6 +232,14 @@ def plan_course_view(request, course_id):
                     else:
                         student_assignment.completed_at = None
                     student_assignment.save(update_fields=["status", "completed_at"])
+        if plan_item_id and template_name and type_id:
+            return redirect(
+                f"{request.path}?week={week_number}&day={day_number}&view={view_mode}&edit={plan_item_id}"
+            )
+        if template_name and type_id:
+            return redirect(
+                f"{request.path}?week={week_number}&day={day_number}&view={view_mode}&edit={plan_item.id}"
+            )
         return redirect(f"{request.path}?week={week_number}&day={day_number}")
 
     plan_items = AssignmentPlanItem.objects.filter(course=course).select_related(

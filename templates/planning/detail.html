@@ -228,6 +228,11 @@
     background: #f8f9ff;
     font-size: 0.78rem;
     color: #6b7280;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .attachment-drop.is-dragover {
+    border-color: #5b6af8;
+    background: #eef2ff;
   }
   .attachment-list {
     list-style: none;
@@ -462,13 +467,15 @@
             <div class="attachment-drop">
               <strong>Drop files here</strong> or click to upload
               <input type="file" class="form-control mt-2" name="attachments" multiple>
-              {% if editing_attachments %}
-                <ul class="attachment-list">
-                  {% for attachment in editing_attachments %}
-                    <li>{{ attachment.original_name|default:attachment.file.name }}</li>
-                  {% endfor %}
-                </ul>
-              {% endif %}
+              <ul class="attachment-list">
+                {% for attachment in editing_attachments %}
+                  <li>
+                    <a href="{{ attachment.file.url }}" target="_blank" rel="noopener noreferrer">
+                      {{ attachment.original_name|default:attachment.file.name }}
+                    </a>
+                  </li>
+                {% endfor %}
+              </ul>
             </div>
           </div>
 
@@ -556,6 +563,9 @@
     const panes = document.querySelectorAll('[data-pane]');
     const toolbars = document.querySelectorAll('.rich-toolbar');
     const form = document.querySelector('.assignment-form');
+    const attachmentDrop = document.querySelector('.attachment-drop');
+    const attachmentInput = attachmentDrop ? attachmentDrop.querySelector('input[name="attachments"]') : null;
+    const attachmentList = attachmentDrop ? attachmentDrop.querySelector('.attachment-list') : null;
 
     function setActiveTab(tabName) {
       tabs.forEach((tab) => {
@@ -596,6 +606,53 @@
             input.value = editor.innerHTML.trim();
           }
         });
+      });
+    }
+
+    function renderSelectedFiles(files) {
+      if (!attachmentList) {
+        return;
+      }
+
+      const dynamicItems = attachmentList.querySelectorAll('[data-new-file="1"]');
+      dynamicItems.forEach((item) => item.remove());
+
+      Array.from(files || []).forEach((file) => {
+        const li = document.createElement('li');
+        li.dataset.newFile = '1';
+        li.textContent = `Selected: ${file.name}`;
+        attachmentList.appendChild(li);
+      });
+    }
+
+    if (attachmentInput) {
+      attachmentInput.addEventListener('change', () => {
+        renderSelectedFiles(attachmentInput.files);
+      });
+    }
+
+    if (attachmentDrop && attachmentInput) {
+      ['dragenter', 'dragover'].forEach((eventName) => {
+        attachmentDrop.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          attachmentDrop.classList.add('is-dragover');
+        });
+      });
+
+      ['dragleave', 'dragend', 'drop'].forEach((eventName) => {
+        attachmentDrop.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          attachmentDrop.classList.remove('is-dragover');
+        });
+      });
+
+      attachmentDrop.addEventListener('drop', (event) => {
+        const droppedFiles = event.dataTransfer ? event.dataTransfer.files : null;
+        if (!droppedFiles || !droppedFiles.length) {
+          return;
+        }
+        attachmentInput.files = droppedFiles;
+        renderSelectedFiles(droppedFiles);
       });
     }
 
