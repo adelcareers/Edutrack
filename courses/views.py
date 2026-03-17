@@ -18,6 +18,8 @@ from tracker.models import LessonLog
 from .forms import CompleteEnrollmentForm, CourseForm, EnrollStudentForm
 from .models import (
     DEFAULT_ASSIGNMENT_TYPES,
+    GRADE_YEAR_CHOICES,
+    LEGACY_GRADE_YEAR_KEY_MAP,
     AssignmentType,
     Course,
     CourseArchive,
@@ -213,6 +215,10 @@ def course_list_view(request):
     # Sidebar filter — grade year
     grade_filter = request.GET.get("grade", "").strip()
     if grade_filter:
+        grade_filter = LEGACY_GRADE_YEAR_KEY_MAP.get(
+            grade_filter.lower(),
+            grade_filter,
+        )
         qs = qs.filter(grade_years__icontains=grade_filter)
 
     courses = list(qs)
@@ -229,6 +235,7 @@ def course_list_view(request):
             "search": search,
             "children": children,
             "subjects": subjects,
+            "grade_year_choices": GRADE_YEAR_CHOICES,
             "child_filter": child_filter,
             "subject_filter": subject_filter,
             "grade_filter": grade_filter,

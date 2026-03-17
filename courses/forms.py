@@ -4,7 +4,13 @@ from django import forms
 
 from scheduler.models import Child
 
-from .models import Course, CourseEnrollment, Subject
+from .models import (
+    GRADE_YEAR_CHOICES,
+    LEGACY_GRADE_YEAR_KEY_MAP,
+    Course,
+    CourseEnrollment,
+    Subject,
+)
 
 DAY_OF_WEEK_CHOICES = [
     ("0", "Monday"),
@@ -18,19 +24,16 @@ DAY_OF_WEEK_CHOICES = [
 
 SCHOOL_YEAR_CHOICES = [
     ("", "— Select year —"),
-    ("year1", "Year 1"),
-    ("year2", "Year 2"),
-    ("year3", "Year 3"),
-    ("year4", "Year 4"),
-    ("year5", "Year 5"),
-    ("year6", "Year 6"),
-    ("year7", "Year 7"),
-    ("year8", "Year 8"),
-    ("year9", "Year 9"),
-    ("year10", "Year 10"),
-    ("year11", "Year 11"),
+    *GRADE_YEAR_CHOICES,
     ("all", "All Years"),
 ]
+
+
+def _normalize_grade_year_key(raw_value):
+    value = (raw_value or "").strip()
+    if not value:
+        return ""
+    return LEGACY_GRADE_YEAR_KEY_MAP.get(value.lower(), value)
 
 
 class CourseForm(forms.ModelForm):
@@ -91,12 +94,14 @@ class CourseForm(forms.ModelForm):
         # Populate grade_years_list from instance.grade_years (single value)
         if self.instance and self.instance.grade_years:
             first = self.instance.grade_years.split(",")[0].strip()
-            self.fields["grade_years_list"].initial = first
+            self.fields["grade_years_list"].initial = _normalize_grade_year_key(first)
 
     def save(self, commit=True):
         course = super().save(commit=False)
         # Store single school year selection
-        grade_year = self.cleaned_data.get("grade_years_list", "")
+        grade_year = _normalize_grade_year_key(
+            self.cleaned_data.get("grade_years_list", "")
+        )
         course.grade_years = grade_year or ""
         if commit:
             course.save()

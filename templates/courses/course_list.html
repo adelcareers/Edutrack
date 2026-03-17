@@ -279,15 +279,9 @@
           <label>Grade Years</label>
           <select name="grade" class="form-select form-select-sm" onchange="this.form.submit()">
             <option value="">All Grade Years</option>
-            <option value="preschool" {% if grade_filter == 'preschool' %}selected{% endif %}>Preschool</option>
-            <option value="prek" {% if grade_filter == 'prek' %}selected{% endif %}>Pre-K</option>
-            <option value="k" {% if grade_filter == 'k' %}selected{% endif %}>Kindergarten</option>
-            {% for n in '123456789' %}
-              <option value="{{ n }}" {% if grade_filter == n %}selected{% endif %}>{{ n }}{% if n == '1' %}st{% elif n == '2' %}nd{% elif n == '3' %}rd{% else %}th{% endif %} Grade</option>
+            {% for key, label in grade_year_choices %}
+              <option value="{{ key }}" {% if grade_filter == key %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
-            <option value="10" {% if grade_filter == '10' %}selected{% endif %}>10th Grade</option>
-            <option value="11" {% if grade_filter == '11' %}selected{% endif %}>11th Grade</option>
-            <option value="12" {% if grade_filter == '12' %}selected{% endif %}>12th Grade</option>
           </select>
         </div>
 

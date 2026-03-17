@@ -9,24 +9,42 @@ except ImportError:
 
 
 GRADE_YEAR_CHOICES = [
-    ("preschool", "Preschool"),
-    ("prek", "Pre-K"),
-    ("k", "Kindergarten"),
-    ("1", "1st Grade"),
-    ("2", "2nd Grade"),
-    ("3", "3rd Grade"),
-    ("4", "4th Grade"),
-    ("5", "5th Grade"),
-    ("6", "6th Grade"),
-    ("7", "7th Grade"),
-    ("8", "8th Grade"),
-    ("9", "9th Grade"),
-    ("10", "10th Grade"),
-    ("11", "11th Grade"),
-    ("12", "12th Grade"),
+    ("EYFS", "Early years foundation stage"),
+    ("1", "Year 1"),
+    ("2", "Year 2"),
+    ("3", "Year 3"),
+    ("4", "Year 4"),
+    ("5", "Year 5"),
+    ("6", "Year 6"),
+    ("7", "Year 7"),
+    ("8", "Year 8"),
+    ("9", "Year 9"),
+    ("10", "Year 10"),
+    ("11", "Year 11"),
 ]
 
 GRADE_YEAR_LABELS = {k: v for k, v in GRADE_YEAR_CHOICES}
+LEGACY_GRADE_YEAR_KEY_MAP = {
+    "preschool": "EYFS",
+    "prek": "EYFS",
+    "k": "EYFS",
+    "year1": "1",
+    "year2": "2",
+    "year3": "3",
+    "year4": "4",
+    "year5": "5",
+    "year6": "6",
+    "year7": "7",
+    "year8": "8",
+    "year9": "9",
+    "year10": "10",
+    "year11": "11",
+}
+
+for _legacy_key, _normalized_key in LEGACY_GRADE_YEAR_KEY_MAP.items():
+    GRADE_YEAR_LABELS.setdefault(
+        _legacy_key, GRADE_YEAR_LABELS.get(_normalized_key, _normalized_key)
+    )
 
 GRADING_STYLE_CHOICES = [
     ("not_graded", "Not Graded"),
