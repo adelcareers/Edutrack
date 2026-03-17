@@ -6,9 +6,12 @@ from django.contrib.auth.views import LoginView
 from django.shortcuts import redirect, render
 
 from accounts.decorators import role_required
-from courses.models import (Course, GlobalAssignmentType,
-                            seed_global_assignment_types,
-                            sync_course_assignment_types_from_global)
+from courses.models import (
+    Course,
+    GlobalAssignmentType,
+    seed_global_assignment_types,
+    sync_course_assignment_types_from_global,
+)
 
 from .forms import CustomUserCreationForm
 from .models import ParentSettings, UserProfile

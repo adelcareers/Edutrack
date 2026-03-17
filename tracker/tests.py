@@ -11,9 +11,13 @@ from django.urls import reverse
 from accounts.models import UserProfile
 from courses.models import AssignmentType, Course
 from curriculum.models import Lesson
-from planning.models import (AssignmentComment, AssignmentPlanItem,
-                             AssignmentSubmission, CourseAssignmentTemplate,
-                             StudentAssignment)
+from planning.models import (
+    AssignmentComment,
+    AssignmentPlanItem,
+    AssignmentSubmission,
+    CourseAssignmentTemplate,
+    StudentAssignment,
+)
 from scheduler.models import Child, EnrolledSubject, ScheduledLesson
 from tracker.models import EvidenceFile, LessonLog
 

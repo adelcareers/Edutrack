@@ -12,8 +12,12 @@ from django.views.decorators.http import require_POST
 from accounts.decorators import role_required
 from accounts.models import ParentSettings
 from courses.models import AssignmentType, Course, Subject
-from planning.models import (AssignmentAttachment, AssignmentComment,
-                             AssignmentSubmission, StudentAssignment)
+from planning.models import (
+    AssignmentAttachment,
+    AssignmentComment,
+    AssignmentSubmission,
+    StudentAssignment,
+)
 from reports.services_gradebook import recalculate_enrollment_grade
 from scheduler.models import Child, ScheduledLesson, Vacation
 from tracker.models import EvidenceFile, LessonLog

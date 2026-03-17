@@ -108,7 +108,10 @@ def recalculate_enrollment_grade(enrollment):
             missing_count += 1
         if assignment.status == "overdue":
             late_count += 1
-        if assignment.status in {"complete", "needs_grading"} and assignment.completed_at:
+        if (
+            assignment.status in {"complete", "needs_grading"}
+            and assignment.completed_at
+        ):
             if assignment.completed_at.date() > assignment.due_date:
                 late_count += 1
 

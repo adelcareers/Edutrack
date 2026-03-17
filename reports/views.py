@@ -244,9 +244,7 @@ def gradebook_detail_view(request, enrollment_id):
                     assignment.due_date = due_date
                     update_fields.append("due_date")
 
-        has_grading_input = any(
-            [score_raw, points_raw, percent_raw, notes_raw]
-        )
+        has_grading_input = any([score_raw, points_raw, percent_raw, notes_raw])
         if has_grading_input:
             assignment.status = "complete"
             assignment.completed_at = assignment.completed_at or timezone.now()
