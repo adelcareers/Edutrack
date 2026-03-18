@@ -218,13 +218,6 @@
           </a>
         </li>
         {% endif %}
-        {% if role == 'student' %}
-        <li>
-          <a class="nav-link" href="{% url 'tracker:calendar' %}">
-            <i class="bi bi-calendar3"></i>My Schedule
-          </a>
-        </li>
-        {% endif %}
       </ul>
       {% endwith %}
     {% else %}
@@ -234,10 +227,14 @@
     <!-- Right side actions -->
     <div class="app-nav-right">
       {% if user.is_authenticated %}
+        {% with role=user.profile.role %}
+        {% if role == 'parent' %}
         <!-- Upgrade -->
         <a href="{% url 'payments:pricing' %}" class="btn btn-upgrade d-none d-md-inline-flex">
           Upgrade ✨
         </a>
+        {% endif %}
+        {% endwith %}
 
         <!-- Create -->
         {% with role=user.profile.role %}

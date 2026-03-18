@@ -265,7 +265,7 @@
         <i class="bi bi-box-arrow-up"></i> Export
       </a>
     {% else %}
-      {% if child %}
+      {% if child and user.profile.role == 'parent' %}
       <a href="{% url 'scheduler:manage_vacations' child_id=child.pk %}" class="cal-action-btn">
         <i class="bi bi-sun"></i> Manage Vacations
       </a>
@@ -287,7 +287,7 @@
         {% if day.date == today %}<span class="today-dot"></span>{% endif %}
         <span class="day-date">{{ day.date|date:"M d" }}</span>
       </div>
-      {% if not is_readonly %}
+            {% if not is_readonly and user.profile.role == 'parent' %}
       <button class="day-add-btn"
               data-date="{{ day.date|date:'Y-m-d' }}"
               title="Add vacation on {{ day.date|date:'M d' }}"
