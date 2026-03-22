@@ -72,7 +72,14 @@
             </td>
 
             {# Subject name #}
-            <td class="fw-semibold">{{ row.subject.subject_name }}</td>
+            <td>
+              <div class="fw-semibold">{{ row.subject.subject_name }}</div>
+              {% if row.subject.source_year %}
+              <div class="small text-muted">
+                Source: {{ row.query_subject }} ({{ row.query_year }})
+              </div>
+              {% endif %}
+            </td>
 
             {# Units count #}
             <td class="text-end text-muted">{{ row.total_units }}</td>

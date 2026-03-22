@@ -80,6 +80,8 @@ class EnrolledSubject(models.Model):
     days_of_week = models.CharField(max_length=20, default="0,1,2,3,4")
     # When set, lessons are pulled from this year rather than child.school_year.
     source_year = models.CharField(max_length=20, blank=True, default="")
+    # Canonical source subject key (e.g. "Maths") for imported/display labels.
+    source_subject_name = models.CharField(max_length=100, blank=True, default="")
     is_active = models.BooleanField(default=True)
 
     class Meta:

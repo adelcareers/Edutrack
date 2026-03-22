@@ -13,6 +13,11 @@
       Review the subjects below, then click <strong>Generate Schedule</strong> to distribute
       all lessons across 180 school days. If a schedule already exists it will be replaced.
     </p>
+    {% if has_existing_schedule %}
+    <p class="small text-muted mb-0">
+      Existing schedule detected. Regeneration rebuilds lessons from current subject settings.
+    </p>
+    {% endif %}
   </div>
 
   {% if subject_summaries %}
@@ -44,6 +49,13 @@
                 <span class="badge bg-secondary">{{ item.total_lessons }}</span>
               </td>
             </tr>
+            {% if item.subject.source_year %}
+            <tr>
+              <td colspan="4" class="small text-muted">
+                Source mapping: {{ item.query_subject }} ({{ item.query_year }})
+              </td>
+            </tr>
+            {% endif %}
           {% endfor %}
         </tbody>
       </table>
@@ -51,6 +63,19 @@
 
     <form method="post" novalidate>
       {% csrf_token %}
+      {% if requires_replace_confirmation %}
+      <div class="alert alert-warning" role="alert">
+        <strong>Heads up:</strong> Existing scheduled lessons include tracked history
+        {% if has_evidence %}and evidence files{% endif %}. Replacing the schedule
+        will remove those linked records.
+      </div>
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" value="1" id="confirm_replace_tracked" name="confirm_replace_tracked">
+        <label class="form-check-label" for="confirm_replace_tracked">
+          I understand this will replace the existing schedule and delete linked tracking history.
+        </label>
+      </div>
+      {% endif %}
       <button type="submit" class="btn btn-primary btn-lg">
         <i class="bi bi-lightning-fill me-1"></i>Generate Schedule
       </button>

@@ -61,10 +61,13 @@ def generate_schedule(child, enrolled_subjects: List[EnrolledSubject]) -> int:
     # STEP 2: Build lesson queues per subject
     queues = {}
     for subject in enrolled_subjects:
+        source_subject = getattr(subject, "source_subject_name", "")
+        lesson_subject = source_subject.strip() or subject.subject_name
         lesson_year = subject.source_year if subject.source_year else child.school_year
         queues[subject.id] = list(
             Lesson.objects.filter(
-                subject_name=subject.subject_name, year=lesson_year
+                subject_name=lesson_subject,
+                year=lesson_year,
             ).order_by("unit_slug", "lesson_number")
         )
 

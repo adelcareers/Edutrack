@@ -159,6 +159,26 @@ def _build_subject_groups(child, user):
     return grouped
 
 
+def _subject_query_keys(subject, child):
+    """Return canonical subject/year keys used for lesson lookups."""
+    source_subject = (getattr(subject, "source_subject_name", "") or "").strip()
+    query_subject = source_subject or subject.subject_name
+    query_year = subject.source_year if subject.source_year else child.school_year
+    return query_subject, query_year
+
+
+def _subject_curriculum_stats(subject, child):
+    """Return counts and source metadata for one enrolled subject."""
+    query_subject, query_year = _subject_query_keys(subject, child)
+    stats_qs = Lesson.objects.filter(subject_name=query_subject, year=query_year)
+    return {
+        "total_lessons": stats_qs.count(),
+        "total_units": stats_qs.values("unit_slug").distinct().count(),
+        "query_subject": query_subject,
+        "query_year": query_year,
+    }
+
+
 @role_required("parent")
 def subject_selection_view(request, child_id):
     """Step 1 of 2: parent picks subjects; lessons-per-week is set on the next page.
@@ -263,25 +283,40 @@ def generate_schedule_view(request, child_id):
         return HttpResponseForbidden("You do not have permission to manage this child.")
 
     enrolled_subjects = list(child.enrolled_subjects.filter(is_active=True))
+    existing_schedule_qs = child.scheduled_lessons.all()
+    has_existing_schedule = existing_schedule_qs.exists()
+    has_logged_lessons = existing_schedule_qs.filter(log__isnull=False).exists()
+    has_evidence = existing_schedule_qs.filter(
+        log__evidence_files__isnull=False
+    ).exists()
+    requires_replace_confirmation = has_logged_lessons or has_evidence
 
     if request.method == "POST":
-        child.scheduled_lessons.all().delete()
-        count = generate_schedule(child, enrolled_subjects)
-        messages.success(
-            request,
-            f"{child.first_name}'s schedule is ready — {count} lessons scheduled across 180 days.",
-        )
-        return redirect("scheduler:child_list")
+        replace_confirmed = request.POST.get("confirm_replace_tracked") == "1"
+        if requires_replace_confirmation and not replace_confirmed:
+            messages.error(
+                request,
+                "This schedule has tracked lesson history. Confirm replacement before regenerating.",
+            )
+        else:
+            child.scheduled_lessons.all().delete()
+            count = generate_schedule(child, enrolled_subjects)
+            messages.success(
+                request,
+                f"{child.first_name}'s schedule is ready — {count} lessons scheduled across 180 days.",
+            )
+            return redirect("scheduler:child_list")
 
     subject_summaries = []
     for subject in enrolled_subjects:
-        total_lessons = Lesson.objects.filter(
-            subject_name=subject.subject_name, year=child.school_year
-        ).count()
+        stats = _subject_curriculum_stats(subject, child)
         subject_summaries.append(
             {
                 "subject": subject,
-                "total_lessons": total_lessons,
+                "total_lessons": stats["total_lessons"],
+                "total_units": stats["total_units"],
+                "query_subject": stats["query_subject"],
+                "query_year": stats["query_year"],
             }
         )
 
@@ -291,6 +326,10 @@ def generate_schedule_view(request, child_id):
         {
             "child": child,
             "subject_summaries": subject_summaries,
+            "has_existing_schedule": has_existing_schedule,
+            "has_logged_lessons": has_logged_lessons,
+            "has_evidence": has_evidence,
+            "requires_replace_confirmation": requires_replace_confirmation,
         },
     )
 
@@ -341,31 +380,20 @@ def schedule_days_view(request, child_id):
 
     day_choices = [(0, "Mon"), (1, "Tue"), (2, "Wed"), (3, "Thu"), (4, "Fri")]
 
-    # Fetch curriculum stats for each enrolled subject
-    subject_names = [s.subject_name for s in enrolled_subjects]
-    stats_qs = (
-        Lesson.objects.filter(year=child.school_year, subject_name__in=subject_names)
-        .values("subject_name")
-        .annotate(
-            total_lessons=Count("id"), total_units=Count("unit_slug", distinct=True)
-        )
-    )
-    stats_by_name = {row["subject_name"]: row for row in stats_qs}
-
     subject_rows = []
     for subject in enrolled_subjects:
         checked = {int(d) for d in subject.days_of_week.split(",") if d.isdigit()}
         if not checked:
             checked = {0, 1, 2, 3, 4}
-        stats = stats_by_name.get(
-            subject.subject_name, {"total_lessons": 0, "total_units": 0}
-        )
+        stats = _subject_curriculum_stats(subject, child)
         subject_rows.append(
             {
                 "subject": subject,
                 "checked_days": checked,
                 "total_lessons": stats["total_lessons"],
                 "total_units": stats["total_units"],
+                "query_subject": stats["query_subject"],
+                "query_year": stats["query_year"],
             }
         )
 
@@ -800,6 +828,7 @@ def custom_subject_view(request, child_id):
                             key_stage="Custom",
                             lessons_per_week=3,
                             days_of_week="0,1,2,3,4",
+                            source_subject_name=subject_name,
                             source_year=source_year,
                             colour_hex=SUBJECT_COLOUR_PALETTE[
                                 child.enrolled_subjects.count()

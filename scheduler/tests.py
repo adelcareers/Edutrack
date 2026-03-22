@@ -10,6 +10,7 @@ from accounts.models import UserProfile
 from courses.models import Course, CourseEnrollment
 from curriculum.models import Lesson
 from scheduler.models import Child, EnrolledSubject, ScheduledLesson
+from tracker.models import LessonLog
 
 
 def _make_parent(username="parent1", password="TestPass123!"):
@@ -781,6 +782,125 @@ class GenerateScheduleViewTests(TestCase):
         self.client.post(self.url)
         count_second = ScheduledLesson.objects.filter(child=self.child).count()
         self.assertEqual(count_first, count_second)
+
+
+class ImportedSubjectSchedulingTests(TestCase):
+    def setUp(self):
+        self.parent = _make_parent(username="import_parent")
+        self.child = _make_child(self.parent, first_name="Ivy")
+        self.client.force_login(self.parent)
+
+        for n in range(1, 4):
+            Lesson.objects.create(
+                key_stage="KS2",
+                subject_name="Maths",
+                programme_slug="maths-year-6",
+                year="Year 6",
+                unit_slug="number",
+                unit_title="Number",
+                lesson_number=n,
+                lesson_title=f"Number Lesson {n}",
+                lesson_url=f"https://example.com/imported/{n}",
+                is_custom=False,
+            )
+
+        self.imported_subject = EnrolledSubject.objects.create(
+            child=self.child,
+            subject_name="Maths (from Year 6)",
+            source_subject_name="Maths",
+            source_year="Year 6",
+            key_stage="Custom",
+            lessons_per_week=2,
+            colour_hex="#3A86FF",
+            days_of_week="0,1,2,3,4",
+        )
+
+    def test_generate_schedule_uses_canonical_source_subject_name(self):
+        from scheduler.services import generate_schedule
+
+        count = generate_schedule(self.child, [self.imported_subject])
+        self.assertGreater(count, 0)
+        self.assertTrue(
+            ScheduledLesson.objects.filter(
+                child=self.child,
+                lesson__subject_name="Maths",
+                enrolled_subject=self.imported_subject,
+            ).exists()
+        )
+
+    def test_schedule_days_stats_use_source_mapping(self):
+        url = reverse("scheduler:schedule_days", kwargs={"child_id": self.child.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        row = response.context["subject_rows"][0]
+        self.assertEqual(row["query_subject"], "Maths")
+        self.assertEqual(row["query_year"], "Year 6")
+        self.assertEqual(row["total_lessons"], 3)
+
+    def test_generate_summary_stats_use_source_mapping(self):
+        url = reverse("scheduler:generate_schedule", kwargs={"child_id": self.child.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        summary = response.context["subject_summaries"][0]
+        self.assertEqual(summary["query_subject"], "Maths")
+        self.assertEqual(summary["query_year"], "Year 6")
+        self.assertEqual(summary["total_lessons"], 3)
+
+
+class GenerateScheduleConfirmationGuardTests(TestCase):
+    def setUp(self):
+        self.parent = _make_parent(username="guard_parent")
+        self.child = _make_child(self.parent, first_name="Lina")
+        self.client.force_login(self.parent)
+
+        for n in range(1, 3):
+            Lesson.objects.create(
+                key_stage="KS2",
+                subject_name="Maths",
+                programme_slug="maths-year-5",
+                year="Year 5",
+                unit_slug="algebra",
+                unit_title="Algebra",
+                lesson_number=n,
+                lesson_title=f"Algebra {n}",
+                lesson_url=f"https://example.com/guard/{n}",
+                is_custom=False,
+            )
+
+        self.enrolled = EnrolledSubject.objects.create(
+            child=self.child,
+            subject_name="Maths",
+            key_stage="KS2",
+            lessons_per_week=1,
+            colour_hex="#E63946",
+        )
+
+        existing = ScheduledLesson.objects.create(
+            child=self.child,
+            lesson=Lesson.objects.filter(subject_name="Maths", year="Year 5").first(),
+            enrolled_subject=self.enrolled,
+            scheduled_date=datetime.date(2025, 9, 1),
+            order_on_day=0,
+        )
+        LessonLog.objects.create(scheduled_lesson=existing, status="complete")
+
+        self.url = reverse(
+            "scheduler:generate_schedule", kwargs={"child_id": self.child.pk}
+        )
+
+    def test_post_requires_confirmation_when_tracked_history_exists(self):
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Confirm replacement before regenerating",
+        )
+        self.assertEqual(ScheduledLesson.objects.filter(child=self.child).count(), 1)
+
+    def test_post_with_confirmation_replaces_schedule(self):
+        response = self.client.post(self.url, {"confirm_replace_tracked": "1"})
+        self.assertEqual(response.status_code, 302)
+        self.assertGreater(ScheduledLesson.objects.filter(child=self.child).count(), 0)
 
 
 class ParentDashboardTests(TestCase):
