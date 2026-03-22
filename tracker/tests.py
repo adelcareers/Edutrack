@@ -1200,6 +1200,75 @@ class ParentCalendarTests(TestCase):
         self.assertEqual(response.status_code, 404)
 
 
+class CalendarSemanticsCopyTests(TestCase):
+    """Ensure calendar clarifies manual assignments vs scheduled lessons."""
+
+    def setUp(self):
+        self.parent = _make_parent(username="sem_parent")
+        self.student = _make_student(username="sem_student")
+        self.child = _make_child(self.parent, student_user=self.student)
+        self.client.force_login(self.student)
+
+        monday = datetime.date.fromisocalendar(2026, 20, 1)
+        lesson = _make_lesson(title="Semantics Lesson")
+        enrolled_subject = _make_enrolled_subject(self.child, subject_name="Maths")
+        _make_scheduled_lesson(self.child, lesson, enrolled_subject, monday)
+
+        course = Course.objects.create(
+            parent=self.parent,
+            name="Math Course",
+            duration_weeks=12,
+            frequency_days=5,
+        )
+        assignment_type = AssignmentType.objects.create(
+            course=course,
+            name="Homework",
+            color="#9ca3af",
+            is_hidden=False,
+            weight=0,
+            order=0,
+        )
+        enrollment = course.enrollments.create(
+            child=self.child,
+            start_date=monday,
+            days_of_week="0,1,2,3,4",
+            status="active",
+        )
+        template = CourseAssignmentTemplate.objects.create(
+            course=course,
+            assignment_type=assignment_type,
+            name="Worksheet",
+            due_offset_days=0,
+            order=0,
+        )
+        plan_item = AssignmentPlanItem.objects.create(
+            course=course,
+            template=template,
+            week_number=1,
+            day_number=1,
+            due_in_days=0,
+            order=0,
+        )
+        StudentAssignment.objects.create(
+            enrollment=enrollment,
+            plan_item=plan_item,
+            due_date=monday,
+            status="pending",
+        )
+
+    def test_calendar_renders_assignment_and_lesson_section_labels(self):
+        response = self.client.get(
+            reverse("tracker:calendar_week", kwargs={"year": 2026, "week": 20})
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Assignments (manual course plan)")
+        self.assertContains(response, "Lessons (Oak/custom schedule)")
+        self.assertContains(
+            response,
+            "Scheduled from Course Planning timeline.",
+        )
+
+
 class EvidenceUploadTests(TestCase):
     """Tests for S2.10 upload_evidence_view POST endpoint."""
 
