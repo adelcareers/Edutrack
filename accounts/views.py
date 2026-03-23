@@ -97,6 +97,9 @@ def _save_global_assignment_types(request, user):
         delete_flag = request.POST.get(f"at_delete_{idx}") == "1"
         at_id = request.POST.get(f"at_id_{idx}", "").strip()
 
+        if name.lower() == "lesson":
+            continue
+
         if delete_flag:
             if at_id:
                 GlobalAssignmentType.objects.filter(pk=at_id, parent=user).delete()
@@ -124,7 +127,9 @@ def _save_global_assignment_types(request, user):
             seen_ids.append(at.pk)
 
     # Normalize ordering for all remaining types
-    remaining = GlobalAssignmentType.objects.filter(parent=user).order_by(
+    remaining = GlobalAssignmentType.objects.filter(parent=user).exclude(
+        name__iexact="lesson"
+    ).order_by(
         "order", "name"
     )
     for idx, at in enumerate(remaining):
@@ -164,6 +169,8 @@ def settings_view(request):
 
     assignment_types = GlobalAssignmentType.objects.filter(
         parent=request.user
+    ).exclude(
+        name__iexact="lesson"
     ).order_by("order", "name")
 
     return render(

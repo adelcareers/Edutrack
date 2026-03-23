@@ -1833,36 +1833,64 @@ class HomeAssignmentsDashboardTests(TestCase):
             due_date=datetime.date.today(),
             status="pending",
         )
+        self.enrolled_subject = _make_enrolled_subject(
+            self.child,
+            subject_name="Maths",
+        )
+        self.lesson = _make_lesson(subject="Maths", title="Fractions Intro")
+        self.scheduled_lesson = _make_scheduled_lesson(
+            self.child,
+            self.lesson,
+            self.enrolled_subject,
+            datetime.date.today(),
+        )
 
     def test_parent_sees_assignments_dashboard(self):
         self.client.force_login(self.parent)
         response = self.client.get(reverse(self.URL))
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "tracker/home_assignments.html")
-        self.assertContains(response, "Active Assignments")
-        self.assertContains(response, "Algebra Quiz")
+        self.assertContains(response, "Lessons")
+        self.assertContains(response, "Fractions Intro")
 
-    def test_student_only_sees_own_assignments(self):
-        self.client.force_login(self.student)
-        response = self.client.get(reverse(self.URL))
+        assignments_tab = self.client.get(reverse(self.URL), {"tab": "assignments"})
+        self.assertContains(assignments_tab, "Algebra Quiz")
+
+    def test_selected_lesson_renders_details_panel(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(
+            reverse(self.URL),
+            {
+                "tab": "lessons",
+                "selected_lesson": self.scheduled_lesson.pk,
+            },
+        )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Algebra Quiz")
+        self.assertContains(response, "Lesson Details")
+        self.assertContains(response, "Fractions Intro")
 
     def test_selected_assignment_renders_details_panel(self):
         self.client.force_login(self.parent)
         response = self.client.get(
             reverse(self.URL),
-            {"selected": self.assignment.pk},
+            {"tab": "assignments", "selected": self.assignment.pk},
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Assignment Details")
+        self.assertContains(response, "Algebra Quiz")
         self.assertContains(response, "Bring a calculator")
+
+    def test_student_only_sees_own_assignments(self):
+        self.client.force_login(self.student)
+        response = self.client.get(reverse(self.URL), {"tab": "assignments"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Algebra Quiz")
 
     def test_status_filter_done_hides_pending_assignment(self):
         self.client.force_login(self.parent)
         response = self.client.get(
             reverse(self.URL),
-            {"status": "done", "hide_completed": "0"},
+            {"tab": "assignments", "status": "done", "hide_completed": "0"},
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "No assignments match your current filters")
@@ -1975,6 +2003,9 @@ class HomeAssignmentsDashboardTests(TestCase):
         self.assignment.status = "needs_grading"
         self.assignment.save(update_fields=["status"])
         self.client.force_login(self.student)
-        response = self.client.get(reverse(self.URL), {"selected": self.assignment.pk})
+        response = self.client.get(
+            reverse(self.URL),
+            {"tab": "assignments", "selected": self.assignment.pk},
+        )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Completed")

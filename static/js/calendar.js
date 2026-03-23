@@ -417,6 +417,8 @@
     }
   }
 
+  window.edutrackOpenLessonModal = openLessonModal;
+
   async function openAssignmentModal(assignmentId) {
     activeAssignmentId = assignmentId;
     try {
