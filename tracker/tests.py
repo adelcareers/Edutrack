@@ -736,6 +736,14 @@ class LessonStatusUpdateTests(TestCase):
         log = LessonLog.objects.get(scheduled_lesson=self.sl)
         self.assertIsNone(log.completed_at)
 
+    def test_mark_overdue_returns_success_json(self):
+        self.client.force_login(self.student)
+        response = self._post("overdue")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["status"], "overdue")
+
     # ---------- idempotency / update existing log ----------
 
     def test_status_update(self):
@@ -1269,8 +1277,8 @@ class ParentCalendarTests(TestCase):
         response = self.client.get(self._url())
         content = response.content.decode()
         self.assertIn("modal-btn-complete", content)
-        self.assertIn("modal-btn-skip", content)
         self.assertIn("modal-btn-reschedule", content)
+        self.assertNotIn("modal-btn-skip", content)
 
     def test_notes_and_mastery_controls_rendered(self):
         self.client.force_login(self.parent)

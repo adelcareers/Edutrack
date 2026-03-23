@@ -598,6 +598,8 @@ def _effective_lesson_status(log, scheduled_date, today=None):
 
     if log and log.status == "complete":
         return "complete"
+    if log and log.status == "overdue":
+        return "overdue"
     if log and log.status == "skipped":
         return "skipped"
     if scheduled_date < today:
@@ -792,7 +794,7 @@ def lesson_detail_view(request, scheduled_id):
 @login_required
 @require_POST
 def update_lesson_status_view(request, scheduled_id):
-    """Accept a POST {status: 'complete'|'skipped'} and persist it to LessonLog.
+    """Accept a POST lesson status and persist it to LessonLog.
 
     Ownership is verified: the lesson must belong to the authenticated
     student's child profile.  Returns JSON on both success and error.
@@ -803,24 +805,29 @@ def update_lesson_status_view(request, scheduled_id):
         return JsonResponse({"error": "forbidden"}, status=403)
 
     new_status = request.POST.get("status", "")
-    if new_status not in ("complete", "skipped"):
+    if new_status not in ("complete", "overdue", "skipped", "pending"):
         return JsonResponse({"error": "invalid status"}, status=400)
 
     log, _ = LessonLog.objects.get_or_create(scheduled_lesson=sl)
     log.status = new_status
     if new_status == "complete":
         log.completed_at = timezone.now()
+    else:
+        log.completed_at = None
     log.save()
+
+    message_map = {
+        "complete": "Lesson marked as complete.",
+        "overdue": "Lesson marked as overdue.",
+        "skipped": "Lesson skipped.",
+        "pending": "Lesson marked as pending.",
+    }
 
     return JsonResponse(
         {
             "success": True,
             "status": log.status,
-            "message": (
-                "Lesson marked as complete."
-                if new_status == "complete"
-                else "Lesson skipped."
-            ),
+            "message": message_map.get(new_status, "Lesson status updated."),
         }
     )
 

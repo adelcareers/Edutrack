@@ -196,6 +196,9 @@
     font-size: 0.84rem;
     font-weight: 700;
   }
+  .lesson-status-chip.is-clickable {
+    cursor: pointer;
+  }
   .lesson-status-chip.status-success { background: #dcfce7; color: #166534; }
   .lesson-status-chip.status-danger { background: #fee2e2; color: #b91c1c; }
   .lesson-status-chip.status-secondary { background: #e5e7eb; color: #374151; }
@@ -205,10 +208,10 @@
     gap: 0.45rem;
     flex-wrap: wrap;
   }
-  .lesson-link-line a {
+  .lesson-title-link {
     color: #3b82f6;
     text-decoration: underline;
-    font-weight: 600;
+    font-weight: 700;
   }
   .lesson-meta-strip {
     display: flex;
@@ -258,14 +261,83 @@
     border-radius: 10px;
     padding: 0.7rem;
   }
-  .receipt-preview {
+  .receipt-panel .form-control[readonly] {
+    background: #f8fafc;
+    color: #334155;
+  }
+  .reschedule-picker-panel {
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background: #fff;
+    padding: 0.7rem;
+    margin-bottom: 0.9rem;
+  }
+  .reschedule-picker-panel[hidden] {
+    display: none !important;
+  }
+  .reschedule-picker-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.55rem;
+  }
+  .reschedule-picker-months {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem;
+  }
+  .picker-month {
     border: 1px solid #e5e7eb;
     border-radius: 8px;
-    background: #fff;
-    padding: 0.55rem 0.65rem;
-    margin-top: 0.55rem;
+    padding: 0.5rem;
+    background: #f8fafc;
+  }
+  .picker-month-title {
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.88rem;
+    margin-bottom: 0.4rem;
+  }
+  .picker-weekdays,
+  .picker-days {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 0.2rem;
+  }
+  .picker-weekday {
+    text-align: center;
+    font-size: 0.72rem;
+    color: #64748b;
+    font-weight: 600;
+  }
+  .picker-day {
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    min-height: 30px;
     font-size: 0.82rem;
-    color: #374151;
+  }
+  .picker-day.is-disabled {
+    color: #94a3b8;
+    cursor: not-allowed;
+  }
+  .picker-day.is-selected {
+    background: #4f46e5;
+    color: #fff;
+  }
+  .picker-day.is-today {
+    outline: 1px solid #93c5fd;
+  }
+  .reschedule-picker-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.6rem;
+  }
+  @media (max-width: 767px) {
+    .reschedule-picker-months {
+      grid-template-columns: 1fr;
+    }
   }
   .lesson-tabs {
     display: flex;
@@ -545,7 +617,7 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="lesson-modal-head" id="modal-header">
-        <div id="modal-status-chip" class="lesson-status-chip status-secondary">
+        <div id="modal-status-chip" class="lesson-status-chip status-secondary {% if can_edit_lessons %}is-clickable{% endif %}">
           <i id="modal-status-icon" class="bi bi-dash-circle"></i>
           <span id="modal-status-label">Incomplete</span>
         </div>
@@ -563,20 +635,15 @@
           <button id="modal-btn-delete" class="btn btn-sm btn-outline-danger" type="button">
             <i class="bi bi-trash"></i> Delete
           </button>
-          <button id="modal-btn-skip" class="btn btn-sm btn-outline-secondary" type="button">
-            <i class="bi bi-skip-forward"></i> Skip
-          </button>
         </div>
         {% endif %}
       </div>
 
       <div class="modal-body">
-        <h4 class="mb-2" id="modal-title">Lesson Detail</h4>
+        <h4 class="mb-2" id="modal-title">
+          <a id="modal-title-link" class="lesson-title-link" href="#" target="_blank" rel="noopener noreferrer">Lesson Detail</a>
+        </h4>
         <p class="text-muted small mb-2" id="modal-subject"></p>
-        <p class="mb-1" id="modal-unit"></p>
-        <p class="lesson-link-line mb-3">
-          <a id="modal-inline-link" href="#" target="_blank" rel="noopener noreferrer">Open resource</a>
-        </p>
 
         <div class="lesson-meta-strip mb-3">
           <div class="lesson-student">
@@ -604,8 +671,39 @@
             <input id="modal-receipt-url" type="url" class="form-control form-control-sm"
                    placeholder="Paste completion receipt link...">
             <button id="modal-btn-save-receipt" class="btn btn-sm btn-outline-primary" type="button">Save</button>
+            <button id="modal-btn-edit-receipt" class="btn btn-sm btn-outline-secondary" type="button" hidden>Edit</button>
           </div>
-          <div id="modal-receipt-preview" class="receipt-preview" style="display:none;"></div>
+        </div>
+
+        <div id="reschedule-picker-panel" class="reschedule-picker-panel" hidden>
+          <div class="reschedule-picker-head">
+            <button id="reschedule-prev" class="btn btn-sm btn-outline-secondary" type="button" aria-label="Previous month">&lsaquo;</button>
+            <div class="small fw-semibold">Pick a new date</div>
+            <button id="reschedule-next" class="btn btn-sm btn-outline-secondary" type="button" aria-label="Next month">&rsaquo;</button>
+          </div>
+          <div class="reschedule-picker-months">
+            <div class="picker-month">
+              <div id="picker-month-1-label" class="picker-month-title"></div>
+              <div class="picker-weekdays">
+                <div class="picker-weekday">Mo</div><div class="picker-weekday">Tu</div><div class="picker-weekday">We</div><div class="picker-weekday">Th</div><div class="picker-weekday">Fr</div><div class="picker-weekday">Sa</div><div class="picker-weekday">Su</div>
+              </div>
+              <div id="picker-month-1-grid" class="picker-days"></div>
+            </div>
+            <div class="picker-month">
+              <div id="picker-month-2-label" class="picker-month-title"></div>
+              <div class="picker-weekdays">
+                <div class="picker-weekday">Mo</div><div class="picker-weekday">Tu</div><div class="picker-weekday">We</div><div class="picker-weekday">Th</div><div class="picker-weekday">Fr</div><div class="picker-weekday">Sa</div><div class="picker-weekday">Su</div>
+              </div>
+              <div id="picker-month-2-grid" class="picker-days"></div>
+            </div>
+          </div>
+          <div class="reschedule-picker-actions">
+            <span id="reschedule-selected-label" class="small text-muted">No date selected</span>
+            <div class="d-flex gap-2">
+              <button id="reschedule-cancel" class="btn btn-sm btn-outline-secondary" type="button">Cancel</button>
+              <button id="reschedule-save" class="btn btn-sm btn-primary" type="button">Save</button>
+            </div>
+          </div>
         </div>
 
         <div class="lesson-tabs" role="tablist">
@@ -623,10 +721,6 @@
             <span class="small text-muted"><span id="notes-char-count">0</span>/1000</span>
           </div>
           <button id="modal-btn-save-notes" class="btn btn-sm btn-outline-secondary mt-2" type="button">Save Notes</button>
-          <div class="mt-3 d-flex gap-2 align-items-center flex-wrap">
-            <input type="date" id="modal-reschedule-date" class="form-control form-control-sm" style="max-width: 200px;">
-            <span class="small text-muted">Use with Reschedule action in header.</span>
-          </div>
         </div>
 
         <div class="lesson-tab-pane" data-pane="submissions">

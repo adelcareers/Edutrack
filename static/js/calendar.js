@@ -5,12 +5,10 @@
 
   const modal = document.getElementById('lesson-modal');
   const bsModal = modal ? new bootstrap.Modal(modal) : null;
-  const modalTitle = document.getElementById('modal-title');
+  const modalTitleLink = document.getElementById('modal-title-link');
   const modalHdr = document.getElementById('modal-header');
   const modalSubj = document.getElementById('modal-subject');
   const modalDate = document.getElementById('modal-date');
-  const modalUnit = document.getElementById('modal-unit');
-  const modalInlineLink = document.getElementById('modal-inline-link');
   const modalStudentName = document.getElementById('modal-student-name');
   const modalStudentAvatar = document.getElementById('modal-student-avatar');
   const modalWeekday = document.getElementById('modal-weekday');
@@ -23,8 +21,8 @@
   const btnSaveNotes = document.getElementById('modal-btn-save-notes');
 
   const receiptInput = document.getElementById('modal-receipt-url');
-  const receiptPreview = document.getElementById('modal-receipt-preview');
   const btnSaveReceipt = document.getElementById('modal-btn-save-receipt');
+  const btnEditReceipt = document.getElementById('modal-btn-edit-receipt');
 
   const commentsList = document.getElementById('modal-comments-list');
   const commentInput = document.getElementById('modal-comment-input');
@@ -37,9 +35,18 @@
   const evidenceFile = document.getElementById('modal-evidence-file');
   const btnUpload = document.getElementById('modal-btn-upload');
 
-  const rescheduleDate = document.getElementById('modal-reschedule-date');
+  const reschedulePickerPanel = document.getElementById('reschedule-picker-panel');
+  const reschedulePrev = document.getElementById('reschedule-prev');
+  const rescheduleNext = document.getElementById('reschedule-next');
+  const rescheduleCancel = document.getElementById('reschedule-cancel');
+  const rescheduleSave = document.getElementById('reschedule-save');
+  const rescheduleSelectedLabel = document.getElementById('reschedule-selected-label');
+  const pickerMonth1Label = document.getElementById('picker-month-1-label');
+  const pickerMonth2Label = document.getElementById('picker-month-2-label');
+  const pickerMonth1Grid = document.getElementById('picker-month-1-grid');
+  const pickerMonth2Grid = document.getElementById('picker-month-2-grid');
+
   const btnComplete = document.getElementById('modal-btn-complete');
-  const btnSkip = document.getElementById('modal-btn-skip');
   const btnReschedule = document.getElementById('modal-btn-reschedule');
   const btnEdit = document.getElementById('modal-btn-edit');
   const btnDelete = document.getElementById('modal-btn-delete');
@@ -57,6 +64,18 @@
 
   let activeScheduledId = null;
   let activeAssignmentId = null;
+  let currentLessonStatus = 'incomplete';
+  let currentLessonDateIso = null;
+  let rescheduleViewMonth = null;
+  let selectedRescheduleDate = null;
+  const canToggleStatus = Boolean(modalStatusChip && modalStatusChip.classList.contains('is-clickable'));
+
+  const STATUS_META = {
+    complete: { label: 'Complete', icon: 'check-circle-fill', tone: 'success' },
+    overdue: { label: 'Overdue', icon: 'exclamation-triangle-fill', tone: 'danger' },
+    incomplete: { label: 'Incomplete', icon: 'dash-circle', tone: 'secondary' },
+    skipped: { label: 'Skipped', icon: 'skip-forward-circle', tone: 'dark' },
+  };
 
   function getCookie(name) {
     const value = `; ${document.cookie}`;
@@ -78,8 +97,17 @@
   function setLessonStatus(statusKey, label, icon, tone) {
     if (!modalStatusChip) return;
     modalStatusChip.className = `lesson-status-chip status-${tone || 'secondary'}`;
+    if (canToggleStatus) {
+      modalStatusChip.classList.add('is-clickable');
+    }
     if (modalStatusLabel) modalStatusLabel.textContent = label || statusKey;
     if (modalStatusIcon) modalStatusIcon.className = `bi bi-${icon || 'dash-circle'}`;
+    currentLessonStatus = statusKey;
+  }
+
+  function applyStatusFromKey(statusKey) {
+    const meta = STATUS_META[statusKey] || STATUS_META.incomplete;
+    setLessonStatus(statusKey, meta.label, meta.icon, meta.tone);
   }
 
   function setActiveMastery(mastery) {
@@ -181,21 +209,11 @@
     commentsList.scrollTop = commentsList.scrollHeight;
   }
 
-  function renderReceiptPreview(meta) {
-    if (!receiptPreview) return;
-    if (!meta || !Object.keys(meta).length) {
-      receiptPreview.style.display = 'none';
-      receiptPreview.innerHTML = '';
-      return;
-    }
-
-    const lessonGuess = meta.lesson_title_guess || 'Unknown lesson';
-    const provider = meta.provider || 'Unknown provider';
-    const token = meta.result_token || 'n/a';
-    receiptPreview.style.display = 'block';
-    receiptPreview.innerHTML = `<div><strong>Provider:</strong> ${provider}</div>
-      <div><strong>Lesson:</strong> ${lessonGuess}</div>
-      <div><strong>Result token:</strong> ${token}</div>`;
+  function setReceiptLocked(isLocked) {
+    if (!receiptInput || !btnSaveReceipt || !btnEditReceipt) return;
+    receiptInput.readOnly = isLocked;
+    btnSaveReceipt.hidden = isLocked;
+    btnEditReceipt.hidden = !isLocked;
   }
 
   function activateLessonTab(tabName) {
@@ -224,6 +242,121 @@
     return data;
   }
 
+  function parseISODate(iso) {
+    if (!iso) return null;
+    const parts = iso.split('-').map(Number);
+    if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  }
+
+  function dateToISO(dateObj) {
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const d = String(dateObj.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function toDateOnly(dateObj) {
+    return new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+  }
+
+  function addMonths(dateObj, delta) {
+    return new Date(dateObj.getFullYear(), dateObj.getMonth() + delta, 1);
+  }
+
+  function sameDate(left, right) {
+    return left && right && left.getFullYear() === right.getFullYear() && left.getMonth() === right.getMonth() && left.getDate() === right.getDate();
+  }
+
+  function isSelectableDate(dateObj) {
+    const today = toDateOnly(new Date());
+    return dateObj > today;
+  }
+
+  function monthLabel(dateObj) {
+    return new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' }).format(dateObj);
+  }
+
+  function renderMonthGrid(monthDate, labelEl, gridEl) {
+    if (!labelEl || !gridEl) return;
+    labelEl.textContent = monthLabel(monthDate);
+    gridEl.innerHTML = '';
+
+    const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+    const daysInMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
+    const leadingBlankCount = (firstDay.getDay() + 6) % 7;
+
+    for (let i = 0; i < leadingBlankCount; i += 1) {
+      const filler = document.createElement('div');
+      gridEl.appendChild(filler);
+    }
+
+    const today = toDateOnly(new Date());
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const dateObj = new Date(monthDate.getFullYear(), monthDate.getMonth(), day);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'picker-day';
+      btn.textContent = String(day);
+      btn.dataset.iso = dateToISO(dateObj);
+
+      if (!isSelectableDate(dateObj)) {
+        btn.classList.add('is-disabled');
+        btn.disabled = true;
+      }
+      if (sameDate(dateObj, today)) {
+        btn.classList.add('is-today');
+      }
+      if (sameDate(dateObj, selectedRescheduleDate)) {
+        btn.classList.add('is-selected');
+      }
+
+      btn.addEventListener('click', () => {
+        selectedRescheduleDate = dateObj;
+        renderReschedulePicker();
+      });
+      gridEl.appendChild(btn);
+    }
+  }
+
+  function renderReschedulePicker() {
+    if (!rescheduleViewMonth) return;
+    const nextMonth = addMonths(rescheduleViewMonth, 1);
+    renderMonthGrid(rescheduleViewMonth, pickerMonth1Label, pickerMonth1Grid);
+    renderMonthGrid(nextMonth, pickerMonth2Label, pickerMonth2Grid);
+
+    if (rescheduleSelectedLabel) {
+      if (selectedRescheduleDate) {
+        const text = new Intl.DateTimeFormat('en-GB', {
+          weekday: 'short',
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        }).format(selectedRescheduleDate);
+        rescheduleSelectedLabel.textContent = `Selected: ${text}`;
+      } else {
+        rescheduleSelectedLabel.textContent = 'No date selected';
+      }
+    }
+  }
+
+  function openReschedulePicker(initialDateIso) {
+    const fallbackDate = addMonths(new Date(), 1);
+    const initialDate = parseISODate(initialDateIso) || fallbackDate;
+    selectedRescheduleDate = isSelectableDate(initialDate) ? initialDate : fallbackDate;
+    rescheduleViewMonth = new Date(initialDate.getFullYear(), initialDate.getMonth(), 1);
+    renderReschedulePicker();
+    if (reschedulePickerPanel) {
+      reschedulePickerPanel.hidden = false;
+    }
+  }
+
+  function closeReschedulePicker() {
+    if (reschedulePickerPanel) {
+      reschedulePickerPanel.hidden = true;
+    }
+  }
+
   async function openLessonModal(scheduledId) {
     activeScheduledId = scheduledId;
     try {
@@ -237,11 +370,13 @@
       if (modalHdr) {
         modalHdr.style.setProperty('--modal-colour', data.colour_hex || '#6c757d');
       }
-      if (modalTitle) modalTitle.textContent = data.lesson_title || 'Lesson Detail';
+      if (modalTitleLink) {
+        modalTitleLink.textContent = data.lesson_title || 'Lesson Detail';
+        modalTitleLink.href = data.lesson_url || '#';
+      }
       if (modalSubj) modalSubj.textContent = data.subject_name || '';
       if (modalDate) modalDate.textContent = data.scheduled_date || '';
-      if (modalUnit) modalUnit.textContent = data.unit_title ? `Unit: ${data.unit_title}` : '';
-      if (modalInlineLink) modalInlineLink.href = data.lesson_url || '#';
+      currentLessonDateIso = data.scheduled_date_iso || null;
 
       if (modalStudentName) modalStudentName.textContent = data.student_name || 'Student';
       if (modalWeekday) {
@@ -264,12 +399,8 @@
         if (notesCount) notesCount.textContent = modalNotes.value.length;
       }
 
-      if (rescheduleDate) {
-        rescheduleDate.value = data.scheduled_date_iso || '';
-      }
-
       if (receiptInput) receiptInput.value = data.completion_receipt_url || '';
-      renderReceiptPreview(data.completion_receipt_meta || {});
+      setReceiptLocked(Boolean((data.completion_receipt_url || '').trim()));
 
       if (evidenceCount) evidenceCount.textContent = data.evidence_count ?? 0;
       if (submissionsCountTab) submissionsCountTab.textContent = data.submissions_count ?? 0;
@@ -278,6 +409,7 @@
       if (commentsCountTab) commentsCountTab.textContent = data.comments_count ?? 0;
       renderComments(data.comments || []);
       activateLessonTab('overview');
+      closeReschedulePicker();
 
       if (bsModal) bsModal.show();
     } catch (e) {
@@ -351,32 +483,61 @@
       try {
         await postForm(`/lessons/${activeScheduledId}/update/`, { status: 'complete' });
         updateCardBadge(activeScheduledId, 'complete');
-        setLessonStatus('complete', 'Complete', 'check-circle-fill', 'success');
+        applyStatusFromKey('complete');
       } catch (e) {
         showModalAlert(e.message || 'Failed to mark complete.', 'danger');
       }
     });
   }
 
-  if (btnSkip) {
-    btnSkip.addEventListener('click', async () => {
+  if (canToggleStatus) {
+    modalStatusChip.addEventListener('click', async () => {
       if (!activeScheduledId) return;
+      const targetStatus = currentLessonStatus === 'complete' ? 'overdue' : 'complete';
       try {
-        await postForm(`/lessons/${activeScheduledId}/update/`, { status: 'skipped' });
-        updateCardBadge(activeScheduledId, 'skipped');
-        setLessonStatus('skipped', 'Skipped', 'skip-forward-circle', 'dark');
+        await postForm(`/lessons/${activeScheduledId}/update/`, { status: targetStatus });
+        updateCardBadge(activeScheduledId, targetStatus);
+        applyStatusFromKey(targetStatus);
       } catch (e) {
-        showModalAlert(e.message || 'Failed to skip lesson.', 'danger');
+        showModalAlert(e.message || 'Failed to update status.', 'danger');
       }
     });
   }
 
   if (btnReschedule) {
-    btnReschedule.addEventListener('click', async () => {
-      if (!activeScheduledId || !rescheduleDate || !rescheduleDate.value) return;
+    btnReschedule.addEventListener('click', () => {
+      openReschedulePicker(currentLessonDateIso);
+    });
+  }
+
+  if (reschedulePrev) {
+    reschedulePrev.addEventListener('click', () => {
+      if (!rescheduleViewMonth) return;
+      rescheduleViewMonth = addMonths(rescheduleViewMonth, -1);
+      renderReschedulePicker();
+    });
+  }
+
+  if (rescheduleNext) {
+    rescheduleNext.addEventListener('click', () => {
+      if (!rescheduleViewMonth) return;
+      rescheduleViewMonth = addMonths(rescheduleViewMonth, 1);
+      renderReschedulePicker();
+    });
+  }
+
+  if (rescheduleCancel) {
+    rescheduleCancel.addEventListener('click', () => {
+      closeReschedulePicker();
+    });
+  }
+
+  if (rescheduleSave) {
+    rescheduleSave.addEventListener('click', async () => {
+      if (!activeScheduledId || !selectedRescheduleDate) return;
       try {
         await postForm(`/lessons/${activeScheduledId}/reschedule/`, {
-          new_date: rescheduleDate.value,
+          new_date: dateToISO(selectedRescheduleDate),
         });
         showModalAlert('Lesson rescheduled.', 'success');
         window.location.reload();
@@ -388,10 +549,13 @@
 
   if (btnEdit) {
     btnEdit.addEventListener('click', async () => {
-      if (!activeScheduledId || !rescheduleDate || !rescheduleDate.value) return;
+      if (!activeScheduledId || !selectedRescheduleDate) {
+        showModalAlert('Pick a date using Reschedule first.', 'warning');
+        return;
+      }
       try {
         await postForm(`/lessons/${activeScheduledId}/edit/`, {
-          scheduled_date: rescheduleDate.value,
+          scheduled_date: dateToISO(selectedRescheduleDate),
         });
         showModalAlert('Lesson updated.', 'success');
         window.location.reload();
@@ -449,15 +613,28 @@
 
   if (btnSaveReceipt) {
     btnSaveReceipt.addEventListener('click', async () => {
-      if (!activeScheduledId || !receiptInput) return;
+      if (!activeScheduledId || !receiptInput || !receiptInput.value.trim()) {
+        showModalAlert('Paste a valid receipt link first.', 'warning');
+        return;
+      }
       try {
-        const data = await postForm(`/lessons/${activeScheduledId}/receipt/`, {
+        await postForm(`/lessons/${activeScheduledId}/receipt/`, {
           receipt_url: receiptInput.value,
         });
-        renderReceiptPreview(data.completion_receipt_meta || {});
+        setReceiptLocked(true);
         showModalAlert('Receipt link saved.', 'success');
       } catch (e) {
         showModalAlert(e.message || 'Failed to save receipt link.', 'danger');
+      }
+    });
+  }
+
+  if (btnEditReceipt) {
+    btnEditReceipt.addEventListener('click', () => {
+      setReceiptLocked(false);
+      if (receiptInput) {
+        receiptInput.focus();
+        receiptInput.select();
       }
     });
   }
