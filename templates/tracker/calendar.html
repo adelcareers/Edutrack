@@ -423,7 +423,7 @@
           <ul id="modal-evidence-list" class="list-unstyled mt-1 mb-0 small"></ul>
         </div>
         <hr>
-        {% if not is_readonly %}
+        {% if can_edit_lessons %}
         <div class="d-flex gap-2 flex-wrap">
           <button id="modal-btn-complete" class="btn btn-sm btn-success" data-action="complete" disabled>
             &#10003; Mark Complete

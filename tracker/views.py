@@ -554,6 +554,7 @@ def calendar_view(request, year=None, week=None):
         viewer_role="student",
     )
     ctx["can_edit_assignments"] = True
+    ctx["can_edit_lessons"] = True
     return render(request, "tracker/calendar.html", ctx)
 
 
@@ -569,6 +570,22 @@ def _can_access_student_assignment(user, assignment):
     if profile.role == "student":
         child = getattr(user, "child_profile", None)
         return child is not None and assignment.enrollment.child_id == child.pk
+
+    return False
+
+
+def _can_access_student_lesson(user, scheduled_lesson):
+    """Return True when user is parent of child or the student owner."""
+    profile = getattr(user, "profile", None)
+    if profile is None:
+        return False
+
+    if profile.role == "parent":
+        return scheduled_lesson.child.parent_id == user.pk
+
+    if profile.role == "student":
+        child = getattr(user, "child_profile", None)
+        return child is not None and scheduled_lesson.child_id == child.pk
 
     return False
 
@@ -647,16 +664,14 @@ def update_assignment_status_view(request, assignment_id):
 
 
 @login_required
-@role_required("student")
 def lesson_detail_view(request, scheduled_id):
     """Return JSON details for a single scheduled lesson.
 
     Ownership check: the lesson must belong to the student's child profile.
     """
-    child = getattr(request.user, "child_profile", None)
     sl = get_object_or_404(ScheduledLesson, pk=scheduled_id)
 
-    if child is None or sl.child_id != child.pk:
+    if not _can_access_student_lesson(request.user, sl):
         return JsonResponse({"error": "forbidden"}, status=403)
 
     log = getattr(sl, "log", None)
@@ -693,7 +708,6 @@ def lesson_detail_view(request, scheduled_id):
 
 
 @login_required
-@role_required("student")
 @require_POST
 def update_lesson_status_view(request, scheduled_id):
     """Accept a POST {status: 'complete'|'skipped'} and persist it to LessonLog.
@@ -701,10 +715,9 @@ def update_lesson_status_view(request, scheduled_id):
     Ownership is verified: the lesson must belong to the authenticated
     student's child profile.  Returns JSON on both success and error.
     """
-    child = getattr(request.user, "child_profile", None)
     sl = get_object_or_404(ScheduledLesson, pk=scheduled_id)
 
-    if child is None or sl.child_id != child.pk:
+    if not _can_access_student_lesson(request.user, sl):
         return JsonResponse({"error": "forbidden"}, status=403)
 
     new_status = request.POST.get("status", "")
@@ -731,7 +744,6 @@ def update_lesson_status_view(request, scheduled_id):
 
 
 @login_required
-@role_required("student")
 @require_POST
 def update_mastery_view(request, scheduled_id):
     """Accept a POST {mastery: 'green'|'amber'|'red'} and persist it to LessonLog.
@@ -739,10 +751,9 @@ def update_mastery_view(request, scheduled_id):
     Ownership is verified: the lesson must belong to the authenticated
     student's child profile.  Returns JSON on both success and error.
     """
-    child = getattr(request.user, "child_profile", None)
     sl = get_object_or_404(ScheduledLesson, pk=scheduled_id)
 
-    if child is None or sl.child_id != child.pk:
+    if not _can_access_student_lesson(request.user, sl):
         return JsonResponse({"error": "forbidden"}, status=403)
 
     new_mastery = request.POST.get("mastery", "")
@@ -762,7 +773,6 @@ def update_mastery_view(request, scheduled_id):
 
 
 @login_required
-@role_required("student")
 @require_POST
 def save_notes_view(request, scheduled_id):
     """Accept a POST {notes: string} and persist it to LessonLog.student_notes.
@@ -771,10 +781,9 @@ def save_notes_view(request, scheduled_id):
     student's child profile.  Notes are capped at 1000 characters.
     Returns JSON on both success and error.
     """
-    child = getattr(request.user, "child_profile", None)
     sl = get_object_or_404(ScheduledLesson, pk=scheduled_id)
 
-    if child is None or sl.child_id != child.pk:
+    if not _can_access_student_lesson(request.user, sl):
         return JsonResponse({"error": "forbidden"}, status=403)
 
     notes = request.POST.get("notes", "")
@@ -789,7 +798,6 @@ def save_notes_view(request, scheduled_id):
 
 
 @login_required
-@role_required("student")
 @require_POST
 def reschedule_lesson_view(request, scheduled_id):
     """Accept a POST {new_date: 'YYYY-MM-DD'} and move the lesson to that date.
@@ -798,10 +806,9 @@ def reschedule_lesson_view(request, scheduled_id):
     Updates ScheduledLesson.scheduled_date and LessonLog.rescheduled_to.
     Returns JSON on both success and error.
     """
-    child = getattr(request.user, "child_profile", None)
     sl = get_object_or_404(ScheduledLesson, pk=scheduled_id)
 
-    if child is None or sl.child_id != child.pk:
+    if not _can_access_student_lesson(request.user, sl):
         return JsonResponse({"error": "forbidden"}, status=403)
 
     raw_date = request.POST.get("new_date", "").strip()
@@ -838,7 +845,6 @@ _ALLOWED_EVIDENCE_TYPES = frozenset(
 
 
 @login_required
-@role_required("student")
 @require_POST
 def upload_evidence_view(request, scheduled_id):
     """Accept a multipart POST with a 'file' field and store it on Cloudinary.
@@ -847,10 +853,9 @@ def upload_evidence_view(request, scheduled_id):
     Creates a LessonLog if one does not yet exist.
     Returns JSON: {success, file_id, filename, uploaded_at}.
     """
-    child = getattr(request.user, "child_profile", None)
     sl = get_object_or_404(ScheduledLesson, pk=scheduled_id)
 
-    if child is None or sl.child_id != child.pk:
+    if not _can_access_student_lesson(request.user, sl):
         return JsonResponse({"error": "forbidden"}, status=403)
 
     uploaded_file = request.FILES.get("file")
@@ -888,7 +893,6 @@ def upload_evidence_view(request, scheduled_id):
 
 
 @login_required
-@role_required("student")
 @require_POST
 def delete_evidence_view(request, file_id):
     """Delete an evidence file from Cloudinary and the database.
@@ -899,7 +903,8 @@ def delete_evidence_view(request, file_id):
     import cloudinary.uploader
 
     evidence = get_object_or_404(EvidenceFile, pk=file_id)
-    if evidence.uploaded_by_id != request.user.pk:
+    sl = evidence.lesson_log.scheduled_lesson
+    if not _can_access_student_lesson(request.user, sl):
         return JsonResponse({"error": "forbidden"}, status=403)
 
     public_id = (
@@ -980,6 +985,7 @@ def parent_calendar_view(request, child_id, year=None, week=None):
         viewer_role="parent",
     )
     ctx["can_edit_assignments"] = True
+    ctx["can_edit_lessons"] = True
     ctx["siblings"] = siblings
     return render(request, "tracker/calendar.html", ctx)
 

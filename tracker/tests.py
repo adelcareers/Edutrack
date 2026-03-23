@@ -499,11 +499,11 @@ class LessonDetailViewTests(TestCase):
         response = self.client.get(self._url())
         self.assertEqual(response.status_code, 302)
 
-    def test_parent_role_forbidden(self):
+    def test_parent_can_fetch_child_lesson_detail(self):
         self.client.force_login(self.parent)
         response = self.client.get(self._url())
-        # role_required redirects to '/'
-        self.assertRedirects(response, "/", fetch_redirect_response=False)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["id"], self.sl.pk)
 
     def test_student_returns_200_json(self):
         self.client.force_login(self.student)
@@ -524,6 +524,12 @@ class LessonDetailViewTests(TestCase):
         response = self.client.get(
             self._url()
         )  # sl belongs to self.child, not other_child
+        self.assertEqual(response.status_code, 403)
+
+    def test_other_parent_gets_403(self):
+        other_parent = _make_parent(username="det_other_parent")
+        self.client.force_login(other_parent)
+        response = self.client.get(self._url())
         self.assertEqual(response.status_code, 403)
 
     def test_student_without_child_profile_gets_403(self):
@@ -630,10 +636,11 @@ class LessonStatusUpdateTests(TestCase):
         response = self._post("complete")
         self.assertEqual(response.status_code, 302)
 
-    def test_parent_role_blocked(self):
+    def test_parent_can_update_status(self):
         self.client.force_login(self.parent)
         response = self._post("complete")
-        self.assertRedirects(response, "/", fetch_redirect_response=False)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "complete")
 
     def test_get_method_not_allowed(self):
         self.client.force_login(self.student)
@@ -770,10 +777,11 @@ class LessonMasteryUpdateTests(TestCase):
         response = self._post("green")
         self.assertEqual(response.status_code, 302)
 
-    def test_parent_role_blocked(self):
+    def test_parent_can_update_mastery(self):
         self.client.force_login(self.parent)
         response = self._post("green")
-        self.assertRedirects(response, "/", fetch_redirect_response=False)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["mastery"], "green")
 
     def test_get_method_not_allowed(self):
         self.client.force_login(self.student)
@@ -888,10 +896,11 @@ class LessonNotesTests(TestCase):
         response = self._post("hello")
         self.assertEqual(response.status_code, 302)
 
-    def test_parent_role_blocked(self):
+    def test_parent_can_save_notes(self):
         self.client.force_login(self.parent)
         response = self._post("hello")
-        self.assertRedirects(response, "/", fetch_redirect_response=False)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["student_notes"], "hello")
 
     def test_get_method_not_allowed(self):
         self.client.force_login(self.student)
@@ -1009,10 +1018,11 @@ class LessonRescheduleTests(TestCase):
         response = self._post("2030-01-01")
         self.assertEqual(response.status_code, 302)
 
-    def test_parent_role_blocked(self):
+    def test_parent_can_reschedule(self):
         self.client.force_login(self.parent)
         response = self._post("2030-01-01")
-        self.assertRedirects(response, "/", fetch_redirect_response=False)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["new_date"], "2030-01-01")
 
     def test_get_method_not_allowed(self):
         self.client.force_login(self.student)
@@ -1154,20 +1164,20 @@ class ParentCalendarTests(TestCase):
         response = self.client.get(self._url())
         self.assertEqual(response.context["child_name"], self.child.first_name)
 
-    def test_action_buttons_not_rendered(self):
+    def test_lesson_action_buttons_rendered(self):
         self.client.force_login(self.parent)
         response = self.client.get(self._url())
         content = response.content.decode()
-        self.assertNotIn("modal-btn-complete", content)
-        self.assertNotIn("modal-btn-skip", content)
-        self.assertNotIn("modal-btn-reschedule", content)
+        self.assertIn("modal-btn-complete", content)
+        self.assertIn("modal-btn-skip", content)
+        self.assertIn("modal-btn-reschedule", content)
 
-    def test_notes_and_mastery_not_rendered(self):
+    def test_notes_and_mastery_controls_rendered(self):
         self.client.force_login(self.parent)
         response = self.client.get(self._url())
         content = response.content.decode()
-        self.assertNotIn("modal-btn-save-notes", content)
-        self.assertNotIn('id="modal-notes"', content)
+        self.assertIn("modal-btn-save-notes", content)
+        self.assertIn('id="modal-notes"', content)
 
     def test_lesson_appears_in_calendar(self):
         self.client.force_login(self.parent)
@@ -1302,10 +1312,12 @@ class EvidenceUploadTests(TestCase):
         response = self._post()
         self.assertEqual(response.status_code, 302)
 
-    def test_parent_role_blocked(self):
+    def test_parent_can_upload_evidence(self):
         self.client.force_login(self.parent)
-        response = self._post()
-        self.assertRedirects(response, "/", fetch_redirect_response=False)
+        with patch("cloudinary.uploader.upload", return_value=_FAKE_CLOUDINARY):
+            response = self._post()
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["success"])
 
     def test_get_method_not_allowed(self):
         self.client.force_login(self.student)
@@ -1437,10 +1449,12 @@ class EvidenceDeleteTests(TestCase):
         response = self.client.post(self._url())
         self.assertEqual(response.status_code, 302)
 
-    def test_parent_role_blocked(self):
+    def test_parent_can_delete_child_evidence(self):
         self.client.force_login(self.parent)
-        response = self.client.post(self._url())
-        self.assertRedirects(response, "/", fetch_redirect_response=False)
+        with patch("cloudinary.uploader.destroy", return_value={"result": "ok"}):
+            response = self.client.post(self._url())
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["success"])
 
     def test_get_method_not_allowed(self):
         self.client.force_login(self.student)
