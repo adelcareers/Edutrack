@@ -252,6 +252,53 @@
     gap: 0.45rem;
     flex-wrap: wrap;
   }
+  .mastery-panel {
+    border: 1px solid #dbeafe;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%);
+    padding: 0.75rem;
+    margin-bottom: 0.9rem;
+  }
+  .mastery-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    margin-bottom: 0.4rem;
+  }
+  .mastery-title {
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: #1f2937;
+  }
+  .mastery-subtitle {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-bottom: 0.55rem;
+  }
+  .mastery-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-weight: 700;
+  }
+  .mastery-short {
+    font-size: 0.72rem;
+    font-weight: 600;
+    opacity: 0.9;
+  }
+  .mastery-hint-icon {
+    width: 1rem;
+    height: 1rem;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.66rem;
+    font-weight: 700;
+    line-height: 1;
+  }
   .mastery-btn i {
     margin-right: 0.25rem;
   }
@@ -656,12 +703,30 @@
           <div class="text-muted small" id="modal-weekday">Week 0, Day 0</div>
         </div>
 
-        <div class="mb-3">
-          <div class="small text-muted mb-1">Mastery</div>
+        <div class="mastery-panel" aria-label="Lesson mastery section">
+          <div class="mastery-heading">
+            <div class="mastery-title">Mastery Check</div>
+          </div>
+          <div class="mastery-subtitle">Select one tag to show how well this lesson was understood.</div>
           <div class="mastery-pills">
-            <button class="btn btn-sm mastery-btn" data-mastery="green" type="button"><i class="bi bi-emoji-smile"></i>Green</button>
-            <button class="btn btn-sm mastery-btn" data-mastery="amber" type="button"><i class="bi bi-emoji-neutral"></i>Amber</button>
-            <button class="btn btn-sm mastery-btn" data-mastery="red" type="button"><i class="bi bi-emoji-frown"></i>Red</button>
+            <button class="btn btn-sm mastery-btn" data-mastery="red" type="button" title="I didn't understand this lesson." aria-label="Red. I need help. I didn't understand this lesson.">
+              <i class="bi bi-emoji-frown"></i>
+              <span>Red</span>
+              <span class="mastery-short">I need help</span>
+              <span class="mastery-hint-icon" aria-hidden="true">i</span>
+            </button>
+            <button class="btn btn-sm mastery-btn" data-mastery="amber" type="button" title="I understood some, but need a recap." aria-label="Amber. Getting there. I understood some, but need a recap.">
+              <i class="bi bi-emoji-neutral"></i>
+              <span>Amber</span>
+              <span class="mastery-short">Getting there</span>
+              <span class="mastery-hint-icon" aria-hidden="true">i</span>
+            </button>
+            <button class="btn btn-sm mastery-btn" data-mastery="green" type="button" title="I fully understood this and could move on." aria-label="Green. Got it. I fully understood this and could move on.">
+              <i class="bi bi-emoji-smile"></i>
+              <span>Green</span>
+              <span class="mastery-short">Got it!</span>
+              <span class="mastery-hint-icon" aria-hidden="true">i</span>
+            </button>
           </div>
         </div>
 
