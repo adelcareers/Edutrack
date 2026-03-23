@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import EvidenceFile, LessonLog
+from .models import EvidenceFile, LessonComment, LessonLog
 
 
 @admin.register(LessonLog)
@@ -19,3 +19,12 @@ class EvidenceFileAdmin(admin.ModelAdmin):
     list_display = ["original_filename", "lesson_log", "uploaded_by", "uploaded_at"]
     list_filter = ["uploaded_at"]
     search_fields = ["original_filename"]
+
+
+@admin.register(LessonComment)
+class LessonCommentAdmin(admin.ModelAdmin):
+    """Admin view for lesson discussion comments."""
+
+    list_display = ["scheduled_lesson", "author", "created_at"]
+    list_filter = ["created_at"]
+    search_fields = ["scheduled_lesson__lesson__lesson_title", "body"]

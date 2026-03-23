@@ -58,6 +58,26 @@ urlpatterns = [
         name="lesson_upload",
     ),
     path(
+        "lessons/<int:scheduled_id>/receipt/",
+        views.save_receipt_link_view,
+        name="lesson_receipt",
+    ),
+    path(
+        "lessons/<int:scheduled_id>/comments/",
+        views.add_lesson_comment_view,
+        name="lesson_comment",
+    ),
+    path(
+        "lessons/<int:scheduled_id>/edit/",
+        views.edit_scheduled_lesson_view,
+        name="lesson_edit",
+    ),
+    path(
+        "lessons/<int:scheduled_id>/delete/",
+        views.delete_scheduled_lesson_view,
+        name="lesson_delete",
+    ),
+    path(
         "assignments/<int:assignment_id>/detail/",
         views.assignment_detail_view,
         name="assignment_detail",

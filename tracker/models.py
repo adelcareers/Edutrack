@@ -30,6 +30,8 @@ class LessonLog(models.Model):
     student_notes = models.TextField(blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     rescheduled_to = models.DateField(null=True, blank=True)
+    completion_receipt_url = models.URLField(blank=True, default="")
+    completion_receipt_meta = models.JSONField(blank=True, default=dict)
     updated_by = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
 
     class Meta:
@@ -62,3 +64,23 @@ class EvidenceFile(models.Model):
 
     def __str__(self):
         return f"{self.original_filename} ({self.uploaded_at:%Y-%m-%d})"
+
+
+class LessonComment(models.Model):
+    """Journal-style discussion entries for a scheduled lesson."""
+
+    scheduled_lesson = models.ForeignKey(
+        "scheduler.ScheduledLesson", on_delete=models.CASCADE, related_name="comments"
+    )
+    author = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="lesson_comments"
+    )
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"Comment by {self.author.username} on lesson {self.scheduled_lesson_id}"

@@ -1,6 +1,7 @@
 import datetime
 import uuid
 from decimal import Decimal, InvalidOperation
+from urllib.parse import unquote, urlparse
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
@@ -20,7 +21,7 @@ from planning.models import (
 )
 from reports.services_gradebook import recalculate_enrollment_grade
 from scheduler.models import Child, ScheduledLesson, Vacation
-from tracker.models import EvidenceFile, LessonLog
+from tracker.models import EvidenceFile, LessonComment, LessonLog
 
 
 def _get_or_create_settings(user):
@@ -590,6 +591,60 @@ def _can_access_student_lesson(user, scheduled_lesson):
     return False
 
 
+def _effective_lesson_status(log, scheduled_date, today=None):
+    """Return UI-facing status for a lesson card/modal."""
+    if today is None:
+        today = datetime.date.today()
+
+    if log and log.status == "complete":
+        return "complete"
+    if log and log.status == "skipped":
+        return "skipped"
+    if scheduled_date < today:
+        return "overdue"
+    return "incomplete"
+
+
+def _lesson_status_meta(status_key):
+    """Map lesson status key to UI label/icon metadata."""
+    status_map = {
+        "complete": {"label": "Complete", "icon": "check-circle-fill", "tone": "success"},
+        "overdue": {"label": "Overdue", "icon": "exclamation-triangle-fill", "tone": "danger"},
+        "incomplete": {"label": "Incomplete", "icon": "dash-circle", "tone": "secondary"},
+        "skipped": {"label": "Skipped", "icon": "skip-forward-circle", "tone": "dark"},
+    }
+    return status_map.get(status_key, status_map["incomplete"])
+
+
+def _parse_receipt_metadata(receipt_url):
+    """Extract lightweight preview metadata from a completion receipt URL."""
+    parsed = urlparse(receipt_url)
+    path_parts = [p for p in parsed.path.split("/") if p]
+    lesson_slug = ""
+    result_token = ""
+
+    if "lessons" in path_parts:
+        lesson_idx = path_parts.index("lessons")
+        if len(path_parts) > lesson_idx + 1:
+            lesson_slug = path_parts[lesson_idx + 1]
+    if "results" in path_parts:
+        result_idx = path_parts.index("results")
+        if len(path_parts) > result_idx + 1:
+            result_token = path_parts[result_idx + 1]
+
+    title = ""
+    if lesson_slug:
+        title = unquote(lesson_slug).replace("-", " ").strip().title()
+
+    return {
+        "provider": parsed.netloc,
+        "path": parsed.path,
+        "lesson_title_guess": title,
+        "result_token": result_token,
+        "shared": parsed.path.rstrip("/").endswith("/share"),
+    }
+
+
 @login_required
 def assignment_detail_view(request, assignment_id):
     """Return JSON details for one scheduled student assignment."""
@@ -675,6 +730,8 @@ def lesson_detail_view(request, scheduled_id):
         return JsonResponse({"error": "forbidden"}, status=403)
 
     log = getattr(sl, "log", None)
+    status_key = _effective_lesson_status(log, sl.scheduled_date)
+    status_meta = _lesson_status_meta(status_key)
     evidence_count = log.evidence_files.count() if log else 0
     evidence_files = (
         [
@@ -688,6 +745,10 @@ def lesson_detail_view(request, scheduled_id):
         if log
         else []
     )
+    comments = list(sl.comments.select_related("author").all())
+    iso = sl.scheduled_date.isocalendar()
+    child_avatar = sl.child.photo.url if getattr(sl.child, "photo", None) else ""
+    receipt_meta = log.completion_receipt_meta if log else {}
 
     return JsonResponse(
         {
@@ -696,13 +757,34 @@ def lesson_detail_view(request, scheduled_id):
             "unit_title": sl.lesson.unit_title,
             "subject_name": sl.enrolled_subject.subject_name,
             "scheduled_date": sl.scheduled_date.strftime("%d %b %Y"),
+            "scheduled_date_iso": sl.scheduled_date.isoformat(),
+            "week_number": iso.week,
+            "day_number": iso.weekday,
             "lesson_url": sl.lesson.lesson_url,
             "colour_hex": sl.enrolled_subject.colour_hex,
-            "status": log.status if log else "pending",
+            "status": status_key,
+            "status_label": status_meta["label"],
+            "status_icon": status_meta["icon"],
+            "status_tone": status_meta["tone"],
             "mastery": log.mastery if log else "unset",
             "student_notes": log.student_notes if log else "",
+            "student_name": sl.child.first_name,
+            "student_avatar": child_avatar,
+            "completion_receipt_url": log.completion_receipt_url if log else "",
+            "completion_receipt_meta": receipt_meta,
             "evidence_count": evidence_count,
             "evidence_files": evidence_files,
+            "submissions_count": evidence_count,
+            "comments": [
+                {
+                    "id": comment.pk,
+                    "author": comment.author.get_username(),
+                    "body": comment.body,
+                    "created_at": timezone.localtime(comment.created_at).strftime("%d %b %Y, %H:%M"),
+                }
+                for comment in comments
+            ],
+            "comments_count": len(comments),
         }
     )
 
@@ -828,6 +910,120 @@ def reschedule_lesson_view(request, scheduled_id):
     log.save()
 
     return JsonResponse({"success": True, "new_date": new_date.isoformat()})
+
+
+@login_required
+@require_POST
+def save_receipt_link_view(request, scheduled_id):
+    """Save a completion receipt URL and lightweight parsed metadata."""
+    sl = get_object_or_404(ScheduledLesson, pk=scheduled_id)
+
+    if not _can_access_student_lesson(request.user, sl):
+        return JsonResponse({"error": "forbidden"}, status=403)
+
+    receipt_url = (request.POST.get("receipt_url") or "").strip()
+    meta = {}
+    if receipt_url:
+        parsed = urlparse(receipt_url)
+        if not parsed.scheme or not parsed.netloc:
+            return JsonResponse({"error": "invalid receipt url"}, status=400)
+        meta = _parse_receipt_metadata(receipt_url)
+
+    log, _ = LessonLog.objects.get_or_create(scheduled_lesson=sl)
+    log.completion_receipt_url = receipt_url
+    log.completion_receipt_meta = meta
+    log.save(update_fields=["completion_receipt_url", "completion_receipt_meta"])
+
+    return JsonResponse(
+        {
+            "success": True,
+            "completion_receipt_url": log.completion_receipt_url,
+            "completion_receipt_meta": log.completion_receipt_meta,
+        }
+    )
+
+
+@login_required
+@require_POST
+def add_lesson_comment_view(request, scheduled_id):
+    """Create a lesson comment for parent/student journal discussion."""
+    sl = get_object_or_404(ScheduledLesson, pk=scheduled_id)
+
+    if not _can_access_student_lesson(request.user, sl):
+        return JsonResponse({"error": "forbidden"}, status=403)
+
+    body = (request.POST.get("body") or "").strip()
+    if not body:
+        return JsonResponse({"error": "comment required"}, status=400)
+    if len(body) > 2000:
+        return JsonResponse({"error": "comment too long"}, status=400)
+
+    comment = LessonComment.objects.create(
+        scheduled_lesson=sl,
+        author=request.user,
+        body=body,
+    )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "comment": {
+                "id": comment.pk,
+                "author": comment.author.get_username(),
+                "body": comment.body,
+                "created_at": timezone.localtime(comment.created_at).strftime("%d %b %Y, %H:%M"),
+            },
+            "comments_count": sl.comments.count(),
+        }
+    )
+
+
+@login_required
+@require_POST
+def edit_scheduled_lesson_view(request, scheduled_id):
+    """Edit scheduled lesson date and optional order on day."""
+    sl = get_object_or_404(ScheduledLesson, pk=scheduled_id)
+
+    if not _can_access_student_lesson(request.user, sl):
+        return JsonResponse({"error": "forbidden"}, status=403)
+
+    raw_date = (request.POST.get("scheduled_date") or "").strip()
+    if not raw_date:
+        return JsonResponse({"error": "scheduled_date required"}, status=400)
+    try:
+        new_date = datetime.date.fromisoformat(raw_date)
+    except ValueError:
+        return JsonResponse({"error": "invalid date"}, status=400)
+
+    raw_order = (request.POST.get("order_on_day") or "").strip()
+    if raw_order:
+        try:
+            sl.order_on_day = max(0, int(raw_order))
+        except ValueError:
+            return JsonResponse({"error": "invalid order"}, status=400)
+
+    sl.scheduled_date = new_date
+    sl.save(update_fields=["scheduled_date", "order_on_day"])
+    return JsonResponse(
+        {
+            "success": True,
+            "scheduled_date": sl.scheduled_date.isoformat(),
+            "order_on_day": sl.order_on_day,
+        }
+    )
+
+
+@login_required
+@require_POST
+def delete_scheduled_lesson_view(request, scheduled_id):
+    """Delete a scheduled lesson entry from the calendar."""
+    sl = get_object_or_404(ScheduledLesson, pk=scheduled_id)
+
+    if not _can_access_student_lesson(request.user, sl):
+        return JsonResponse({"error": "forbidden"}, status=403)
+
+    sl.delete()
+    return JsonResponse({"success": True})
 
 
 _ALLOWED_EVIDENCE_TYPES = frozenset(

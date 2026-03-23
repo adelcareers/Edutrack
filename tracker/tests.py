@@ -19,7 +19,7 @@ from planning.models import (
     StudentAssignment,
 )
 from scheduler.models import Child, EnrolledSubject, ScheduledLesson
-from tracker.models import EvidenceFile, LessonLog
+from tracker.models import EvidenceFile, LessonComment, LessonLog
 
 # Minimal fake Cloudinary upload response used by EvidenceUploadTests.
 _FAKE_CLOUDINARY = {
@@ -553,9 +553,19 @@ class LessonDetailViewTests(TestCase):
             "lesson_url",
             "colour_hex",
             "status",
+            "status_label",
+            "status_icon",
+            "status_tone",
             "mastery",
             "student_notes",
+            "scheduled_date_iso",
+            "student_name",
+            "completion_receipt_url",
+            "completion_receipt_meta",
             "evidence_count",
+            "submissions_count",
+            "comments",
+            "comments_count",
         ):
             self.assertIn(key, data, msg=f"Missing key: {key}")
 
@@ -574,10 +584,15 @@ class LessonDetailViewTests(TestCase):
         data = self.client.get(self._url()).json()
         self.assertEqual(data["colour_hex"], self.enrolled.colour_hex)
 
-    def test_json_status_pending_when_no_log(self):
+    def test_json_status_is_derived_when_no_log(self):
         self.client.force_login(self.student)
         data = self.client.get(self._url()).json()
-        self.assertEqual(data["status"], "pending")
+        expected = (
+            "overdue"
+            if self.sl.scheduled_date < datetime.date.today()
+            else "incomplete"
+        )
+        self.assertEqual(data["status"], expected)
         self.assertEqual(data["mastery"], "unset")
 
     def test_json_status_reflects_log(self):
@@ -1100,6 +1115,91 @@ class LessonRescheduleTests(TestCase):
         self.client.force_login(self.student)
         data = self._post("2030-06-15").json()
         self.assertEqual(data["new_date"], "2030-06-15")
+
+
+class LessonModalEnhancementEndpointTests(TestCase):
+    """Tests for lesson receipt/comment/edit/delete endpoint additions."""
+
+    def setUp(self):
+        self.parent = _make_parent(username="enh_parent")
+        self.student = _make_student(username="enh_student")
+        self.child = _make_child(self.parent, student_user=self.student)
+        self.lesson = _make_lesson(title="Enhancement Lesson")
+        self.enrolled = _make_enrolled_subject(self.child, subject_name="Science")
+        self.sl = _make_scheduled_lesson(
+            self.child,
+            self.lesson,
+            self.enrolled,
+            datetime.date.today() + datetime.timedelta(days=7),
+        )
+
+    def _receipt_url(self, pk=None):
+        return reverse("tracker:lesson_receipt", kwargs={"scheduled_id": pk or self.sl.pk})
+
+    def _comment_url(self, pk=None):
+        return reverse("tracker:lesson_comment", kwargs={"scheduled_id": pk or self.sl.pk})
+
+    def _edit_url(self, pk=None):
+        return reverse("tracker:lesson_edit", kwargs={"scheduled_id": pk or self.sl.pk})
+
+    def _delete_url(self, pk=None):
+        return reverse("tracker:lesson_delete", kwargs={"scheduled_id": pk or self.sl.pk})
+
+    def test_parent_can_save_receipt_metadata(self):
+        self.client.force_login(self.parent)
+        response = self.client.post(
+            self._receipt_url(),
+            {
+                "receipt_url": "https://www.thenational.academy/teachers/programmes/english-secondary-ks3/units/intro/lessons/short-story/results/abc123/share"
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["completion_receipt_meta"]["result_token"], "abc123")
+
+    def test_invalid_receipt_url_rejected(self):
+        self.client.force_login(self.student)
+        response = self.client.post(
+            self._receipt_url(),
+            {"receipt_url": "not-a-url"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_parent_can_add_comment(self):
+        self.client.force_login(self.parent)
+        response = self.client.post(
+            self._comment_url(),
+            {"body": "Great effort this week."},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(LessonComment.objects.filter(scheduled_lesson=self.sl).count(), 1)
+        self.assertEqual(response.json()["comments_count"], 1)
+
+    def test_edit_updates_scheduled_date(self):
+        self.client.force_login(self.student)
+        new_date = (datetime.date.today() + datetime.timedelta(days=21)).isoformat()
+        response = self.client.post(
+            self._edit_url(),
+            {"scheduled_date": new_date, "order_on_day": "2"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.sl.refresh_from_db()
+        self.assertEqual(self.sl.scheduled_date.isoformat(), new_date)
+        self.assertEqual(self.sl.order_on_day, 2)
+
+    def test_parent_can_delete_scheduled_lesson(self):
+        self.client.force_login(self.parent)
+        response = self.client.post(
+            self._delete_url(),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(ScheduledLesson.objects.filter(pk=self.sl.pk).exists())
 
 
 class ParentCalendarTests(TestCase):

@@ -175,6 +175,147 @@
   .mastery-btn[data-mastery="red"]                { color: #DC2626; border: 1px solid #DC2626; background: transparent; }
   .mastery-btn[data-mastery="red"].mastery-active  { background: #DC2626; color: #fff; }
 
+  .lesson-modal-shell .modal-dialog {
+    max-width: 860px;
+  }
+  .lesson-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.95rem 1.2rem;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f8fafc;
+  }
+  .lesson-status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border-radius: 999px;
+    padding: 0.3rem 0.72rem;
+    font-size: 0.84rem;
+    font-weight: 700;
+  }
+  .lesson-status-chip.status-success { background: #dcfce7; color: #166534; }
+  .lesson-status-chip.status-danger { background: #fee2e2; color: #b91c1c; }
+  .lesson-status-chip.status-secondary { background: #e5e7eb; color: #374151; }
+  .lesson-status-chip.status-dark { background: #e2e8f0; color: #1f2937; }
+  .lesson-head-actions {
+    display: flex;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+  }
+  .lesson-link-line a {
+    color: #3b82f6;
+    text-decoration: underline;
+    font-weight: 600;
+  }
+  .lesson-meta-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 0.65rem 0.8rem;
+    background: #fff;
+  }
+  .lesson-student {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+  }
+  .lesson-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #1e3a8a;
+    background: #dbeafe;
+    overflow: hidden;
+  }
+  .lesson-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .mastery-pills {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+  }
+  .mastery-btn i {
+    margin-right: 0.25rem;
+  }
+  .receipt-panel {
+    border: 1px solid #c7d2fe;
+    background: #f8faff;
+    border-radius: 10px;
+    padding: 0.7rem;
+  }
+  .receipt-preview {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fff;
+    padding: 0.55rem 0.65rem;
+    margin-top: 0.55rem;
+    font-size: 0.82rem;
+    color: #374151;
+  }
+  .lesson-tabs {
+    display: flex;
+    gap: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    margin-top: 1rem;
+  }
+  .lesson-tab-btn {
+    border: none;
+    background: transparent;
+    padding: 0.45rem 0;
+    color: #6b7280;
+    font-weight: 600;
+    font-size: 0.86rem;
+    border-bottom: 2px solid transparent;
+  }
+  .lesson-tab-btn.active {
+    color: #4f46e5;
+    border-bottom-color: #4f46e5;
+  }
+  .lesson-tab-pane {
+    display: none;
+    padding-top: 0.8rem;
+  }
+  .lesson-tab-pane.active {
+    display: block;
+  }
+  .comment-journal {
+    max-height: 220px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.55rem;
+    background: #fafafa;
+  }
+  .comment-entry {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.45rem 0.55rem;
+    background: #fff;
+  }
+  .comment-meta {
+    color: #6b7280;
+    font-size: 0.75rem;
+    margin-bottom: 0.15rem;
+  }
+
   /* ── Filter badge ──────────────────────── */
   .filter-badge {
     background: #3b82f6; color: #fff; border-radius: 999px;
@@ -398,79 +539,116 @@
   </div>
 </div>
 
-<!-- ── Lesson Detail Modal (unchanged) ─────────────── -->
-<div id="lesson-modal" class="modal fade" tabindex="-1" role="dialog"
+<!-- ── Lesson Detail Modal ─────────────────────────── -->
+<div id="lesson-modal" class="modal fade lesson-modal-shell" tabindex="-1" role="dialog"
      aria-modal="true" aria-labelledby="modal-title">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
-      <div id="modal-header" class="modal-header"
-           style="background: var(--modal-colour, #6c757d); color: #fff; border-bottom: none;">
-        <h5 class="modal-title" id="modal-title">Lesson Detail</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <p class="text-muted small mb-1" id="modal-subject"></p>
-        <p class="text-muted small mb-3" id="modal-date"></p>
-        <p class="mb-1" id="modal-unit"></p>
-        <div class="d-flex gap-2 mt-3">
-          <a id="modal-oak-link" href="#" target="_blank" rel="noopener noreferrer"
-             class="btn btn-sm btn-outline-primary">
-            <i class="bi bi-box-arrow-up-right me-1"></i>Open on Oak
-          </a>
+      <div class="lesson-modal-head" id="modal-header">
+        <div id="modal-status-chip" class="lesson-status-chip status-secondary">
+          <i id="modal-status-icon" class="bi bi-dash-circle"></i>
+          <span id="modal-status-label">Incomplete</span>
         </div>
-        <div class="mt-2">
-          <span class="small text-muted">Evidence files: <span id="modal-evidence-count">0</span></span>
-          <ul id="modal-evidence-list" class="list-unstyled mt-1 mb-0 small"></ul>
-        </div>
-        <hr>
         {% if can_edit_lessons %}
-        <div class="d-flex gap-2 flex-wrap">
-          <button id="modal-btn-complete" class="btn btn-sm btn-success" data-action="complete" disabled>
-            &#10003; Mark Complete
+        <div class="lesson-head-actions">
+          <button id="modal-btn-complete" class="btn btn-sm btn-outline-success" type="button">
+            <i class="bi bi-check-circle"></i> Mark Complete
           </button>
-          <button id="modal-btn-skip" class="btn btn-sm btn-secondary" data-action="skip" disabled>
-            Skip
+          <button id="modal-btn-reschedule" class="btn btn-sm btn-outline-warning" type="button">
+            <i class="bi bi-calendar3"></i> Reschedule
+          </button>
+          <button id="modal-btn-edit" class="btn btn-sm btn-outline-primary" type="button">
+            <i class="bi bi-pencil"></i> Edit
+          </button>
+          <button id="modal-btn-delete" class="btn btn-sm btn-outline-danger" type="button">
+            <i class="bi bi-trash"></i> Delete
+          </button>
+          <button id="modal-btn-skip" class="btn btn-sm btn-outline-secondary" type="button">
+            <i class="bi bi-skip-forward"></i> Skip
           </button>
         </div>
-        <div class="mt-3 d-flex gap-2 align-items-center">
-          <span class="small text-muted me-1">Mastery:</span>
-          <button class="btn btn-sm mastery-btn" data-mastery="green" disabled>Green</button>
-          <button class="btn btn-sm mastery-btn" data-mastery="amber" disabled>Amber</button>
-          <button class="btn btn-sm mastery-btn" data-mastery="red" disabled>Red</button>
+        {% endif %}
+      </div>
+
+      <div class="modal-body">
+        <h4 class="mb-2" id="modal-title">Lesson Detail</h4>
+        <p class="text-muted small mb-2" id="modal-subject"></p>
+        <p class="mb-1" id="modal-unit"></p>
+        <p class="lesson-link-line mb-3">
+          <a id="modal-inline-link" href="#" target="_blank" rel="noopener noreferrer">Open resource</a>
+        </p>
+
+        <div class="lesson-meta-strip mb-3">
+          <div class="lesson-student">
+            <span class="lesson-avatar" id="modal-student-avatar">S</span>
+            <div>
+              <div class="fw-semibold" id="modal-student-name">Student</div>
+              <div class="text-muted small" id="modal-date">Date</div>
+            </div>
+          </div>
+          <div class="text-muted small" id="modal-weekday">Week 0, Day 0</div>
         </div>
-        <div class="mt-3">
+
+        <div class="mb-3">
+          <div class="small text-muted mb-1">Mastery</div>
+          <div class="mastery-pills">
+            <button class="btn btn-sm mastery-btn" data-mastery="green" type="button"><i class="bi bi-emoji-smile"></i>Green</button>
+            <button class="btn btn-sm mastery-btn" data-mastery="amber" type="button"><i class="bi bi-emoji-neutral"></i>Amber</button>
+            <button class="btn btn-sm mastery-btn" data-mastery="red" type="button"><i class="bi bi-emoji-frown"></i>Red</button>
+          </div>
+        </div>
+
+        <div class="receipt-panel mb-3">
+          <label for="modal-receipt-url" class="small fw-semibold">Completion Receipt Link</label>
+          <div class="d-flex gap-2 mt-1 flex-wrap">
+            <input id="modal-receipt-url" type="url" class="form-control form-control-sm"
+                   placeholder="Paste completion receipt link...">
+            <button id="modal-btn-save-receipt" class="btn btn-sm btn-outline-primary" type="button">Save</button>
+          </div>
+          <div id="modal-receipt-preview" class="receipt-preview" style="display:none;"></div>
+        </div>
+
+        <div class="lesson-tabs" role="tablist">
+          <button class="lesson-tab-btn active" data-tab="overview" type="button">Overview</button>
+          <button class="lesson-tab-btn" data-tab="submissions" type="button">Submissions (<span id="modal-submissions-count-tab">0</span>)</button>
+          <button class="lesson-tab-btn" data-tab="comments" type="button">Comments (<span id="modal-comments-count-tab">0</span>)</button>
+        </div>
+
+        <div class="lesson-tab-pane active" data-pane="overview">
           <label for="modal-notes" class="small text-muted mb-1 d-block">My Notes</label>
           <textarea id="modal-notes" class="form-control form-control-sm" rows="3"
-                    maxlength="1000" placeholder="Add a note about this lesson…" disabled></textarea>
+                    maxlength="1000" placeholder="Add a note about this lesson…"></textarea>
           <div class="d-flex justify-content-between mt-1">
             <span class="small text-muted">Optional</span>
             <span class="small text-muted"><span id="notes-char-count">0</span>/1000</span>
           </div>
-          <button id="modal-btn-save-notes" class="btn btn-sm btn-outline-secondary mt-2" disabled>Save Notes</button>
-        </div>
-        <hr>
-        <div class="mt-2">
-          <label for="modal-reschedule-date" class="small text-muted mb-1 d-block">Reschedule to</label>
-          <div class="d-flex gap-2 align-items-center">
-            <input type="date" id="modal-reschedule-date" class="form-control form-control-sm"
-                   style="max-width:180px" disabled>
-            <button id="modal-btn-reschedule" class="btn btn-sm btn-outline-warning" disabled>Move Lesson</button>
+          <button id="modal-btn-save-notes" class="btn btn-sm btn-outline-secondary mt-2" type="button">Save Notes</button>
+          <div class="mt-3 d-flex gap-2 align-items-center flex-wrap">
+            <input type="date" id="modal-reschedule-date" class="form-control form-control-sm" style="max-width: 200px;">
+            <span class="small text-muted">Use with Reschedule action in header.</span>
           </div>
         </div>
-        <hr>
-        <div class="mt-2">
-          <label for="modal-evidence-file" class="small text-muted mb-1 d-block">Upload Evidence</label>
-          <div class="d-flex gap-2 align-items-center flex-wrap">
-            <input type="file" id="modal-evidence-file"
-                   accept="image/*,.pdf,.doc,.docx"
-                   class="form-control form-control-sm" style="max-width:220px" disabled>
-            <button id="modal-btn-upload" class="btn btn-sm btn-outline-info" disabled>Upload</button>
+
+        <div class="lesson-tab-pane" data-pane="submissions">
+          <div class="small text-muted mb-2">Upload and manage submissions</div>
+          <div class="d-flex gap-2 align-items-center flex-wrap mb-2">
+            <input type="file" id="modal-evidence-file" accept="image/*,.pdf,.doc,.docx"
+                   class="form-control form-control-sm" style="max-width:260px">
+            <button id="modal-btn-upload" class="btn btn-sm btn-outline-info" type="button">Upload</button>
+            <span class="small text-muted">Total: <span id="modal-evidence-count">0</span></span>
+          </div>
+          <div id="modal-upload-alert-wrap"></div>
+          <ul id="modal-evidence-list" class="list-unstyled mt-1 mb-0 small"></ul>
+        </div>
+
+        <div class="lesson-tab-pane" data-pane="comments">
+          <div id="modal-comments-list" class="comment-journal mb-2"></div>
+          <textarea id="modal-comment-input" class="form-control form-control-sm" rows="2"
+                    maxlength="2000" placeholder="Add a comment..."></textarea>
+          <div class="d-flex justify-content-end mt-2">
+            <button id="modal-btn-add-comment" class="btn btn-sm btn-outline-primary" type="button">Add Comment</button>
           </div>
         </div>
-        {% endif %}
-      </div>
-      <div class="modal-footer" id="modal-status-row">
-        <span class="small text-muted" id="modal-status-text"></span>
       </div>
     </div>
   </div>
