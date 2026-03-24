@@ -164,6 +164,21 @@
               </label>
             </div>
           </div>
+          <div class="col-md-12 settings-field">
+            <label for="receipt_enforcement_mode">Lesson Receipt Link Policy</label>
+            <select
+              name="receipt_enforcement_mode"
+              id="receipt_enforcement_mode"
+              class="form-select"
+            >
+              {% for value, label in receipt_enforcement_choices %}
+                <option value="{{ value }}" {% if settings.receipt_enforcement_mode == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <div class="settings-helper mt-1">
+              Soft: child can complete with warning if receipt is missing or mismatched. Hard: child cannot complete until a valid receipt link is attached.
+            </div>
+          </div>
         </div>
         <div class="d-flex justify-content-end mt-3">
           <button type="submit" class="btn-save-settings">Save Calendar Settings</button>

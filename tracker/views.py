@@ -1,4 +1,5 @@
 import datetime
+import re
 import uuid
 from decimal import Decimal, InvalidOperation
 from urllib.parse import unquote, urlparse
@@ -801,6 +802,85 @@ def _parse_receipt_metadata(receipt_url):
     }
 
 
+def _normalize_text_tokens(text):
+    normalized = re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()
+    tokens = [token for token in normalized.split() if len(token) > 2]
+    stop_words = {
+        "and",
+        "for",
+        "with",
+        "from",
+        "that",
+        "this",
+        "lesson",
+        "unit",
+        "year",
+        "the",
+        "are",
+    }
+    return [token for token in tokens if token not in stop_words]
+
+
+def _receipt_matches_lesson(receipt_url, lesson_title):
+    title_tokens = _normalize_text_tokens(lesson_title)
+    url_text = re.sub(r"[^a-z0-9]+", " ", (receipt_url or "").lower())
+
+    if not title_tokens:
+        return {
+            "matches": False,
+            "reason": "lesson title missing",
+            "matched_tokens": [],
+            "required_tokens": [],
+        }
+
+    matched = [token for token in title_tokens if token in url_text]
+    return {
+        "matches": len(matched) == len(title_tokens),
+        "reason": (
+            "ok" if len(matched) == len(title_tokens) else "receipt link does not match lesson title"
+        ),
+        "matched_tokens": matched,
+        "required_tokens": title_tokens,
+    }
+
+
+def _receipt_validation_status_for_log(log, lesson_title):
+    if log is None or not log.completion_receipt_url:
+        return {
+            "has_link": False,
+            "is_match": False,
+            "state": "missing",
+            "message": "Receipt link not attached.",
+        }
+
+    meta = log.completion_receipt_meta or {}
+    if "title_match" in meta:
+        is_match = bool(meta.get("title_match"))
+    else:
+        match_info = _receipt_matches_lesson(log.completion_receipt_url, lesson_title)
+        is_match = bool(match_info["matches"])
+
+    if is_match:
+        return {
+            "has_link": True,
+            "is_match": True,
+            "state": "matched",
+            "message": "Receipt link matched this lesson.",
+        }
+
+    return {
+        "has_link": True,
+        "is_match": False,
+        "state": "mismatch",
+        "message": "Receipt link is attached but does not match this lesson.",
+    }
+
+
+def _receipt_enforcement_mode_for_lesson(sl):
+    settings, _ = ParentSettings.objects.get_or_create(user=sl.child.parent)
+    return settings.receipt_enforcement_mode or "soft"
+
+
 @login_required
 def assignment_detail_view(request, assignment_id):
     """Return JSON details for one scheduled student assignment."""
@@ -905,12 +985,15 @@ def lesson_detail_view(request, scheduled_id):
     iso = sl.scheduled_date.isocalendar()
     child_avatar = sl.child.photo.url if getattr(sl.child, "photo", None) else ""
     receipt_meta = log.completion_receipt_meta if log else {}
+    receipt_status = _receipt_validation_status_for_log(log, sl.lesson.lesson_title)
+    receipt_enforcement_mode = _receipt_enforcement_mode_for_lesson(sl)
 
     return JsonResponse(
         {
             "id": sl.pk,
             "lesson_title": sl.lesson.lesson_title,
             "unit_title": sl.lesson.unit_title,
+            "lesson_year": sl.lesson.year,
             "subject_name": sl.enrolled_subject.subject_name,
             "scheduled_date": sl.scheduled_date.strftime("%d %b %Y"),
             "scheduled_date_iso": sl.scheduled_date.isoformat(),
@@ -928,6 +1011,8 @@ def lesson_detail_view(request, scheduled_id):
             "student_avatar": child_avatar,
             "completion_receipt_url": log.completion_receipt_url if log else "",
             "completion_receipt_meta": receipt_meta,
+            "receipt_status": receipt_status,
+            "receipt_enforcement_mode": receipt_enforcement_mode,
             "evidence_count": evidence_count,
             "evidence_files": evidence_files,
             "submissions_count": evidence_count,
@@ -963,6 +1048,26 @@ def update_lesson_status_view(request, scheduled_id):
         return JsonResponse({"error": "invalid status"}, status=400)
 
     log, _ = LessonLog.objects.get_or_create(scheduled_lesson=sl)
+    viewer_role = getattr(getattr(request.user, "profile", None), "role", None)
+    enforcement_mode = _receipt_enforcement_mode_for_lesson(sl)
+    receipt_status = _receipt_validation_status_for_log(log, sl.lesson.lesson_title)
+
+    if (
+        new_status == "complete"
+        and viewer_role == "student"
+        and enforcement_mode == "hard"
+        and not (receipt_status["has_link"] and receipt_status["is_match"])
+    ):
+        return JsonResponse(
+            {
+                "error": (
+                    "Receipt link is required and must match this lesson before "
+                    "marking complete."
+                )
+            },
+            status=400,
+        )
+
     log.status = new_status
     if new_status == "complete":
         log.completed_at = timezone.now()
@@ -977,13 +1082,23 @@ def update_lesson_status_view(request, scheduled_id):
         "pending": "Lesson marked as pending.",
     }
 
-    return JsonResponse(
-        {
-            "success": True,
-            "status": log.status,
-            "message": message_map.get(new_status, "Lesson status updated."),
-        }
-    )
+    response = {
+        "success": True,
+        "status": log.status,
+        "message": message_map.get(new_status, "Lesson status updated."),
+        "receipt_enforcement_mode": enforcement_mode,
+    }
+    if (
+        new_status == "complete"
+        and viewer_role == "student"
+        and enforcement_mode == "soft"
+        and not (receipt_status["has_link"] and receipt_status["is_match"])
+    ):
+        response["warning"] = (
+            "Completed with warning: receipt link is missing or does not match this lesson."
+        )
+
+    return JsonResponse(response)
 
 
 @login_required
@@ -1088,18 +1203,53 @@ def save_receipt_link_view(request, scheduled_id):
         parsed = urlparse(receipt_url)
         if not parsed.scheme or not parsed.netloc:
             return JsonResponse({"error": "invalid receipt url"}, status=400)
+
+        title_match = _receipt_matches_lesson(receipt_url, sl.lesson.lesson_title)
+        if not title_match["matches"]:
+            return JsonResponse(
+                {
+                    "error": (
+                        "Receipt link does not match this lesson title."
+                    ),
+                    "match_detail": title_match,
+                },
+                status=400,
+            )
+
         meta = _parse_receipt_metadata(receipt_url)
+        meta["title_match"] = title_match["matches"]
+        meta["title_match_reason"] = title_match["reason"]
+        meta["title_match_tokens"] = title_match["matched_tokens"]
+        meta["title_required_tokens"] = title_match["required_tokens"]
 
     log, _ = LessonLog.objects.get_or_create(scheduled_lesson=sl)
     log.completion_receipt_url = receipt_url
     log.completion_receipt_meta = meta
-    log.save(update_fields=["completion_receipt_url", "completion_receipt_meta"])
+    if receipt_url:
+        log.status = "complete"
+        log.completed_at = timezone.now()
+        log.save(
+            update_fields=[
+                "completion_receipt_url",
+                "completion_receipt_meta",
+                "status",
+                "completed_at",
+            ]
+        )
+    else:
+        log.save(update_fields=["completion_receipt_url", "completion_receipt_meta"])
 
     return JsonResponse(
         {
             "success": True,
             "completion_receipt_url": log.completion_receipt_url,
             "completion_receipt_meta": log.completion_receipt_meta,
+            "status": log.status,
+            "message": (
+                "Receipt saved and lesson marked complete."
+                if receipt_url
+                else "Receipt cleared."
+            ),
         }
     )
 

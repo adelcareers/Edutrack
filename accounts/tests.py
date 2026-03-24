@@ -5,7 +5,7 @@ from django.test import Client, TestCase
 from django.urls import reverse
 
 from .decorators import role_required
-from .models import UserProfile
+from .models import ParentSettings, UserProfile
 
 
 def make_user(username, role):
@@ -208,3 +208,29 @@ class RoleRequiredDecoratorTests(TestCase):
             return HttpResponse("ok")
 
         self.assertEqual(my_named_view.__name__, "my_named_view")
+
+
+class ParentSettingsTests(TestCase):
+    """Tests for parent settings persistence."""
+
+    def setUp(self):
+        self.parent = make_user("settings_parent", "parent")
+        self.client = Client()
+        self.client.force_login(self.parent)
+
+    def test_settings_page_renders_receipt_mode_control(self):
+        response = self.client.get(reverse("accounts:settings"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Lesson Receipt Link Policy")
+
+    def test_settings_saves_receipt_enforcement_mode(self):
+        response = self.client.post(
+            reverse("accounts:settings"),
+            {
+                "first_day_of_week": "0",
+                "receipt_enforcement_mode": "hard",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        settings = ParentSettings.objects.get(user=self.parent)
+        self.assertEqual(settings.receipt_enforcement_mode, "hard")

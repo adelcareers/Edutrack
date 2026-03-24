@@ -6,6 +6,7 @@
   const modal = document.getElementById('lesson-modal');
   const bsModal = modal ? new bootstrap.Modal(modal) : null;
   const modalTitleLink = document.getElementById('modal-title-link');
+  const modalLessonAccessLink = document.getElementById('modal-lesson-access-link');
   const modalHdr = document.getElementById('modal-header');
   const modalSubj = document.getElementById('modal-subject');
   const modalDate = document.getElementById('modal-date');
@@ -21,6 +22,7 @@
   const btnSaveNotes = document.getElementById('modal-btn-save-notes');
 
   const receiptInput = document.getElementById('modal-receipt-url');
+  const receiptStatusBadge = document.getElementById('modal-receipt-status');
   const btnSaveReceipt = document.getElementById('modal-btn-save-receipt');
   const btnEditReceipt = document.getElementById('modal-btn-edit-receipt');
 
@@ -216,6 +218,26 @@
     btnEditReceipt.hidden = !isLocked;
   }
 
+  function renderReceiptStatus(receiptStatus) {
+    if (!receiptStatusBadge) return;
+    const status = receiptStatus && receiptStatus.state ? receiptStatus.state : 'missing';
+    const labelMap = {
+      matched: 'Link matched',
+      mismatch: 'Link mismatch',
+      missing: 'Link not attached',
+    };
+    const classMap = {
+      matched: 'text-bg-success',
+      mismatch: 'text-bg-warning',
+      missing: 'text-bg-secondary',
+    };
+    receiptStatusBadge.className = `badge ${classMap[status] || 'text-bg-secondary'}`;
+    receiptStatusBadge.textContent = labelMap[status] || 'Link status';
+    receiptStatusBadge.title = receiptStatus && receiptStatus.message
+      ? receiptStatus.message
+      : 'Receipt link status';
+  }
+
   function activateLessonTab(tabName) {
     document.querySelectorAll('.lesson-tab-btn').forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.tab === tabName);
@@ -374,6 +396,14 @@
         modalTitleLink.textContent = data.lesson_title || 'Lesson Detail';
         modalTitleLink.href = data.lesson_url || '#';
       }
+      if (modalLessonAccessLink) {
+        const yearText = data.lesson_year || 'Year';
+        const subjectText = data.subject_name || 'Subject';
+        const unitText = data.unit_title || 'Unit';
+        const lessonText = data.lesson_title || 'Lesson';
+        modalLessonAccessLink.textContent = `${yearText}, ${subjectText}, ${unitText}: ${lessonText}`;
+        modalLessonAccessLink.href = data.lesson_url || '#';
+      }
       if (modalSubj) modalSubj.textContent = data.subject_name || '';
       if (modalDate) modalDate.textContent = data.scheduled_date || '';
       currentLessonDateIso = data.scheduled_date_iso || null;
@@ -401,6 +431,7 @@
 
       if (receiptInput) receiptInput.value = data.completion_receipt_url || '';
       setReceiptLocked(Boolean((data.completion_receipt_url || '').trim()));
+      renderReceiptStatus(data.receipt_status || null);
 
       if (evidenceCount) evidenceCount.textContent = data.evidence_count ?? 0;
       if (submissionsCountTab) submissionsCountTab.textContent = data.submissions_count ?? 0;
@@ -408,7 +439,7 @@
 
       if (commentsCountTab) commentsCountTab.textContent = data.comments_count ?? 0;
       renderComments(data.comments || []);
-      activateLessonTab('overview');
+      activateLessonTab('notes');
       closeReschedulePicker();
 
       if (bsModal) bsModal.show();
@@ -483,9 +514,14 @@
     btnComplete.addEventListener('click', async () => {
       if (!activeScheduledId) return;
       try {
-        await postForm(`/lessons/${activeScheduledId}/update/`, { status: 'complete' });
+        const data = await postForm(`/lessons/${activeScheduledId}/update/`, { status: 'complete' });
         updateCardBadge(activeScheduledId, 'complete');
         applyStatusFromKey('complete');
+        if (data.warning) {
+          showModalAlert(data.warning, 'warning');
+        } else {
+          showModalAlert('Lesson marked complete.', 'success');
+        }
       } catch (e) {
         showModalAlert(e.message || 'Failed to mark complete.', 'danger');
       }
@@ -620,11 +656,14 @@
         return;
       }
       try {
-        await postForm(`/lessons/${activeScheduledId}/receipt/`, {
+        const data = await postForm(`/lessons/${activeScheduledId}/receipt/`, {
           receipt_url: receiptInput.value,
         });
         setReceiptLocked(true);
-        showModalAlert('Receipt link saved.', 'success');
+        applyStatusFromKey(data.status || 'complete');
+        updateCardBadge(activeScheduledId, data.status || 'complete');
+        renderReceiptStatus({ state: 'matched', message: 'Receipt link matched this lesson.' });
+        showModalAlert(data.message || 'Receipt link saved.', 'success');
       } catch (e) {
         showModalAlert(e.message || 'Failed to save receipt link.', 'danger');
       }

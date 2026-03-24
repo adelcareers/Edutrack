@@ -59,11 +59,21 @@ class ParentSettings(models.Model):
         (6, "Sunday"),
     ]
 
+    RECEIPT_ENFORCEMENT_CHOICES = [
+        ("soft", "Soft reminder (allow completion with warning)"),
+        ("hard", "Hard required (student cannot complete without valid receipt)"),
+    ]
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="settings")
     first_day_of_week = models.PositiveSmallIntegerField(
         choices=WEEKDAY_CHOICES, default=0
     )
     show_empty_assignments = models.BooleanField(default=False)
+    receipt_enforcement_mode = models.CharField(
+        max_length=10,
+        choices=RECEIPT_ENFORCEMENT_CHOICES,
+        default="soft",
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

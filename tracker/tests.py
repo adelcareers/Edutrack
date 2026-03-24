@@ -8,7 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
-from accounts.models import UserProfile
+from accounts.models import ParentSettings, UserProfile
 from courses.models import AssignmentType, Course
 from curriculum.models import Lesson
 from planning.models import (
@@ -720,6 +720,29 @@ class LessonStatusUpdateTests(TestCase):
         log = LessonLog.objects.get(scheduled_lesson=self.sl)
         self.assertIsNotNone(log.completed_at)
 
+    def test_hard_mode_blocks_student_complete_without_valid_receipt(self):
+        settings, _ = ParentSettings.objects.get_or_create(user=self.parent)
+        settings.receipt_enforcement_mode = "hard"
+        settings.save(update_fields=["receipt_enforcement_mode"])
+        self.client.force_login(self.student)
+        response = self._post("complete")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Receipt link is required", response.json()["error"])
+
+    def test_hard_mode_allows_student_complete_with_valid_receipt(self):
+        settings, _ = ParentSettings.objects.get_or_create(user=self.parent)
+        settings.receipt_enforcement_mode = "hard"
+        settings.save(update_fields=["receipt_enforcement_mode"])
+        LessonLog.objects.create(
+            scheduled_lesson=self.sl,
+            completion_receipt_url="https://www.thenational.academy/teachers/programmes/science-secondary-ks3/units/intro/lessons/update-test-lesson/results/abc123/share",
+            completion_receipt_meta={"title_match": True},
+        )
+        self.client.force_login(self.student)
+        response = self._post("complete")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "complete")
+
     # ---------- mark skipped ----------
 
     def test_mark_skipped_returns_success_json(self):
@@ -1158,7 +1181,7 @@ class LessonModalEnhancementEndpointTests(TestCase):
         response = self.client.post(
             self._receipt_url(),
             {
-                "receipt_url": "https://www.thenational.academy/teachers/programmes/english-secondary-ks3/units/intro/lessons/short-story/results/abc123/share"
+                "receipt_url": "https://www.thenational.academy/teachers/programmes/english-secondary-ks3/units/intro/lessons/enhancement-lesson/results/abc123/share"
             },
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
@@ -1166,6 +1189,21 @@ class LessonModalEnhancementEndpointTests(TestCase):
         data = response.json()
         self.assertTrue(data["success"])
         self.assertEqual(data["completion_receipt_meta"]["result_token"], "abc123")
+
+    def test_receipt_save_marks_lesson_complete(self):
+        self.client.force_login(self.student)
+        response = self.client.post(
+            self._receipt_url(),
+            {
+                "receipt_url": "https://www.thenational.academy/teachers/programmes/english-secondary-ks3/units/intro/lessons/enhancement-lesson/results/receipt777/share"
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "complete")
+        log = LessonLog.objects.get(scheduled_lesson=self.sl)
+        self.assertEqual(log.status, "complete")
+        self.assertTrue(log.completion_receipt_meta.get("title_match"))
 
     def test_invalid_receipt_url_rejected(self):
         self.client.force_login(self.student)
@@ -1175,6 +1213,18 @@ class LessonModalEnhancementEndpointTests(TestCase):
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
         self.assertEqual(response.status_code, 400)
+
+    def test_receipt_link_mismatch_rejected(self):
+        self.client.force_login(self.student)
+        response = self.client.post(
+            self._receipt_url(),
+            {
+                "receipt_url": "https://www.thenational.academy/teachers/programmes/english-secondary-ks3/units/intro/lessons/different-lesson/results/abc123/share"
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("does not match", response.json()["error"])
 
     def test_parent_can_add_comment(self):
         self.client.force_login(self.parent)

@@ -159,7 +159,29 @@ def settings_view(request):
         settings.show_empty_assignments = (
             request.POST.get("show_empty_assignments") == "on"
         )
-        settings.save(update_fields=["first_day_of_week", "show_empty_assignments"])
+        receipt_mode = (
+            request.POST.get(
+                "receipt_enforcement_mode",
+                settings.receipt_enforcement_mode,
+            )
+            .strip()
+            .lower()
+        )
+        valid_receipt_modes = {
+            choice[0] for choice in ParentSettings.RECEIPT_ENFORCEMENT_CHOICES
+        }
+        settings.receipt_enforcement_mode = (
+            receipt_mode
+            if receipt_mode in valid_receipt_modes
+            else settings.receipt_enforcement_mode
+        )
+        settings.save(
+            update_fields=[
+                "first_day_of_week",
+                "show_empty_assignments",
+                "receipt_enforcement_mode",
+            ]
+        )
 
         _save_global_assignment_types(request, request.user)
         for course in Course.objects.filter(parent=request.user):
@@ -179,6 +201,9 @@ def settings_view(request):
         {
             "settings": settings,
             "weekday_choices": ParentSettings.WEEKDAY_CHOICES,
+            "receipt_enforcement_choices": (
+                ParentSettings.RECEIPT_ENFORCEMENT_CHOICES
+            ),
             "assignment_types": assignment_types,
         },
     )

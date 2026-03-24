@@ -181,11 +181,11 @@
   .lesson-modal-head {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 0.75rem;
     padding: 0.95rem 1.2rem;
     border-bottom: 1px solid #e5e7eb;
-    background: #f8fafc;
+    background: #f8fbff;
   }
   .lesson-status-chip {
     display: inline-flex;
@@ -205,13 +205,82 @@
   .lesson-status-chip.status-dark { background: #e2e8f0; color: #1f2937; }
   .lesson-head-actions {
     display: flex;
-    gap: 0.45rem;
-    flex-wrap: wrap;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+    margin-left: auto;
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .lesson-head-actions .btn {
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 0.82rem;
+    padding: 0.36rem 0.8rem;
+  }
+  .action-complete {
+    color: #166534;
+    border-color: #86efac;
+    background: #f0fdf4;
+  }
+  .action-reschedule {
+    color: #92400e;
+    border-color: #fde68a;
+    background: #fffbeb;
+  }
+  .action-edit {
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+    background: #eff6ff;
+  }
+  .action-delete {
+    color: #b91c1c;
+    border-color: #fecaca;
+    background: #fef2f2;
+  }
+  .lesson-link-panel {
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    background: #eff6ff;
+    padding: 0.7rem 0.8rem;
+    margin-bottom: 0.9rem;
+  }
+  .lesson-link-label {
+    font-size: 0.73rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #1d4ed8;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+  .lesson-link-main {
+    color: #1e3a8a;
+    font-weight: 800;
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
   .lesson-title-link {
     color: #3b82f6;
     text-decoration: underline;
     font-weight: 700;
+  }
+  .receipt-status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.55rem;
+    margin-bottom: 0.35rem;
+  }
+  .meta-info-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 0.65rem 0.8rem;
+    background: #fff;
+    margin-bottom: 0.9rem;
   }
   .lesson-meta-strip {
     display: flex;
@@ -247,10 +316,11 @@
     object-fit: cover;
   }
   .mastery-pills {
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 0.6rem;
+    width: 100%;
   }
   .mastery-panel {
     border: 1px solid #dbeafe;
@@ -277,10 +347,14 @@
     margin-bottom: 0.55rem;
   }
   .mastery-btn {
+    position: relative;
+    width: 100%;
     display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
+    justify-content: flex-start;
+    gap: 0.35rem;
     font-weight: 700;
+    min-height: 46px;
   }
   .mastery-short {
     font-size: 0.72rem;
@@ -288,6 +362,9 @@
     opacity: 0.9;
   }
   .mastery-hint-icon {
+    position: absolute;
+    top: 0.3rem;
+    right: 0.4rem;
     width: 1rem;
     height: 1rem;
     border-radius: 999px;
@@ -382,6 +459,13 @@
     margin-top: 0.6rem;
   }
   @media (max-width: 767px) {
+    .lesson-head-actions {
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .mastery-pills {
+      grid-template-columns: 1fr;
+    }
     .reschedule-picker-months {
       grid-template-columns: 1fr;
     }
@@ -664,22 +748,18 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="lesson-modal-head" id="modal-header">
-        <div id="modal-status-chip" class="lesson-status-chip status-secondary {% if can_edit_lessons %}is-clickable{% endif %}">
-          <i id="modal-status-icon" class="bi bi-dash-circle"></i>
-          <span id="modal-status-label">Incomplete</span>
-        </div>
         {% if can_edit_lessons %}
         <div class="lesson-head-actions">
-          <button id="modal-btn-complete" class="btn btn-sm btn-outline-success" type="button">
+          <button id="modal-btn-complete" class="btn btn-sm action-complete" type="button">
             <i class="bi bi-check-circle"></i> Mark Complete
           </button>
-          <button id="modal-btn-reschedule" class="btn btn-sm btn-outline-warning" type="button">
+          <button id="modal-btn-reschedule" class="btn btn-sm action-reschedule" type="button">
             <i class="bi bi-calendar3"></i> Reschedule
           </button>
-          <button id="modal-btn-edit" class="btn btn-sm btn-outline-primary" type="button">
+          <button id="modal-btn-edit" class="btn btn-sm action-edit" type="button">
             <i class="bi bi-pencil"></i> Edit
           </button>
-          <button id="modal-btn-delete" class="btn btn-sm btn-outline-danger" type="button">
+          <button id="modal-btn-delete" class="btn btn-sm action-delete" type="button">
             <i class="bi bi-trash"></i> Delete
           </button>
         </div>
@@ -687,20 +767,33 @@
       </div>
 
       <div class="modal-body">
-        <h4 class="mb-2" id="modal-title">
-          <a id="modal-title-link" class="lesson-title-link" href="#" target="_blank" rel="noopener noreferrer">Lesson Detail</a>
-        </h4>
+        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+          <h4 class="mb-0" id="modal-title">
+            <a id="modal-title-link" class="lesson-title-link" href="#" target="_blank" rel="noopener noreferrer">Lesson Detail</a>
+          </h4>
+          <div id="modal-status-chip" class="lesson-status-chip status-secondary {% if can_edit_lessons %}is-clickable{% endif %}">
+            <i id="modal-status-icon" class="bi bi-dash-circle"></i>
+            <span id="modal-status-label">Incomplete</span>
+          </div>
+        </div>
         <p class="text-muted small mb-2" id="modal-subject"></p>
 
-        <div class="lesson-meta-strip mb-3">
-          <div class="lesson-student">
-            <span class="lesson-avatar" id="modal-student-avatar">S</span>
-            <div>
-              <div class="fw-semibold" id="modal-student-name">Student</div>
-              <div class="text-muted small" id="modal-date">Date</div>
-            </div>
+        <div class="lesson-link-panel">
+          <div class="lesson-link-label">Lesson Access Link</div>
+          <a id="modal-lesson-access-link" class="lesson-link-main" href="#" target="_blank" rel="noopener noreferrer">Year, Subject, Unit: Lesson</a>
+        </div>
+
+        <div class="receipt-panel mb-3">
+          <div class="receipt-status-row">
+            <label for="modal-receipt-url" class="small fw-semibold mb-0">Completion Receipt Link</label>
+            <span id="modal-receipt-status" class="badge text-bg-secondary">Link not attached</span>
           </div>
-          <div class="text-muted small" id="modal-weekday">Week 0, Day 0</div>
+          <div class="d-flex gap-2 mt-1 flex-wrap">
+            <input id="modal-receipt-url" type="url" class="form-control form-control-sm"
+                   placeholder="Paste completion receipt link...">
+            <button id="modal-btn-save-receipt" class="btn btn-sm btn-outline-primary" type="button">Save</button>
+            <button id="modal-btn-edit-receipt" class="btn btn-sm btn-outline-secondary" type="button" hidden>Edit</button>
+          </div>
         </div>
 
         <div class="mastery-panel" aria-label="Lesson mastery section">
@@ -709,10 +802,10 @@
           </div>
           <div class="mastery-subtitle">Select one tag to show how well this lesson was understood.</div>
           <div class="mastery-pills">
-            <button class="btn btn-sm mastery-btn" data-mastery="red" type="button" title="I didn't understand this lesson." aria-label="Red. I need help. I didn't understand this lesson.">
-              <i class="bi bi-emoji-frown"></i>
-              <span>Red</span>
-              <span class="mastery-short">I need help</span>
+            <button class="btn btn-sm mastery-btn" data-mastery="green" type="button" title="I fully understood this and could move on." aria-label="Green. Got it. I fully understood this and could move on.">
+              <i class="bi bi-emoji-smile"></i>
+              <span>Green</span>
+              <span class="mastery-short">Got it!</span>
               <span class="mastery-hint-icon" aria-hidden="true">i</span>
             </button>
             <button class="btn btn-sm mastery-btn" data-mastery="amber" type="button" title="I understood some, but need a recap." aria-label="Amber. Getting there. I understood some, but need a recap.">
@@ -721,23 +814,24 @@
               <span class="mastery-short">Getting there</span>
               <span class="mastery-hint-icon" aria-hidden="true">i</span>
             </button>
-            <button class="btn btn-sm mastery-btn" data-mastery="green" type="button" title="I fully understood this and could move on." aria-label="Green. Got it. I fully understood this and could move on.">
-              <i class="bi bi-emoji-smile"></i>
-              <span>Green</span>
-              <span class="mastery-short">Got it!</span>
+            <button class="btn btn-sm mastery-btn" data-mastery="red" type="button" title="I didn't understand this lesson." aria-label="Red. I need help. I didn't understand this lesson.">
+              <i class="bi bi-emoji-frown"></i>
+              <span>Red</span>
+              <span class="mastery-short">I need help</span>
               <span class="mastery-hint-icon" aria-hidden="true">i</span>
             </button>
           </div>
         </div>
 
-        <div class="receipt-panel mb-3">
-          <label for="modal-receipt-url" class="small fw-semibold">Completion Receipt Link</label>
-          <div class="d-flex gap-2 mt-1 flex-wrap">
-            <input id="modal-receipt-url" type="url" class="form-control form-control-sm"
-                   placeholder="Paste completion receipt link...">
-            <button id="modal-btn-save-receipt" class="btn btn-sm btn-outline-primary" type="button">Save</button>
-            <button id="modal-btn-edit-receipt" class="btn btn-sm btn-outline-secondary" type="button" hidden>Edit</button>
+        <div class="meta-info-panel">
+          <div class="lesson-student">
+            <span class="lesson-avatar" id="modal-student-avatar">S</span>
+            <div>
+              <div class="fw-semibold" id="modal-student-name">Student</div>
+              <div class="text-muted small" id="modal-date">Date</div>
+            </div>
           </div>
+          <div class="text-muted small" id="modal-weekday">Week 0, Day 0</div>
         </div>
 
         <div id="reschedule-picker-panel" class="reschedule-picker-panel" hidden>
@@ -772,12 +866,14 @@
         </div>
 
         <div class="lesson-tabs" role="tablist">
-          <button class="lesson-tab-btn active" data-tab="overview" type="button">Overview</button>
+          <button class="lesson-tab-btn active" data-tab="notes" type="button">Notes</button>
           <button class="lesson-tab-btn" data-tab="submissions" type="button">Submissions (<span id="modal-submissions-count-tab">0</span>)</button>
           <button class="lesson-tab-btn" data-tab="comments" type="button">Comments (<span id="modal-comments-count-tab">0</span>)</button>
         </div>
 
-        <div class="lesson-tab-pane active" data-pane="overview">
+        <div id="modal-upload-alert-wrap"></div>
+
+        <div class="lesson-tab-pane active" data-pane="notes">
           <label for="modal-notes" class="small text-muted mb-1 d-block">My Notes</label>
           <textarea id="modal-notes" class="form-control form-control-sm" rows="3"
                     maxlength="1000" placeholder="Add a note about this lesson…"></textarea>
@@ -796,7 +892,6 @@
             <button id="modal-btn-upload" class="btn btn-sm btn-outline-info" type="button">Upload</button>
             <span class="small text-muted">Total: <span id="modal-evidence-count">0</span></span>
           </div>
-          <div id="modal-upload-alert-wrap"></div>
           <ul id="modal-evidence-list" class="list-unstyled mt-1 mb-0 small"></ul>
         </div>
 
