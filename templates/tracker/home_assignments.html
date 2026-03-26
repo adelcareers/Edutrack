@@ -898,7 +898,7 @@
         {% if active_tab == 'lessons' %}
         {% for lesson in lessons %}
         <a href="{{ lesson.select_url }}" class="assignment-card {% if selected_lesson and selected_lesson.id == lesson.id %}is-active{% endif %}">
-          <div class="assignment-name">{{ lesson.lesson.title }}</div>
+          <div class="assignment-name">{{ lesson.lesson.lesson_title }}</div>
           <div class="assignment-meta">{{ lesson.scheduled_date|date:"D, M j, Y" }}{% if lesson.enrolled_subject %} · {{ lesson.enrolled_subject.subject_name }}{% endif %}</div>
           <div class="pill-row">
             <span class="pill pill-grade">{{ lesson.child.school_year }}</span>
@@ -933,7 +933,7 @@
       <div class="panel-head">Lesson Details</div>
       <div class="detail-body">
         <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
-          <h3 class="detail-title">{{ selected_lesson.lesson.title }}</h3>
+          <h3 class="detail-title">{{ selected_lesson.lesson.lesson_title }}</h3>
           <span class="status-chip {{ selected_lesson.effective_status }}">{{ selected_lesson.status_label|default:selected_lesson.effective_status_label }}</span>
         </div>
 
