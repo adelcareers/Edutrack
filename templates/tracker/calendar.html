@@ -208,8 +208,9 @@
     gap: 0.5rem;
     flex-wrap: nowrap;
     margin-left: auto;
-    width: 100%;
+    flex: 1 1 auto;
     justify-content: flex-end;
+    min-width: 0;
   }
   .lesson-head-actions .btn {
     border-radius: 999px;
@@ -459,9 +460,14 @@
     margin-top: 0.6rem;
   }
   @media (max-width: 767px) {
+    .lesson-modal-head {
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
     .lesson-head-actions {
       flex-wrap: wrap;
-      justify-content: center;
+      justify-content: flex-end;
+      width: 100%;
     }
     .mastery-pills {
       grid-template-columns: 1fr;
@@ -744,7 +750,7 @@
 
 <!-- ── Lesson Detail Modal ─────────────────────────── -->
 <div id="lesson-modal" class="modal fade lesson-modal-shell" tabindex="-1" role="dialog"
-     aria-modal="true" aria-labelledby="modal-title">
+  aria-modal="true" aria-label="Lesson details">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="lesson-modal-head" id="modal-header">
@@ -764,23 +770,16 @@
           </button>
         </div>
         {% endif %}
+        <div id="modal-status-chip" class="lesson-status-chip status-secondary {% if can_edit_lessons %}is-clickable{% endif %}">
+          <i id="modal-status-icon" class="bi bi-dash-circle"></i>
+          <span id="modal-status-label">Incomplete</span>
+        </div>
       </div>
 
       <div class="modal-body">
-        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
-          <h4 class="mb-0" id="modal-title">
-            <a id="modal-title-link" class="lesson-title-link" href="#" target="_blank" rel="noopener noreferrer">Lesson Detail</a>
-          </h4>
-          <div id="modal-status-chip" class="lesson-status-chip status-secondary {% if can_edit_lessons %}is-clickable{% endif %}">
-            <i id="modal-status-icon" class="bi bi-dash-circle"></i>
-            <span id="modal-status-label">Incomplete</span>
-          </div>
-        </div>
-        <p class="text-muted small mb-2" id="modal-subject"></p>
-
         <div class="lesson-link-panel">
           <div class="lesson-link-label">Lesson Access Link</div>
-          <a id="modal-lesson-access-link" class="lesson-link-main" href="#" target="_blank" rel="noopener noreferrer">Year, Subject, Unit: Lesson</a>
+          <a id="modal-lesson-access-link" class="lesson-link-main" href="#" target="_blank" rel="noopener noreferrer">KS, Year, Subject, Unit: Lesson</a>
         </div>
 
         <div class="receipt-panel mb-3">

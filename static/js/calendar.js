@@ -397,11 +397,13 @@
         modalTitleLink.href = data.lesson_url || '#';
       }
       if (modalLessonAccessLink) {
+        const keyStageText = data.lesson_key_stage || '';
         const yearText = data.lesson_year || 'Year';
         const subjectText = data.subject_name || 'Subject';
         const unitText = data.unit_title || 'Unit';
         const lessonText = data.lesson_title || 'Lesson';
-        modalLessonAccessLink.textContent = `${yearText}, ${subjectText}, ${unitText}: ${lessonText}`;
+        const ksPrefix = keyStageText ? `${keyStageText}, ` : '';
+        modalLessonAccessLink.textContent = `${ksPrefix}${yearText}, ${subjectText}, ${unitText}: ${lessonText}`;
         modalLessonAccessLink.href = data.lesson_url || '#';
       }
       if (modalSubj) modalSubj.textContent = data.subject_name || '';
