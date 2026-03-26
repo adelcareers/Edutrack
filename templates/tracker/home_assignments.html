@@ -393,12 +393,17 @@
 
   .lesson-modal-head {
     display: flex;
-    justify-content: flex-end;
+    justify-content: flex-start;
     align-items: center;
     gap: 0.75rem;
     border-bottom: 1px solid #e5e7eb;
     padding: 1rem;
     background: #f8fbff;
+  }
+  .lesson-head-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 0.5rem;
   }
 
   .lesson-status-chip {
@@ -789,12 +794,13 @@
     }
     .lesson-modal-head {
       flex-wrap: wrap;
-      justify-content: flex-end;
+      justify-content: flex-start;
     }
     .lesson-head-actions {
       flex-wrap: wrap;
-      justify-content: flex-end;
-      width: 100%;
+      justify-content: flex-start;
+      width: auto;
+      margin-left: auto;
     }
     .mastery-pills {
       grid-template-columns: 1fr;
@@ -1170,6 +1176,10 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="lesson-modal-head" id="modal-header">
+        <div id="modal-status-chip" class="lesson-status-chip status-secondary {% if can_edit_lessons %}is-clickable{% endif %}">
+          <i id="modal-status-icon" class="bi bi-dash-circle"></i>
+          <span id="modal-status-label">Incomplete</span>
+        </div>
         {% if can_edit_lessons %}
         <div class="lesson-head-actions">
           <button id="modal-btn-complete" class="btn btn-sm action-complete" type="button">Mark Complete</button>
@@ -1178,10 +1188,6 @@
           <button id="modal-btn-delete" class="btn btn-sm action-delete" type="button">Delete</button>
         </div>
         {% endif %}
-        <div id="modal-status-chip" class="lesson-status-chip status-secondary {% if can_edit_lessons %}is-clickable{% endif %}">
-          <i id="modal-status-icon" class="bi bi-dash-circle"></i>
-          <span id="modal-status-label">Incomplete</span>
-        </div>
       </div>
 
       <div class="modal-body">

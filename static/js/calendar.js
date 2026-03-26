@@ -397,7 +397,7 @@
         modalTitleLink.href = data.lesson_url || '#';
       }
       if (modalLessonAccessLink) {
-        const keyStageText = data.lesson_key_stage || '';
+        const keyStageText = (data.lesson_key_stage || '').toUpperCase();
         const yearText = data.lesson_year || 'Year';
         const subjectText = data.subject_name || 'Subject';
         const unitText = data.unit_title || 'Unit';
