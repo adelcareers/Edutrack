@@ -1015,7 +1015,7 @@ def lesson_detail_view(request, scheduled_id):
             "id": sl.pk,
             "lesson_title": sl.lesson.lesson_title,
             "unit_title": sl.lesson.unit_title,
-            "lesson_key_stage": sl.lesson.key_stage,
+            "lesson_key_stage": sl.lesson.key_stage.upper(),
             "lesson_year": sl.lesson.year,
             "subject_name": sl.enrolled_subject.subject_name,
             "scheduled_date": sl.scheduled_date.strftime("%d %b %Y"),
