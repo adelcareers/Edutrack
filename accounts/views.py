@@ -127,10 +127,10 @@ def _save_global_assignment_types(request, user):
             seen_ids.append(at.pk)
 
     # Normalize ordering for all remaining types
-    remaining = GlobalAssignmentType.objects.filter(parent=user).exclude(
-        name__iexact="lesson"
-    ).order_by(
-        "order", "name"
+    remaining = (
+        GlobalAssignmentType.objects.filter(parent=user)
+        .exclude(name__iexact="lesson")
+        .order_by("order", "name")
     )
     for idx, at in enumerate(remaining):
         if at.order != idx:
@@ -189,11 +189,11 @@ def settings_view(request):
         messages.success(request, "Settings saved.")
         return redirect("accounts:settings")
 
-    assignment_types = GlobalAssignmentType.objects.filter(
-        parent=request.user
-    ).exclude(
-        name__iexact="lesson"
-    ).order_by("order", "name")
+    assignment_types = (
+        GlobalAssignmentType.objects.filter(parent=request.user)
+        .exclude(name__iexact="lesson")
+        .order_by("order", "name")
+    )
 
     return render(
         request,
@@ -201,9 +201,7 @@ def settings_view(request):
         {
             "settings": settings,
             "weekday_choices": ParentSettings.WEEKDAY_CHOICES,
-            "receipt_enforcement_choices": (
-                ParentSettings.RECEIPT_ENFORCEMENT_CHOICES
-            ),
+            "receipt_enforcement_choices": (ParentSettings.RECEIPT_ENFORCEMENT_CHOICES),
             "assignment_types": assignment_types,
         },
     )

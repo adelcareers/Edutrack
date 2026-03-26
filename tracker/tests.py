@@ -1165,16 +1165,22 @@ class LessonModalEnhancementEndpointTests(TestCase):
         )
 
     def _receipt_url(self, pk=None):
-        return reverse("tracker:lesson_receipt", kwargs={"scheduled_id": pk or self.sl.pk})
+        return reverse(
+            "tracker:lesson_receipt", kwargs={"scheduled_id": pk or self.sl.pk}
+        )
 
     def _comment_url(self, pk=None):
-        return reverse("tracker:lesson_comment", kwargs={"scheduled_id": pk or self.sl.pk})
+        return reverse(
+            "tracker:lesson_comment", kwargs={"scheduled_id": pk or self.sl.pk}
+        )
 
     def _edit_url(self, pk=None):
         return reverse("tracker:lesson_edit", kwargs={"scheduled_id": pk or self.sl.pk})
 
     def _delete_url(self, pk=None):
-        return reverse("tracker:lesson_delete", kwargs={"scheduled_id": pk or self.sl.pk})
+        return reverse(
+            "tracker:lesson_delete", kwargs={"scheduled_id": pk or self.sl.pk}
+        )
 
     def test_parent_can_save_receipt_metadata(self):
         self.client.force_login(self.parent)
@@ -1234,7 +1240,9 @@ class LessonModalEnhancementEndpointTests(TestCase):
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(LessonComment.objects.filter(scheduled_lesson=self.sl).count(), 1)
+        self.assertEqual(
+            LessonComment.objects.filter(scheduled_lesson=self.sl).count(), 1
+        )
         self.assertEqual(response.json()["comments_count"], 1)
 
     def test_edit_updates_scheduled_date(self):

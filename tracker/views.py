@@ -297,13 +297,17 @@ def home_assignments_view(request):
             f"?edit={selected_assignment.plan_item_id}"
         )
 
-    selected_lesson_log = getattr(selected_lesson, "log", None) if selected_lesson else None
+    selected_lesson_log = (
+        getattr(selected_lesson, "log", None) if selected_lesson else None
+    )
     selected_lesson_comments = []
     selected_lesson_evidence_files = []
     selected_lesson_receipt_url = ""
     if selected_lesson is not None:
         selected_lesson_comments = list(
-            selected_lesson.comments.select_related("author").order_by("-created_at")[:5]
+            selected_lesson.comments.select_related("author").order_by("-created_at")[
+                :5
+            ]
         )
         if selected_lesson_log is not None:
             selected_lesson_evidence_files = list(
@@ -369,8 +373,12 @@ def home_assignments_view(request):
     if selected_assignment is not None:
         selected_label = selected_assignment.effective_status_label
 
-    current_total_count = lesson_total_count if active_tab == "lessons" else assignment_total_count
-    current_filtered_count = len(lessons) if active_tab == "lessons" else len(assignments)
+    current_total_count = (
+        lesson_total_count if active_tab == "lessons" else assignment_total_count
+    )
+    current_filtered_count = (
+        len(lessons) if active_tab == "lessons" else len(assignments)
+    )
 
     tab_base_query = request.GET.copy()
     tab_base_query.pop("tab", None)
@@ -765,9 +773,21 @@ def _effective_lesson_status(log, scheduled_date, today=None):
 def _lesson_status_meta(status_key):
     """Map lesson status key to UI label/icon metadata."""
     status_map = {
-        "complete": {"label": "Complete", "icon": "check-circle-fill", "tone": "success"},
-        "overdue": {"label": "Overdue", "icon": "exclamation-triangle-fill", "tone": "danger"},
-        "incomplete": {"label": "Incomplete", "icon": "dash-circle", "tone": "secondary"},
+        "complete": {
+            "label": "Complete",
+            "icon": "check-circle-fill",
+            "tone": "success",
+        },
+        "overdue": {
+            "label": "Overdue",
+            "icon": "exclamation-triangle-fill",
+            "tone": "danger",
+        },
+        "incomplete": {
+            "label": "Incomplete",
+            "icon": "dash-circle",
+            "tone": "secondary",
+        },
         "skipped": {"label": "Skipped", "icon": "skip-forward-circle", "tone": "dark"},
     }
     return status_map.get(status_key, status_map["incomplete"])
@@ -837,7 +857,9 @@ def _receipt_matches_lesson(receipt_url, lesson_title):
     return {
         "matches": len(matched) == len(title_tokens),
         "reason": (
-            "ok" if len(matched) == len(title_tokens) else "receipt link does not match lesson title"
+            "ok"
+            if len(matched) == len(title_tokens)
+            else "receipt link does not match lesson title"
         ),
         "matched_tokens": matched,
         "required_tokens": title_tokens,
@@ -1022,7 +1044,9 @@ def lesson_detail_view(request, scheduled_id):
                     "id": comment.pk,
                     "author": comment.author.get_username(),
                     "body": comment.body,
-                    "created_at": timezone.localtime(comment.created_at).strftime("%d %b %Y, %H:%M"),
+                    "created_at": timezone.localtime(comment.created_at).strftime(
+                        "%d %b %Y, %H:%M"
+                    ),
                 }
                 for comment in comments
             ],
@@ -1209,9 +1233,7 @@ def save_receipt_link_view(request, scheduled_id):
         if not title_match["matches"]:
             return JsonResponse(
                 {
-                    "error": (
-                        "Receipt link does not match this lesson title."
-                    ),
+                    "error": ("Receipt link does not match this lesson title."),
                     "match_detail": title_match,
                 },
                 status=400,
@@ -1283,7 +1305,9 @@ def add_lesson_comment_view(request, scheduled_id):
                 "id": comment.pk,
                 "author": comment.author.get_username(),
                 "body": comment.body,
-                "created_at": timezone.localtime(comment.created_at).strftime("%d %b %Y, %H:%M"),
+                "created_at": timezone.localtime(comment.created_at).strftime(
+                    "%d %b %Y, %H:%M"
+                ),
             },
             "comments_count": sl.comments.count(),
         }
