@@ -20,6 +20,7 @@ from accounts.forms import StudentCreationForm
 from accounts.models import UserProfile
 from courses.models import Course, CourseEnrollment
 from curriculum.models import Lesson
+from edutrack.academic_calendar import ACADEMIC_WEEKS, TOTAL_SCHOOL_DAYS
 from scheduler.forms import NewStudentModalForm
 from scheduler.models import Child, CustomSubjectGroup, EnrolledSubject, ScheduledLesson
 from scheduler.services import generate_schedule
@@ -303,7 +304,7 @@ def generate_schedule_view(request, child_id):
             count = generate_schedule(child, enrolled_subjects)
             messages.success(
                 request,
-                f"{child.first_name}'s schedule is ready — {count} lessons scheduled across 180 days.",
+                f"{child.first_name}'s schedule is ready — {count} lessons scheduled across {TOTAL_SCHOOL_DAYS} days ({ACADEMIC_WEEKS} weeks).",
             )
             return redirect("scheduler:child_list")
 

@@ -10,6 +10,7 @@ from courses.models import (
     Course,
     sync_course_assignment_types_from_global,
 )
+from edutrack.academic_calendar import ACADEMIC_WEEKS, WEEKDAYS_PER_WEEK
 
 from .models import (
     AssignmentAttachment,
@@ -26,19 +27,20 @@ def plan_sessions_view(request):
     )
     cards = []
     for course in courses:
-        days_per_week = min(course.frequency_days, 5)
+        days_per_week = WEEKDAYS_PER_WEEK
         week_rows = [
             {
                 "week": week,
                 "days": list(range(1, days_per_week + 1)),
             }
-            for week in range(1, course.duration_weeks + 1)
+            for week in range(1, ACADEMIC_WEEKS + 1)
         ]
         cards.append(
             {
                 "course": course,
                 "week_rows": week_rows,
                 "days_per_week": days_per_week,
+                "weeks_count": ACADEMIC_WEEKS,
             }
         )
     return render(
@@ -53,8 +55,8 @@ def plan_sessions_view(request):
 @role_required("parent")
 def plan_course_view(request, course_id):
     course = get_object_or_404(Course, pk=course_id, parent=request.user)
-    weeks = list(range(1, course.duration_weeks + 1))
-    days = list(range(1, min(course.frequency_days, 5) + 1))
+    weeks = list(range(1, ACADEMIC_WEEKS + 1))
+    days = list(range(1, WEEKDAYS_PER_WEEK + 1))
 
     sync_course_assignment_types_from_global(course)
 

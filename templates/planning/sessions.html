@@ -105,7 +105,7 @@
     <div class="plan-card-head">
       <div>
         <span class="course-pill">{{ course.name }}</span>
-        <div class="course-meta mt-2">{{ course.duration_weeks }} weeks | {{ course.frequency_days }} days per week</div>
+        <div class="course-meta mt-2">{{ card.weeks_count }} weeks | {{ card.days_per_week }} days per week</div>
       </div>
       <a class="plan-cta" href="{% url 'planning:plan_course' course_id=course.pk %}">
         <i class="bi bi-journal-text"></i> Plan Assignments

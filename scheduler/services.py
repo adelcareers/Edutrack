@@ -10,15 +10,17 @@ from datetime import timedelta
 from typing import List
 
 from curriculum.models import Lesson
+from edutrack.academic_calendar import TOTAL_SCHOOL_DAYS
 from scheduler.models import EnrolledSubject, ScheduledLesson
 
 
 def generate_schedule(child, enrolled_subjects: List[EnrolledSubject]) -> int:
-    """Distribute all Oak curriculum lessons across 180 school weekdays.
+    """Distribute all Oak curriculum lessons across school weekdays.
 
     The algorithm works in four steps:
 
-    1. **School-day list** — build a list of exactly 180 weekday dates
+     1. **School-day list** — build a list of weekday dates matching
+         ``TOTAL_SCHOOL_DAYS``
        (Monday–Friday) starting from ``child.academic_year_start``.
 
     2. **Lesson queues** — for each enrolled subject fetch all matching
@@ -26,7 +28,7 @@ def generate_schedule(child, enrolled_subjects: List[EnrolledSubject]) -> int:
        ``unit_slug`` then ``lesson_number`` so lessons are taught in
        curriculum order.
 
-    3. **Round-robin distribution** — iterate over the 180 school days.
+    3. **Round-robin distribution** — iterate over all generated school days.
        At the start of each new ISO calendar week reset the per-subject
        lesson counter.  On each day, walk the enrolled subjects in order
        and schedule a lesson for any subject that still has remaining
@@ -47,13 +49,13 @@ def generate_schedule(child, enrolled_subjects: List[EnrolledSubject]) -> int:
         The total number of ``ScheduledLesson`` records created.
 
     Raises:
-        Nothing — if a subject's curriculum queue is exhausted before the
-        180 days are filled it is silently skipped for the remaining days.
+        Nothing — if a subject's curriculum queue is exhausted before all
+        school days are filled it is silently skipped for the remaining days.
     """
     # STEP 1: Build school day list
     school_days = []
     current = child.academic_year_start
-    while len(school_days) < 180:
+    while len(school_days) < TOTAL_SCHOOL_DAYS:
         if current.weekday() < 5:  # Monday=0, Friday=4
             school_days.append(current)
         current += timedelta(days=1)

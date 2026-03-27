@@ -773,7 +773,7 @@ class GenerateScheduleViewTests(TestCase):
         msgs = list(response.context["messages"])
         self.assertEqual(len(msgs), 1)
         self.assertIn("Grace's schedule is ready", str(msgs[0]))
-        self.assertIn("lessons scheduled across 180 days", str(msgs[0]))
+        self.assertIn("lessons scheduled across 200 days (40 weeks)", str(msgs[0]))
 
     def test_regenerate_replaces_old_schedule(self):
         self.client.force_login(self.parent)
