@@ -315,15 +315,13 @@
 <div class="container mt-4 plan-detail-wrap">
   <div class="plan-header">
     <div class="plan-course-pill">{{ course.name }}</div>
-    <input type="text" class="form-control plan-search" placeholder="Search Assignments">
+    <input type="text" class="form-control plan-search" placeholder="Search Plan Items">
     <div class="plan-actions">
       <span class="btn-select-all"><i class="bi bi-check2-square"></i>Select All</span>
       <div class="dropdown">
-        <button class="btn-new-assign dropdown-toggle" data-bs-toggle="dropdown">New Assignments</button>
+        <button class="btn-new-assign dropdown-toggle" data-bs-toggle="dropdown">New Item</button>
         <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-          <li><a class="dropdown-item" href="?create=1&week={{ selected_week }}&day={{ selected_day }}&view={{ view_mode }}">Single Assignment</a></li>
-          <li><a class="dropdown-item" href="#">Repeating Assignments</a></li>
-          <li><a class="dropdown-item" href="#">Import Assignments</a></li>
+          <li><a class="dropdown-item" href="?create=1&week={{ selected_week }}&day={{ selected_day }}&view={{ view_mode }}">New Plan Item</a></li>
         </ul>
       </div>
     </div>
@@ -367,9 +365,12 @@
               <span class="status-pill {{ status }}">{{ status }}</span>
             {% endif %}
           {% endwith %}
-          <span class="pill" style="background: {{ item.template.assignment_type.color }}33; color: #374151;">
-            {{ item.template.assignment_type.name }}
-          </span>
+          <span class="pill" style="background: #e2e8f0; color: #334155;">{{ item.template.get_item_kind_display }}</span>
+          {% if item.template.assignment_type %}
+            <span class="pill" style="background: {{ item.template.assignment_type.color }}33; color: #374151;">
+              {{ item.template.assignment_type.name }}
+            </span>
+          {% endif %}
           <a href="?edit={{ item.id }}&create=1&week={{ selected_week }}&day={{ selected_day }}&view={{ view_mode }}" title="Edit"><i class="bi bi-pencil"></i></a>
           <form method="post" class="d-inline">
             {% csrf_token %}
@@ -380,7 +381,7 @@
       </div>
       {% empty %}
       <a class="assignment-row" style="opacity: 0.7; text-decoration: none; color: inherit;" href="?create=1&week={{ selected_week }}&day={{ selected_day }}&view={{ view_mode }}">
-        <span><i class="bi bi-plus-lg"></i> New Assignment</span>
+        <span><i class="bi bi-plus-lg"></i> New Plan Item</span>
       </a>
       {% endfor %}
 
@@ -391,7 +392,7 @@
           <input type="hidden" name="plan_item_id" value="{{ editing_item.id }}">
         {% endif %}
         <div class="row g-3">
-          <div class="col-md-4">
+          <div class="col-md-3">
             <label>Select Week</label>
             <select class="form-select" name="week_number">
               {% for week in weeks %}
@@ -399,7 +400,7 @@
               {% endfor %}
             </select>
           </div>
-          <div class="col-md-4">
+          <div class="col-md-3">
             <label>Select Day</label>
             <select class="form-select" name="day_number">
               {% for day in days %}
@@ -407,12 +408,20 @@
               {% endfor %}
             </select>
           </div>
-          <div class="col-md-4">
-            <label>Select Type</label>
+          <div class="col-md-3">
+            <label>Item Kind</label>
+            <select class="form-select" name="item_kind" id="item_kind_select">
+              {% for item_kind, item_label in item_kind_choices %}
+                <option value="{{ item_kind }}" {% if editing_item and editing_item.template.item_kind == item_kind %}selected{% elif not editing_item and item_kind == 'assignment' %}selected{% endif %}>{{ item_label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3 assignment-only-field" id="assignment_type_wrapper">
+            <label>Assignment Type</label>
             <select class="form-select" name="assignment_type">
               {% if assignment_types %}
                 {% for at in assignment_types %}
-                  <option value="{{ at.id }}" {% if editing_item and at.id == editing_item.template.assignment_type.id %}selected{% endif %}>{{ at.name }}</option>
+                  <option value="{{ at.id }}" {% if editing_item and editing_item.template.assignment_type and at.id == editing_item.template.assignment_type.id %}selected{% endif %}>{{ at.name }}</option>
                 {% endfor %}
               {% else %}
                 <option value="" selected disabled>No assignment types enabled for this course</option>
@@ -421,7 +430,7 @@
             {% if not assignment_types %}
               <div class="small text-muted mt-1">Enable assignment types from Course settings.</div>
             {% endif %}
-            <div class="form-check mt-2">
+            <div class="form-check mt-2 assignment-only-field" id="is_graded_wrapper">
               <input class="form-check-input" type="checkbox" name="is_graded" id="is_graded" {% if editing_item and editing_item.template.is_graded %}checked{% endif %}>
               <label class="form-check-label" for="is_graded" style="font-size: 0.78rem;">Graded</label>
             </div>
@@ -430,10 +439,10 @@
 
         <div class="row g-3 mt-2">
           <div class="col-md-8">
-            <label>Assignment Name (Required)</label>
-            <input type="text" class="form-control" name="assignment_name" placeholder="New Assignment" value="{% if editing_item %}{{ editing_item.template.name }}{% endif %}" required>
+            <label>Item Name (Required)</label>
+            <input type="text" class="form-control" name="assignment_name" placeholder="New Item" value="{% if editing_item %}{{ editing_item.template.name }}{% endif %}" required>
           </div>
-          <div class="col-md-4">
+          <div class="col-md-4 assignment-only-field" id="due_in_wrapper">
             <label>Due In</label>
             <div class="d-flex align-items-center gap-2">
               <input type="number" class="form-control" name="due_in_days" min="0" value="{% if editing_item %}{{ editing_item.due_in_days }}{% else %}0{% endif %}">
@@ -494,7 +503,7 @@
           </div>
         </div>
 
-        <details class="student-assignments" open>
+        <details class="student-assignments assignment-only-field" id="student_assignments_wrapper" open>
           <summary>
             <span>Student Assignments</span>
             <i class="bi bi-chevron-down summary-icon"></i>
@@ -547,7 +556,7 @@
 
         <div class="d-flex justify-content-between mt-3">
           <a href="?week={{ selected_week }}&day={{ selected_day }}&view={{ view_mode }}" class="btn btn-light" style="background: #e7eafe; border: none;">Cancel</a>
-          <button type="submit" class="btn btn-primary" style="background: #5b6af8; border: none;">{% if editing_item %}Update Assignment{% else %}Create Assignment{% endif %}</button>
+          <button type="submit" class="btn btn-primary" style="background: #5b6af8; border: none;">{% if editing_item %}Update Item{% else %}Create Item{% endif %}</button>
         </div>
       </form>
       {% endif %}
@@ -566,6 +575,7 @@
     const attachmentDrop = document.querySelector('.attachment-drop');
     const attachmentInput = attachmentDrop ? attachmentDrop.querySelector('input[name="attachments"]') : null;
     const attachmentList = attachmentDrop ? attachmentDrop.querySelector('.attachment-list') : null;
+    const itemKindSelect = document.getElementById('item_kind_select');
 
     function setActiveTab(tabName) {
       tabs.forEach((tab) => {
@@ -598,6 +608,21 @@
     });
 
     if (form) {
+      function syncItemKindFields() {
+        if (!itemKindSelect) {
+          return;
+        }
+        const isAssignment = itemKindSelect.value === 'assignment';
+        document.querySelectorAll('.assignment-only-field').forEach((el) => {
+          el.style.display = isAssignment ? '' : 'none';
+        });
+      }
+
+      if (itemKindSelect) {
+        itemKindSelect.addEventListener('change', syncItemKindFields);
+        syncItemKindFields();
+      }
+
       form.addEventListener('submit', () => {
         document.querySelectorAll('.rich-editor').forEach((editor) => {
           const key = editor.dataset.editor;

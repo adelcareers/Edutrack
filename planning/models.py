@@ -6,13 +6,31 @@ from courses.models import AssignmentType, Course, CourseEnrollment
 
 
 class CourseAssignmentTemplate(models.Model):
-    """A reusable assignment template for a course."""
+    """A reusable planning template for a course item."""
+
+    ITEM_KIND_ASSIGNMENT = "assignment"
+    ITEM_KIND_ACTIVITY = "activity"
+    ITEM_KIND_LESSON = "lesson"
+    ITEM_KIND_CHOICES = [
+        (ITEM_KIND_ASSIGNMENT, "Assignment"),
+        (ITEM_KIND_ACTIVITY, "Activity"),
+        (ITEM_KIND_LESSON, "Lesson"),
+    ]
 
     course = models.ForeignKey(
         Course, on_delete=models.CASCADE, related_name="assignment_templates"
     )
     assignment_type = models.ForeignKey(
-        AssignmentType, on_delete=models.CASCADE, related_name="templates"
+        AssignmentType,
+        on_delete=models.CASCADE,
+        related_name="templates",
+        null=True,
+        blank=True,
+    )
+    item_kind = models.CharField(
+        max_length=20,
+        choices=ITEM_KIND_CHOICES,
+        default=ITEM_KIND_ASSIGNMENT,
     )
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True, default="")

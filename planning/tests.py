@@ -239,3 +239,40 @@ class StudentAssignmentSelectionTests(TestCase):
             response.context["assignment_types"].values_list("id", flat=True)
         )
         self.assertNotIn(assignment_type.id, assignment_type_ids)
+
+    def test_create_activity_item_does_not_require_assignment_type(self):
+        response = self.client.post(
+            reverse("planning:plan_course", args=[self.course.pk]),
+            data={
+                "item_kind": "activity",
+                "assignment_name": "Read together",
+                "week_number": "2",
+                "day_number": "3",
+                "due_in_days": "0",
+                "description": "Read a chapter and discuss.",
+                "teacher_notes": "Keep it relaxed.",
+                "assign_enrollment_selection_present": "1",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+
+        plan_item = AssignmentPlanItem.objects.get()
+        self.assertEqual(plan_item.template.item_kind, "activity")
+        self.assertIsNone(plan_item.template.assignment_type)
+
+    def test_create_activity_item_does_not_create_student_assignments(self):
+        response = self.client.post(
+            reverse("planning:plan_course", args=[self.course.pk]),
+            data={
+                "item_kind": "activity",
+                "assignment_name": "Outdoor activity",
+                "week_number": "3",
+                "day_number": "1",
+                "due_in_days": "0",
+                "description": "Nature walk.",
+                "teacher_notes": "Bring notebook.",
+                "assign_enrollment_selection_present": "1",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(StudentAssignment.objects.count(), 0)

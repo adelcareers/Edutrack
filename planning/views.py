@@ -91,7 +91,22 @@ def plan_course_view(request, course_id):
     if request.method == "POST":
         plan_item_id = _safe_int(request.POST.get("plan_item_id"), None)
         template_name = request.POST.get("assignment_name", "").strip()
-        type_id = request.POST.get("assignment_type")
+        item_kind = (
+            request.POST.get(
+                "item_kind", CourseAssignmentTemplate.ITEM_KIND_ASSIGNMENT
+            )
+            .strip()
+            .lower()
+        )
+        allowed_item_kinds = {
+            CourseAssignmentTemplate.ITEM_KIND_ASSIGNMENT,
+            CourseAssignmentTemplate.ITEM_KIND_ACTIVITY,
+        }
+        if item_kind not in allowed_item_kinds:
+            item_kind = CourseAssignmentTemplate.ITEM_KIND_ASSIGNMENT
+
+        is_assignment_kind = item_kind == CourseAssignmentTemplate.ITEM_KIND_ASSIGNMENT
+        type_id = request.POST.get("assignment_type") if is_assignment_kind else None
         week_number = _safe_int(
             request.POST.get("week_number", selected_week), selected_week
         )
@@ -102,7 +117,7 @@ def plan_course_view(request, course_id):
         view_mode = request.GET.get("view", "day")
         description = request.POST.get("description", "").strip()
         teacher_notes = request.POST.get("teacher_notes", "").strip()
-        is_graded = request.POST.get("is_graded") == "on"
+        is_graded = request.POST.get("is_graded") == "on" if is_assignment_kind else False
         active_enrollments = list(
             course.enrollments.select_related("child").filter(status="active")
         )
@@ -111,7 +126,7 @@ def plan_course_view(request, course_id):
         selection_present = (
             request.POST.get("assign_enrollment_selection_present") == "1"
         )
-        if selection_present:
+        if is_assignment_kind and selection_present:
             selected_enrollment_ids = {
                 _safe_int(value, -1)
                 for value in request.POST.getlist("assign_enrollment_ids")
@@ -121,17 +136,28 @@ def plan_course_view(request, course_id):
                 for enrollment_id in selected_enrollment_ids
                 if enrollment_id in active_enrollment_ids
             }
-        else:
+        elif is_assignment_kind:
             # Backward compatibility for stale forms that don't send assignment toggles.
             selected_enrollment_ids = set(active_enrollment_ids)
+        else:
+            selected_enrollment_ids = set()
 
-        if template_name and type_id:
-            assignment_type = get_object_or_404(
-                AssignmentType,
-                pk=type_id,
-                course=course,
-                is_hidden=False,
+        if is_assignment_kind and not type_id:
+            messages.error(request, "Please select an assignment type.")
+            return redirect(
+                f"{request.path}?week={week_number}&day={day_number}&view={view_mode}&create=1"
             )
+
+        plan_item = None
+        if template_name:
+            assignment_type = None
+            if is_assignment_kind:
+                assignment_type = get_object_or_404(
+                    AssignmentType,
+                    pk=type_id,
+                    course=course,
+                    is_hidden=False,
+                )
 
             if plan_item_id:
                 plan_item = get_object_or_404(
@@ -140,6 +166,7 @@ def plan_course_view(request, course_id):
                     course=course,
                 )
                 template = plan_item.template
+                template.item_kind = item_kind
                 template.assignment_type = assignment_type
                 template.name = template_name
                 template.description = description
@@ -155,6 +182,7 @@ def plan_course_view(request, course_id):
             else:
                 template = CourseAssignmentTemplate.objects.create(
                     course=course,
+                    item_kind=item_kind,
                     assignment_type=assignment_type,
                     name=template_name,
                     description=description,
@@ -185,60 +213,66 @@ def plan_course_view(request, course_id):
                     f"Uploaded {len(attachments)} attachment(s) successfully.",
                 )
 
-            for enrollment in active_enrollments:
-                base_date = enrollment.start_date + datetime.timedelta(
-                    days=(week_number - 1) * 7 + (day_number - 1)
-                )
-                due_date = base_date + datetime.timedelta(days=due_in_days)
-
-                if enrollment.id in selected_enrollment_ids:
-                    if plan_item_id:
-                        student_assignment, _ = StudentAssignment.objects.get_or_create(
-                            enrollment=enrollment,
-                            plan_item=plan_item,
-                            defaults={
-                                "due_date": due_date,
-                                "status": "pending",
-                            },
-                        )
-                        if student_assignment.due_date != due_date:
-                            student_assignment.due_date = due_date
-                            student_assignment.save(update_fields=["due_date"])
-                    else:
-                        StudentAssignment.objects.create(
-                            enrollment=enrollment,
-                            plan_item=plan_item,
-                            due_date=due_date,
-                            status="pending",
-                        )
-                else:
-                    StudentAssignment.objects.filter(
-                        enrollment=enrollment,
-                        plan_item=plan_item,
-                    ).delete()
-
-            if plan_item_id:
-                for student_assignment in StudentAssignment.objects.filter(
-                    plan_item=plan_item,
-                    enrollment_id__in=selected_enrollment_ids,
-                ):
-                    status_value = request.POST.get(
-                        f"student_status_{student_assignment.id}",
-                        "",
+            if is_assignment_kind:
+                for enrollment in active_enrollments:
+                    base_date = enrollment.start_date + datetime.timedelta(
+                        days=(week_number - 1) * 7 + (day_number - 1)
                     )
-                    if status_value not in {"pending", "complete"}:
-                        continue
-                    student_assignment.status = status_value
-                    if status_value == "complete":
-                        student_assignment.completed_at = timezone.now()
+                    due_date = base_date + datetime.timedelta(days=due_in_days)
+
+                    if enrollment.id in selected_enrollment_ids:
+                        if plan_item_id:
+                            student_assignment, _ = (
+                                StudentAssignment.objects.get_or_create(
+                                    enrollment=enrollment,
+                                    plan_item=plan_item,
+                                    defaults={
+                                        "due_date": due_date,
+                                        "status": "pending",
+                                    },
+                                )
+                            )
+                            if student_assignment.due_date != due_date:
+                                student_assignment.due_date = due_date
+                                student_assignment.save(update_fields=["due_date"])
+                        else:
+                            StudentAssignment.objects.create(
+                                enrollment=enrollment,
+                                plan_item=plan_item,
+                                due_date=due_date,
+                                status="pending",
+                            )
                     else:
-                        student_assignment.completed_at = None
-                    student_assignment.save(update_fields=["status", "completed_at"])
-        if plan_item_id and template_name and type_id:
+                        StudentAssignment.objects.filter(
+                            enrollment=enrollment,
+                            plan_item=plan_item,
+                        ).delete()
+
+                if plan_item_id:
+                    for student_assignment in StudentAssignment.objects.filter(
+                        plan_item=plan_item,
+                        enrollment_id__in=selected_enrollment_ids,
+                    ):
+                        status_value = request.POST.get(
+                            f"student_status_{student_assignment.id}",
+                            "",
+                        )
+                        if status_value not in {"pending", "complete"}:
+                            continue
+                        student_assignment.status = status_value
+                        if status_value == "complete":
+                            student_assignment.completed_at = timezone.now()
+                        else:
+                            student_assignment.completed_at = None
+                        student_assignment.save(update_fields=["status", "completed_at"])
+            else:
+                StudentAssignment.objects.filter(plan_item=plan_item).delete()
+
+        if plan_item_id and template_name:
             return redirect(
                 f"{request.path}?week={week_number}&day={day_number}&view={view_mode}&edit={plan_item_id}"
             )
-        if template_name and type_id:
+        if template_name and plan_item is not None:
             return redirect(
                 f"{request.path}?week={week_number}&day={day_number}&view={view_mode}&edit={plan_item.id}"
             )
@@ -337,5 +371,9 @@ def plan_course_view(request, course_id):
             "active_enrollments": active_enrollments,
             "enrollment_rows": enrollment_rows,
             "plan_status_map": plan_status_map,
+            "item_kind_choices": [
+                (CourseAssignmentTemplate.ITEM_KIND_ASSIGNMENT, "Assignment"),
+                (CourseAssignmentTemplate.ITEM_KIND_ACTIVITY, "Activity"),
+            ],
         },
     )
