@@ -65,3 +65,32 @@ def role_required(role):
         return _wrapped
 
     return decorator
+
+
+def role_required_any(*roles):
+    """Decorator factory that allows access to any one of the provided roles."""
+
+    allowed_roles = {r for r in roles if r}
+
+    def decorator(view_func):
+        @login_required
+        @functools.wraps(view_func)
+        def _wrapped(request, *args, **kwargs):
+            try:
+                user_role = request.user.profile.role
+            except AttributeError:
+                user_role = None
+
+            if user_role not in allowed_roles:
+                role_text = ", ".join(sorted(allowed_roles))
+                messages.error(
+                    request,
+                    f"That page is only accessible to {role_text} accounts.",
+                )
+                return redirect("home")
+
+            return view_func(request, *args, **kwargs)
+
+        return _wrapped
+
+    return decorator

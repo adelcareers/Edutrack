@@ -6,12 +6,13 @@ from django.urls import reverse
 
 from accounts.models import UserProfile
 from courses.models import Course, GlobalAssignmentType
+from curriculum.models import Lesson
 from planning.models import (
     AssignmentPlanItem,
     CourseAssignmentTemplate,
     StudentAssignment,
 )
-from scheduler.models import Child
+from scheduler.models import Child, EnrolledSubject, ScheduledLesson
 
 
 class StudentAssignmentSelectionTests(TestCase):
@@ -276,3 +277,70 @@ class StudentAssignmentSelectionTests(TestCase):
         )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(StudentAssignment.objects.count(), 0)
+
+    def test_create_lesson_item_creates_scheduled_lesson(self):
+        enrolled_subject = EnrolledSubject.objects.create(
+            child=self.child_one,
+            subject_name="Maths",
+            key_stage="KS3",
+            lessons_per_week=3,
+            colour_hex="#3A86FF",
+            days_of_week="0,1,2,3,4",
+        )
+        Lesson.objects.create(
+            key_stage="KS3",
+            subject_name="Maths",
+            programme_slug="maths-year-8",
+            year=self.child_one.school_year,
+            unit_slug="algebra",
+            unit_title="Algebra",
+            lesson_number=1,
+            lesson_title="Intro Algebra",
+            lesson_url="https://example.com/oak/intro-algebra",
+            is_custom=False,
+        )
+
+        response = self.client.post(
+            reverse("planning:plan_course", args=[self.course.pk]),
+            data={
+                "item_kind": "lesson",
+                "assignment_name": "Maths Lesson",
+                "week_number": "1",
+                "day_number": "2",
+                "due_in_days": "0",
+                "description": "Lesson planning item",
+                "teacher_notes": "Auto-scheduled from OAK.",
+                "lesson_child_id": str(self.child_one.pk),
+                "lesson_subject_id": str(enrolled_subject.pk),
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        plan_item = AssignmentPlanItem.objects.get()
+        self.assertEqual(plan_item.template.item_kind, "lesson")
+        self.assertEqual(plan_item.lesson_child_id, self.child_one.pk)
+        self.assertEqual(plan_item.lesson_enrolled_subject_id, enrolled_subject.pk)
+        self.assertIsNotNone(plan_item.scheduled_lesson_id)
+        self.assertEqual(ScheduledLesson.objects.count(), 1)
+
+
+class PlanningTeacherAccessTests(TestCase):
+    def setUp(self):
+        self.teacher = User.objects.create_user(username="plan-teacher", password="pw")
+        UserProfile.objects.create(user=self.teacher, role="teacher")
+        self.client.login(username="plan-teacher", password="pw")
+
+        self.course = Course.objects.create(
+            parent=self.teacher,
+            name="Teacher Course",
+            duration_weeks=12,
+            frequency_days=5,
+        )
+
+    def test_teacher_can_access_plan_sessions(self):
+        response = self.client.get(reverse("planning:plan_sessions"))
+        self.assertEqual(response.status_code, 200)
+
+    def test_teacher_can_access_plan_course(self):
+        response = self.client.get(reverse("planning:plan_course", args=[self.course.pk]))
+        self.assertEqual(response.status_code, 200)

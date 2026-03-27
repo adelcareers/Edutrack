@@ -60,6 +60,27 @@ class AssignmentPlanItem(models.Model):
     due_in_days = models.PositiveSmallIntegerField(default=0)
     order = models.IntegerField(default=0)
     notes = models.TextField(blank=True, default="")
+    lesson_child = models.ForeignKey(
+        "scheduler.Child",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="lesson_plan_items",
+    )
+    lesson_enrolled_subject = models.ForeignKey(
+        "scheduler.EnrolledSubject",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="lesson_plan_items",
+    )
+    scheduled_lesson = models.ForeignKey(
+        "scheduler.ScheduledLesson",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="plan_items",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

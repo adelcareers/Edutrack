@@ -1,16 +1,19 @@
 import datetime
 
 from django.contrib import messages
+from django.db.models import Max
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from accounts.decorators import role_required
+from accounts.decorators import role_required_any
 from courses.models import (
     AssignmentType,
     Course,
     sync_course_assignment_types_from_global,
 )
+from curriculum.models import Lesson
 from edutrack.academic_calendar import ACADEMIC_WEEKS, WEEKDAYS_PER_WEEK
+from scheduler.models import EnrolledSubject, ScheduledLesson
 
 from .models import (
     AssignmentAttachment,
@@ -20,7 +23,7 @@ from .models import (
 )
 
 
-@role_required("parent")
+@role_required_any("parent", "teacher")
 def plan_sessions_view(request):
     courses = list(
         Course.objects.filter(parent=request.user, is_archived=False).order_by("name")
@@ -52,7 +55,7 @@ def plan_sessions_view(request):
     )
 
 
-@role_required("parent")
+@role_required_any("parent", "teacher")
 def plan_course_view(request, course_id):
     course = get_object_or_404(Course, pk=course_id, parent=request.user)
     weeks = list(range(1, ACADEMIC_WEEKS + 1))
@@ -70,6 +73,29 @@ def plan_course_view(request, course_id):
         except (TypeError, ValueError):
             return default
 
+    def _schedule_date_from_week_day(child, week_number, day_number):
+        return child.academic_year_start + datetime.timedelta(
+            days=(week_number - 1) * 7 + (day_number - 1)
+        )
+
+    def _lesson_query_for_subject(child, enrolled_subject):
+        source_subject = (enrolled_subject.source_subject_name or "").strip()
+        lesson_subject = source_subject or enrolled_subject.subject_name
+        lesson_year = enrolled_subject.source_year or child.school_year
+        return Lesson.objects.filter(
+            subject_name=lesson_subject,
+            year=lesson_year,
+        ).order_by("unit_slug", "lesson_number")
+
+    def _next_unscheduled_lesson(child, enrolled_subject):
+        scheduled_ids = ScheduledLesson.objects.filter(
+            child=child,
+            enrolled_subject=enrolled_subject,
+        ).values_list("lesson_id", flat=True)
+        return _lesson_query_for_subject(child, enrolled_subject).exclude(
+            id__in=scheduled_ids
+        ).first()
+
     selected_week = _safe_int(request.GET.get("week", 1), 1) if weeks else 1
     selected_day = _safe_int(request.GET.get("day", 1), 1) if days else 1
     if selected_week not in weeks:
@@ -84,6 +110,8 @@ def plan_course_view(request, course_id):
                 AssignmentPlanItem, pk=delete_id, course=course
             )
             template = plan_item.template
+            if plan_item.scheduled_lesson_id:
+                plan_item.scheduled_lesson.delete()
             plan_item.delete()
             template.delete()
         return redirect(f"{request.path}?week={selected_week}&day={selected_day}")
@@ -101,11 +129,13 @@ def plan_course_view(request, course_id):
         allowed_item_kinds = {
             CourseAssignmentTemplate.ITEM_KIND_ASSIGNMENT,
             CourseAssignmentTemplate.ITEM_KIND_ACTIVITY,
+            CourseAssignmentTemplate.ITEM_KIND_LESSON,
         }
         if item_kind not in allowed_item_kinds:
             item_kind = CourseAssignmentTemplate.ITEM_KIND_ASSIGNMENT
 
         is_assignment_kind = item_kind == CourseAssignmentTemplate.ITEM_KIND_ASSIGNMENT
+        is_lesson_kind = item_kind == CourseAssignmentTemplate.ITEM_KIND_LESSON
         type_id = request.POST.get("assignment_type") if is_assignment_kind else None
         week_number = _safe_int(
             request.POST.get("week_number", selected_week), selected_week
@@ -118,10 +148,13 @@ def plan_course_view(request, course_id):
         description = request.POST.get("description", "").strip()
         teacher_notes = request.POST.get("teacher_notes", "").strip()
         is_graded = request.POST.get("is_graded") == "on" if is_assignment_kind else False
+        lesson_child_id = _safe_int(request.POST.get("lesson_child_id"), None)
+        lesson_subject_id = _safe_int(request.POST.get("lesson_subject_id"), None)
         active_enrollments = list(
             course.enrollments.select_related("child").filter(status="active")
         )
         active_enrollment_ids = {enrollment.id for enrollment in active_enrollments}
+        active_child_ids = {enrollment.child_id for enrollment in active_enrollments}
 
         selection_present = (
             request.POST.get("assign_enrollment_selection_present") == "1"
@@ -147,6 +180,32 @@ def plan_course_view(request, course_id):
             return redirect(
                 f"{request.path}?week={week_number}&day={day_number}&view={view_mode}&create=1"
             )
+
+        selected_lesson_child = None
+        selected_lesson_subject = None
+        if is_lesson_kind:
+            if lesson_child_id not in active_child_ids:
+                messages.error(request, "Please select a valid student for this lesson.")
+                return redirect(
+                    f"{request.path}?week={week_number}&day={day_number}&view={view_mode}&create=1"
+                )
+
+            selected_lesson_child = active_enrollments[0].child
+            for enrollment in active_enrollments:
+                if enrollment.child_id == lesson_child_id:
+                    selected_lesson_child = enrollment.child
+                    break
+
+            selected_lesson_subject = EnrolledSubject.objects.filter(
+                pk=lesson_subject_id,
+                child=selected_lesson_child,
+                is_active=True,
+            ).first()
+            if selected_lesson_subject is None:
+                messages.error(request, "Please select a valid subject for this lesson.")
+                return redirect(
+                    f"{request.path}?week={week_number}&day={day_number}&view={view_mode}&create=1"
+                )
 
         plan_item = None
         if template_name:
@@ -178,6 +237,66 @@ def plan_course_view(request, course_id):
                 plan_item.day_number = day_number
                 plan_item.due_in_days = due_in_days
                 plan_item.notes = teacher_notes
+
+                if is_lesson_kind:
+                    scheduled_date = _schedule_date_from_week_day(
+                        selected_lesson_child,
+                        week_number,
+                        day_number,
+                    )
+
+                    existing_scheduled_lesson = plan_item.scheduled_lesson
+                    if (
+                        existing_scheduled_lesson
+                        and existing_scheduled_lesson.child_id
+                        == selected_lesson_child.id
+                        and existing_scheduled_lesson.enrolled_subject_id
+                        == selected_lesson_subject.id
+                    ):
+                        existing_scheduled_lesson.scheduled_date = scheduled_date
+                        existing_scheduled_lesson.save(update_fields=["scheduled_date"])
+                        plan_item.lesson_child = selected_lesson_child
+                        plan_item.lesson_enrolled_subject = selected_lesson_subject
+                    else:
+                        if existing_scheduled_lesson:
+                            existing_scheduled_lesson.delete()
+
+                        next_lesson = _next_unscheduled_lesson(
+                            selected_lesson_child,
+                            selected_lesson_subject,
+                        )
+                        if next_lesson is None:
+                            messages.error(
+                                request,
+                                "No remaining OAK lessons are available for that subject.",
+                            )
+                            return redirect(
+                                f"{request.path}?week={week_number}&day={day_number}&view={view_mode}&create=1"
+                            )
+
+                        next_order = (
+                            ScheduledLesson.objects.filter(
+                                child=selected_lesson_child,
+                                scheduled_date=scheduled_date,
+                            ).aggregate(max_order=Max("order_on_day"))["max_order"]
+                            or -1
+                        )
+                        scheduled_lesson = ScheduledLesson.objects.create(
+                            child=selected_lesson_child,
+                            lesson=next_lesson,
+                            enrolled_subject=selected_lesson_subject,
+                            scheduled_date=scheduled_date,
+                            order_on_day=next_order + 1,
+                        )
+                        plan_item.lesson_child = selected_lesson_child
+                        plan_item.lesson_enrolled_subject = selected_lesson_subject
+                        plan_item.scheduled_lesson = scheduled_lesson
+                else:
+                    if plan_item.scheduled_lesson_id:
+                        plan_item.scheduled_lesson.delete()
+                    plan_item.lesson_child = None
+                    plan_item.lesson_enrolled_subject = None
+                    plan_item.scheduled_lesson = None
                 plan_item.save()
             else:
                 template = CourseAssignmentTemplate.objects.create(
@@ -199,6 +318,52 @@ def plan_course_view(request, course_id):
                     order=0,
                     notes=teacher_notes,
                 )
+
+                if is_lesson_kind:
+                    next_lesson = _next_unscheduled_lesson(
+                        selected_lesson_child,
+                        selected_lesson_subject,
+                    )
+                    if next_lesson is None:
+                        plan_item.delete()
+                        template.delete()
+                        messages.error(
+                            request,
+                            "No remaining OAK lessons are available for that subject.",
+                        )
+                        return redirect(
+                            f"{request.path}?week={week_number}&day={day_number}&view={view_mode}&create=1"
+                        )
+
+                    scheduled_date = _schedule_date_from_week_day(
+                        selected_lesson_child,
+                        week_number,
+                        day_number,
+                    )
+                    next_order = (
+                        ScheduledLesson.objects.filter(
+                            child=selected_lesson_child,
+                            scheduled_date=scheduled_date,
+                        ).aggregate(max_order=Max("order_on_day"))["max_order"]
+                        or -1
+                    )
+                    scheduled_lesson = ScheduledLesson.objects.create(
+                        child=selected_lesson_child,
+                        lesson=next_lesson,
+                        enrolled_subject=selected_lesson_subject,
+                        scheduled_date=scheduled_date,
+                        order_on_day=next_order + 1,
+                    )
+                    plan_item.lesson_child = selected_lesson_child
+                    plan_item.lesson_enrolled_subject = selected_lesson_subject
+                    plan_item.scheduled_lesson = scheduled_lesson
+                    plan_item.save(
+                        update_fields=[
+                            "lesson_child",
+                            "lesson_enrolled_subject",
+                            "scheduled_lesson",
+                        ]
+                    )
 
             attachments = request.FILES.getlist("attachments")
             for attachment in attachments:
@@ -279,7 +444,10 @@ def plan_course_view(request, course_id):
         return redirect(f"{request.path}?week={week_number}&day={day_number}")
 
     plan_items = AssignmentPlanItem.objects.filter(course=course).select_related(
-        "template", "template__assignment_type"
+        "template",
+        "template__assignment_type",
+        "lesson_child",
+        "lesson_enrolled_subject",
     )
     edit_id = _safe_int(request.GET.get("edit"), None)
     create_mode = request.GET.get("create") == "1" or bool(edit_id)
@@ -312,6 +480,27 @@ def plan_course_view(request, course_id):
                 "assigned": bool(student_assignment) or not editing_item,
             }
         )
+
+    lesson_child_options = []
+    for enrollment in active_enrollments:
+        child = enrollment.child
+        if any(opt["id"] == child.id for opt in lesson_child_options):
+            continue
+        lesson_child_options.append(
+            {
+                "id": child.id,
+                "name": child.first_name,
+            }
+        )
+
+    lesson_subject_options = list(
+        EnrolledSubject.objects.filter(
+            child_id__in=[opt["id"] for opt in lesson_child_options],
+            is_active=True,
+        )
+        .order_by("child__first_name", "subject_name")
+        .values("id", "child_id", "subject_name")
+    )
     day_items = plan_items.filter(
         week_number=selected_week,
         day_number=selected_day,
@@ -374,6 +563,9 @@ def plan_course_view(request, course_id):
             "item_kind_choices": [
                 (CourseAssignmentTemplate.ITEM_KIND_ASSIGNMENT, "Assignment"),
                 (CourseAssignmentTemplate.ITEM_KIND_ACTIVITY, "Activity"),
+                (CourseAssignmentTemplate.ITEM_KIND_LESSON, "Lesson"),
             ],
+            "lesson_child_options": lesson_child_options,
+            "lesson_subject_options": lesson_subject_options,
         },
     )
