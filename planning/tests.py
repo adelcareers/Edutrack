@@ -331,7 +331,9 @@ class StudentAssignmentSelectionTests(TestCase):
         self.course.frequency_days = 3
         self.course.save(update_fields=["duration_weeks", "frequency_days"])
 
-        response = self.client.get(reverse("planning:plan_course", args=[self.course.pk]))
+        response = self.client.get(
+            reverse("planning:plan_course", args=[self.course.pk])
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(list(response.context["weeks"]), list(range(1, 13)))
@@ -345,14 +347,20 @@ class StudentAssignmentSelectionTests(TestCase):
         response = self.client.get(reverse("planning:plan_sessions"))
 
         self.assertEqual(response.status_code, 200)
-        card = next(card for card in response.context["cards"] if card["course"].pk == self.course.pk)
+        card = next(
+            card
+            for card in response.context["cards"]
+            if card["course"].pk == self.course.pk
+        )
         self.assertEqual(card["weeks_count"], 10)
         self.assertEqual(card["days_per_week"], 4)
         self.assertEqual(len(card["week_rows"]), 10)
         self.assertEqual(card["week_rows"][0]["days"], [1, 2, 3, 4])
 
     def test_workflow_filter_only_shows_matching_items(self):
-        response = self.client.get(reverse("planning:plan_course", args=[self.course.pk]))
+        response = self.client.get(
+            reverse("planning:plan_course", args=[self.course.pk])
+        )
         assignment_type = response.context["assignment_types"].first()
 
         assignment_template = CourseAssignmentTemplate.objects.create(
@@ -399,7 +407,10 @@ class StudentAssignmentSelectionTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["workflow"], "lessons")
-        self.assertEqual(list(response.context["plan_items"]), [AssignmentPlanItem.objects.get(template=lesson_template)])
+        self.assertEqual(
+            list(response.context["plan_items"]),
+            [AssignmentPlanItem.objects.get(template=lesson_template)],
+        )
 
     def test_lesson_provenance_labels_render_for_oak_imported_and_manual(self):
         imported_subject = EnrolledSubject.objects.create(
@@ -504,7 +515,9 @@ class StudentAssignmentSelectionTests(TestCase):
         self.assertContains(response, "Manual")
 
     def test_create_activity_item_tracks_progress_per_child_with_evidence(self):
-        upload = SimpleUploadedFile("evidence.txt", b"activity evidence", content_type="text/plain")
+        upload = SimpleUploadedFile(
+            "evidence.txt", b"activity evidence", content_type="text/plain"
+        )
 
         response = self.client.post(
             reverse("planning:plan_course", args=[self.course.pk]),
@@ -563,5 +576,7 @@ class PlanningTeacherAccessTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_teacher_can_access_plan_course(self):
-        response = self.client.get(reverse("planning:plan_course", args=[self.course.pk]))
+        response = self.client.get(
+            reverse("planning:plan_course", args=[self.course.pk])
+        )
         self.assertEqual(response.status_code, 200)

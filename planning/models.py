@@ -252,7 +252,9 @@ class ActivityProgressAttachment(models.Model):
         on_delete=models.CASCADE,
         related_name="attachments",
     )
-    file = models.FileField(upload_to="activity_progress_attachments/", null=True, blank=True)
+    file = models.FileField(
+        upload_to="activity_progress_attachments/", null=True, blank=True
+    )
     original_name = models.CharField(max_length=255, blank=True, default="")
     external_url = models.URLField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)

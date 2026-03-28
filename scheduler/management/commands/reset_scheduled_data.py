@@ -48,4 +48,6 @@ class Command(BaseCommand):
             total_deleted += deleted
             self.stdout.write(f"{label}: {deleted}")
 
-        self.stdout.write(self.style.SUCCESS(f"Done. Total deleted rows: {total_deleted}"))
+        self.stdout.write(
+            self.style.SUCCESS(f"Done. Total deleted rows: {total_deleted}")
+        )

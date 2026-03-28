@@ -49,7 +49,9 @@ def _normalize_scope(raw_scope):
 
 
 def _normalize_workflow(raw_workflow):
-    return raw_workflow if raw_workflow in WORKFLOW_TO_ITEM_KIND else WORKFLOW_ASSIGNMENTS
+    return (
+        raw_workflow if raw_workflow in WORKFLOW_TO_ITEM_KIND else WORKFLOW_ASSIGNMENTS
+    )
 
 
 def _course_weeks(course):
@@ -90,7 +92,11 @@ def _next_unscheduled_lesson(child, enrolled_subject):
         child=child,
         enrolled_subject=enrolled_subject,
     ).values_list("lesson_id", flat=True)
-    return _lesson_query_for_subject(child, enrolled_subject).exclude(id__in=scheduled_ids).first()
+    return (
+        _lesson_query_for_subject(child, enrolled_subject)
+        .exclude(id__in=scheduled_ids)
+        .first()
+    )
 
 
 def _activity_status_from_rows(rows):
@@ -176,10 +182,16 @@ def plan_course_view(request, course_id):
         delete_id = _safe_int(request.POST.get("delete_id"), None)
         workflow = _normalize_workflow(request.POST.get("workflow", workflow))
         scope = _normalize_scope(request.POST.get("scope", scope))
-        week_number = _safe_int(request.POST.get("week_number", selected_week), selected_week)
-        day_number = _safe_int(request.POST.get("day_number", selected_day), selected_day)
+        week_number = _safe_int(
+            request.POST.get("week_number", selected_week), selected_week
+        )
+        day_number = _safe_int(
+            request.POST.get("day_number", selected_day), selected_day
+        )
         if delete_id:
-            plan_item = get_object_or_404(AssignmentPlanItem, pk=delete_id, course=course)
+            plan_item = get_object_or_404(
+                AssignmentPlanItem, pk=delete_id, course=course
+            )
             template = plan_item.template
             if plan_item.scheduled_lesson_id:
                 plan_item.scheduled_lesson.delete()
@@ -201,7 +213,9 @@ def plan_course_view(request, course_id):
         plan_item_id = _safe_int(request.POST.get("plan_item_id"), None)
         template_name = request.POST.get("assignment_name", "").strip()
         item_kind = (
-            request.POST.get("item_kind", WORKFLOW_TO_ITEM_KIND[workflow]).strip().lower()
+            request.POST.get("item_kind", WORKFLOW_TO_ITEM_KIND[workflow])
+            .strip()
+            .lower()
         )
         if item_kind not in ITEM_KIND_TO_WORKFLOW:
             item_kind = WORKFLOW_TO_ITEM_KIND[workflow]
@@ -212,8 +226,12 @@ def plan_course_view(request, course_id):
         is_activity_kind = item_kind == CourseAssignmentTemplate.ITEM_KIND_ACTIVITY
 
         type_id = request.POST.get("assignment_type") if is_assignment_kind else None
-        week_number = _safe_int(request.POST.get("week_number", selected_week), selected_week)
-        day_number = _safe_int(request.POST.get("day_number", selected_day), selected_day)
+        week_number = _safe_int(
+            request.POST.get("week_number", selected_week), selected_week
+        )
+        day_number = _safe_int(
+            request.POST.get("day_number", selected_day), selected_day
+        )
         if week_number not in weeks:
             week_number = selected_week
         if day_number not in days:
@@ -222,7 +240,9 @@ def plan_course_view(request, course_id):
         due_in_days = _safe_int(request.POST.get("due_in_days", "0"), 0)
         description = request.POST.get("description", "").strip()
         teacher_notes = request.POST.get("teacher_notes", "").strip()
-        is_graded = request.POST.get("is_graded") == "on" if is_assignment_kind else False
+        is_graded = (
+            request.POST.get("is_graded") == "on" if is_assignment_kind else False
+        )
 
         lesson_child_id = _safe_int(request.POST.get("lesson_child_id"), None)
         lesson_subject_id = _safe_int(request.POST.get("lesson_subject_id"), None)
@@ -233,7 +253,8 @@ def plan_course_view(request, course_id):
         )
         if is_assignment_kind and assignment_selection_present:
             selected_assignment_enrollment_ids = {
-                _safe_int(value, -1) for value in request.POST.getlist("assign_enrollment_ids")
+                _safe_int(value, -1)
+                for value in request.POST.getlist("assign_enrollment_ids")
             }
             selected_assignment_enrollment_ids = {
                 enrollment_id
@@ -275,7 +296,9 @@ def plan_course_view(request, course_id):
         selected_lesson_subject = None
         if is_lesson_kind:
             if lesson_child_id not in active_child_ids:
-                messages.error(request, "Please select a valid student for this lesson.")
+                messages.error(
+                    request, "Please select a valid student for this lesson."
+                )
                 return redirect(
                     _build_plan_url(
                         request.path,
@@ -298,7 +321,9 @@ def plan_course_view(request, course_id):
                 is_active=True,
             ).first()
             if selected_lesson_subject is None:
-                messages.error(request, "Please select a valid subject for this lesson.")
+                messages.error(
+                    request, "Please select a valid subject for this lesson."
+                )
                 return redirect(
                     _build_plan_url(
                         request.path,
@@ -350,8 +375,10 @@ def plan_course_view(request, course_id):
                     existing_scheduled_lesson = plan_item.scheduled_lesson
                     if (
                         existing_scheduled_lesson
-                        and existing_scheduled_lesson.child_id == selected_lesson_child.id
-                        and existing_scheduled_lesson.enrolled_subject_id == selected_lesson_subject.id
+                        and existing_scheduled_lesson.child_id
+                        == selected_lesson_child.id
+                        and existing_scheduled_lesson.enrolled_subject_id
+                        == selected_lesson_subject.id
                     ):
                         existing_scheduled_lesson.scheduled_date = scheduled_date
                         existing_scheduled_lesson.save(update_fields=["scheduled_date"])
@@ -493,10 +520,15 @@ def plan_course_view(request, course_id):
                     due_date = base_date + datetime.timedelta(days=due_in_days)
                     if enrollment.id in selected_assignment_enrollment_ids:
                         if plan_item_id:
-                            student_assignment, _ = StudentAssignment.objects.get_or_create(
-                                enrollment=enrollment,
-                                plan_item=plan_item,
-                                defaults={"due_date": due_date, "status": "pending"},
+                            student_assignment, _ = (
+                                StudentAssignment.objects.get_or_create(
+                                    enrollment=enrollment,
+                                    plan_item=plan_item,
+                                    defaults={
+                                        "due_date": due_date,
+                                        "status": "pending",
+                                    },
+                                )
                             )
                             updates = []
                             if student_assignment.due_date != due_date:
@@ -506,10 +538,15 @@ def plan_course_view(request, course_id):
                                 f"student_status_{student_assignment.id}",
                                 student_assignment.status,
                             )
-                            if status_value in {"pending", "complete"} and student_assignment.status != status_value:
+                            if (
+                                status_value in {"pending", "complete"}
+                                and student_assignment.status != status_value
+                            ):
                                 student_assignment.status = status_value
                                 student_assignment.completed_at = (
-                                    timezone.now() if status_value == "complete" else None
+                                    timezone.now()
+                                    if status_value == "complete"
+                                    else None
                                 )
                                 updates.extend(["status", "completed_at"])
                             if updates:
@@ -633,9 +670,9 @@ def plan_course_view(request, course_id):
             editing_item.student_assignments.select_related("enrollment__child")
         )
         activity_progress_items = list(
-            editing_item.activity_progress_items.select_related("enrollment__child").prefetch_related(
-                "attachments"
-            )
+            editing_item.activity_progress_items.select_related(
+                "enrollment__child"
+            ).prefetch_related("attachments")
         )
 
     student_assignment_by_enrollment = {
@@ -662,7 +699,11 @@ def plan_course_view(request, course_id):
                 "enrollment": enrollment,
                 "progress": activity_progress,
                 "assigned": bool(activity_progress),
-                "attachments": list(activity_progress.attachments.all()) if activity_progress else [],
+                "attachments": (
+                    list(activity_progress.attachments.all())
+                    if activity_progress
+                    else []
+                ),
             }
         )
 
@@ -694,8 +735,12 @@ def plan_course_view(request, course_id):
         ).count(),
     }
 
-    workflow_items = plan_items.filter(template__item_kind=WORKFLOW_TO_ITEM_KIND[workflow])
-    day_items = workflow_items.filter(week_number=selected_week, day_number=selected_day)
+    workflow_items = plan_items.filter(
+        template__item_kind=WORKFLOW_TO_ITEM_KIND[workflow]
+    )
+    day_items = workflow_items.filter(
+        week_number=selected_week, day_number=selected_day
+    )
     filtered_items = workflow_items if scope == "all" else day_items
 
     plan_status_map = {}
@@ -719,9 +764,9 @@ def plan_course_view(request, course_id):
             plan_status_map[plan_item_id] = "pending"
 
     activity_status_rows = {}
-    for progress in ActivityProgress.objects.filter(plan_item__in=plan_items).select_related(
-        "enrollment__child"
-    ):
+    for progress in ActivityProgress.objects.filter(
+        plan_item__in=plan_items
+    ).select_related("enrollment__child"):
         activity_status_rows.setdefault(progress.plan_item_id, []).append(progress)
     for plan_item_id, rows in activity_status_rows.items():
         derived_status = _activity_status_from_rows(rows)
@@ -735,9 +780,21 @@ def plan_course_view(request, course_id):
             lesson_provenance_map[plan_item.id] = provenance
 
     workflow_tabs = [
-        {"key": WORKFLOW_ASSIGNMENTS, "label": "Assignments", "count": workflow_counts[WORKFLOW_ASSIGNMENTS]},
-        {"key": WORKFLOW_LESSONS, "label": "Lessons", "count": workflow_counts[WORKFLOW_LESSONS]},
-        {"key": WORKFLOW_ACTIVITIES, "label": "Activities", "count": workflow_counts[WORKFLOW_ACTIVITIES]},
+        {
+            "key": WORKFLOW_ASSIGNMENTS,
+            "label": "Assignments",
+            "count": workflow_counts[WORKFLOW_ASSIGNMENTS],
+        },
+        {
+            "key": WORKFLOW_LESSONS,
+            "label": "Lessons",
+            "count": workflow_counts[WORKFLOW_LESSONS],
+        },
+        {
+            "key": WORKFLOW_ACTIVITIES,
+            "label": "Activities",
+            "count": workflow_counts[WORKFLOW_ACTIVITIES],
+        },
     ]
 
     return render(
