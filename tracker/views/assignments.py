@@ -18,7 +18,11 @@ from planning.models import (
 )
 from reports.services_gradebook import recalculate_enrollment_grade
 from scheduler.models import Child
-from .lessons import _can_access_student_assignment, _effective_lesson_status, _lesson_status_meta
+from .lessons import (
+    _can_access_student_assignment,
+    _effective_lesson_status,
+    _lesson_status_meta,
+)
 from .utils import (
     _base_assignment_queryset_for_role,
     _base_lesson_queryset_for_role,

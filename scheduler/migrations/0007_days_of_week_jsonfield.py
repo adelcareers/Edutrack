@@ -9,9 +9,7 @@ def convert_enrolledsubject_days(apps, schema_editor):
     """Convert EnrolledSubject.days_of_week from CSV string to JSON list."""
     db = schema_editor.connection
     cursor = db.cursor()
-    cursor.execute(
-        "SELECT id, days_of_week FROM scheduler_enrolledsubject"
-    )
+    cursor.execute("SELECT id, days_of_week FROM scheduler_enrolledsubject")
     rows = cursor.fetchall()
     for row_id, days_val in rows:
         if days_val is None:

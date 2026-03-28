@@ -87,7 +87,10 @@ def lesson_detail_view(request, scheduled_id):
 
     Ownership check: the lesson must belong to the student's child profile.
     """
-    from .receipts import _receipt_enforcement_mode_for_lesson, _receipt_validation_status_for_log
+    from .receipts import (
+        _receipt_enforcement_mode_for_lesson,
+        _receipt_validation_status_for_log,
+    )
 
     sl = get_object_or_404(ScheduledLesson, pk=scheduled_id)
 
@@ -170,7 +173,10 @@ def update_lesson_status_view(request, scheduled_id):
     Ownership is verified: the lesson must belong to the authenticated
     student's child profile.  Returns JSON on both success and error.
     """
-    from .receipts import _receipt_enforcement_mode_for_lesson, _receipt_validation_status_for_log
+    from .receipts import (
+        _receipt_enforcement_mode_for_lesson,
+        _receipt_validation_status_for_log,
+    )
 
     sl = get_object_or_404(ScheduledLesson, pk=scheduled_id)
 
