@@ -69,7 +69,7 @@ jobs:
 
       - name: Run tests
         run: |
-          python manage.py test --verbosity=2
+          python manage.py test --verbosity=2 --parallel
 
       - name: Code style checks (changed Python files)
         shell: bash
