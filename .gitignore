@@ -4,6 +4,8 @@
 __pycache__
 db.sqlite3
 media/
+activity_progress_attachments/
+assignment_submissions/
 .DS_Store
 venv/
 staticfiles/
