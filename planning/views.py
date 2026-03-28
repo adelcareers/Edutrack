@@ -1,12 +1,11 @@
 import datetime
-from django.http import HttpResponseRedirect
-from django.urls import reverse
+
 from django.contrib import messages
 from django.db.models import Max
+from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
-
-from scheduler.services import generate_schedule
 
 from accounts.decorators import role_required_any
 from courses.models import (
@@ -16,6 +15,7 @@ from courses.models import (
 )
 from curriculum.models import Lesson
 from scheduler.models import EnrolledSubject, ScheduledLesson
+from scheduler.services import generate_schedule
 
 from .models import (
     ActivityProgress,
