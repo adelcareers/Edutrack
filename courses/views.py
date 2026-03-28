@@ -601,7 +601,7 @@ def enroll_student_view(request, course_id):
             enrollment = form.save(commit=False)
             enrollment.course = course
             days = form.cleaned_data["days_of_week"]
-            enrollment.days_of_week = days if isinstance(days, str) else ",".join(days)
+            enrollment.days_of_week = [int(d) for d in days]
             enrollment.save()
             messages.success(
                 request, f'{enrollment.child.first_name} enrolled in "{course.name}".'

@@ -75,7 +75,7 @@ class CourseHardDeleteArchiveTests(TestCase):
         self.enrollment = self.course.enrollments.create(
             child=self.child,
             start_date=datetime.date(2026, 1, 6),
-            days_of_week="0,2,4",
+            days_of_week=[0, 2, 4],
             status="active",
         )
         StudentAssignment.objects.create(

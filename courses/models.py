@@ -146,8 +146,8 @@ class Course(models.Model):
         default=5,
         validators=[MinValueValidator(1), MaxValueValidator(7)],
     )
-    # Default days of week: Mon=0 … Sun=6 (CSV), used to pre-populate enrollment
-    default_days = models.CharField(max_length=20, default="0,1,2,3,4")
+    # Default days of week: Mon=0 … Sun=6, used to pre-populate enrollment
+    default_days = models.JSONField(default=list)
 
     grading_style = models.CharField(
         max_length=20,
@@ -183,9 +183,7 @@ class Course(models.Model):
 
     def get_default_days_list(self):
         """Return default_days as a list of integers."""
-        if not self.default_days:
-            return []
-        return [int(d) for d in self.default_days.split(",") if d.strip().isdigit()]
+        return list(self.default_days) if self.default_days else []
 
     @property
     def active_enrollments_count(self):
@@ -357,8 +355,8 @@ class CourseEnrollment(models.Model):
         "scheduler.Child", on_delete=models.CASCADE, related_name="course_enrollments"
     )
     start_date = models.DateField()
-    # CSV of chosen weekday ints, e.g. "0,2,4" for Mon/Wed/Fri
-    days_of_week = models.CharField(max_length=20, default="0,1,2,3,4")
+    # List of chosen weekday ints, e.g. [0, 2, 4] for Mon/Wed/Fri
+    days_of_week = models.JSONField(default=list)
 
     status = models.CharField(
         max_length=20,
@@ -381,16 +379,12 @@ class CourseEnrollment(models.Model):
 
     def get_days_of_week_list(self):
         """Return days_of_week as a list of integers."""
-        if not self.days_of_week:
-            return []
-        return [int(d) for d in self.days_of_week.split(",") if d.strip().isdigit()]
+        return list(self.days_of_week) if self.days_of_week else []
 
     def get_days_display(self):
         """Return human-readable day labels, e.g. 'Mon, Wed, Fri'."""
         day_map = dict(DAY_CHOICES)
-        return ", ".join(
-            day_map.get(d.strip(), d) for d in self.days_of_week.split(",") if d.strip()
-        )
+        return ", ".join(day_map.get(d, str(d)) for d in self.days_of_week)
 
 
 class CourseArchive(models.Model):

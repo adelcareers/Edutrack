@@ -57,13 +57,13 @@ class StudentAssignmentSelectionTests(TestCase):
         self.enrollment_one = self.course.enrollments.create(
             child=self.child_one,
             start_date=datetime.date(2026, 1, 6),
-            days_of_week="0,2,4",
+            days_of_week=[0, 2, 4],
             status="active",
         )
         self.enrollment_two = self.course.enrollments.create(
             child=self.child_two,
             start_date=datetime.date(2026, 1, 6),
-            days_of_week="0,2,4",
+            days_of_week=[0, 2, 4],
             status="active",
         )
 
@@ -288,7 +288,7 @@ class StudentAssignmentSelectionTests(TestCase):
             key_stage="KS3",
             lessons_per_week=3,
             colour_hex="#3A86FF",
-            days_of_week="0,1,2,3,4",
+            days_of_week=[0, 1, 2, 3, 4],
         )
         Lesson.objects.create(
             key_stage="KS3",
@@ -419,7 +419,7 @@ class StudentAssignmentSelectionTests(TestCase):
             key_stage="KS3",
             lessons_per_week=2,
             colour_hex="#3A86FF",
-            days_of_week="0,1",
+            days_of_week=[0, 1],
             source_subject_name="Science",
             source_year="Year 7",
         )
@@ -429,7 +429,7 @@ class StudentAssignmentSelectionTests(TestCase):
             key_stage="Custom",
             lessons_per_week=1,
             colour_hex="#F97316",
-            days_of_week="2",
+            days_of_week=[2],
         )
         oak_subject = EnrolledSubject.objects.create(
             child=self.child_one,
@@ -437,7 +437,7 @@ class StudentAssignmentSelectionTests(TestCase):
             key_stage="KS3",
             lessons_per_week=2,
             colour_hex="#22C55E",
-            days_of_week="0,1",
+            days_of_week=[0, 1],
         )
         oak_lesson = Lesson.objects.create(
             key_stage="KS3",

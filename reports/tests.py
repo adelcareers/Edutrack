@@ -593,7 +593,7 @@ class GradebookViewsAndServiceTests(TestCase):
         self.enrollment = self.course.enrollments.create(
             child=self.child,
             start_date=datetime.date(2026, 1, 1),
-            days_of_week="0,2,4",
+            days_of_week=[0, 2, 4],
             status="active",
         )
 
@@ -747,7 +747,7 @@ class GradebookViewsAndServiceTests(TestCase):
         other_enrollment = other_course.enrollments.create(
             child=other_child,
             start_date=datetime.date(2026, 1, 1),
-            days_of_week="0,2,4",
+            days_of_week=[0, 2, 4],
             status="active",
         )
 

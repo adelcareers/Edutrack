@@ -76,8 +76,7 @@ def generate_schedule(child, enrolled_subjects: List[EnrolledSubject]) -> int:
     # Parse days-of-week sets per subject (0=Mon … 4=Fri)
     subject_days = {}
     for subject in enrolled_subjects:
-        parts = subject.days_of_week.split(",") if subject.days_of_week else []
-        days = {int(d) for d in parts if d.isdigit() and 0 <= int(d) <= 4}
+        days = {d for d in (subject.days_of_week or []) if 0 <= d <= 4}
         subject_days[subject.id] = days if days else {0, 1, 2, 3, 4}
 
     # STEP 3: Compute slots-per-day per subject.

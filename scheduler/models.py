@@ -76,8 +76,8 @@ class EnrolledSubject(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(10)]
     )
     colour_hex = models.CharField(max_length=7)
-    # Comma-separated weekday ints (0=Mon … 4=Fri) that this subject is taught on.
-    days_of_week = models.CharField(max_length=20, default="0,1,2,3,4")
+    # List of weekday ints (0=Mon … 4=Fri) that this subject is taught on.
+    days_of_week = models.JSONField(default=list)
     # When set, lessons are pulled from this year rather than child.school_year.
     source_year = models.CharField(max_length=20, blank=True, default="")
     # Canonical source subject key (e.g. "Maths") for imported/display labels.

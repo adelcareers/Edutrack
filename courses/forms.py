@@ -166,8 +166,7 @@ class EnrollStudentForm(forms.ModelForm):
                 f"This course requires exactly {self.course.frequency_days} "
                 f"day(s) per week. You selected {len(days)}."
             )
-        # Store CSV to satisfy model max_length validation
-        return ",".join(days)
+        return [int(d) for d in days]
 
 
 class CompleteEnrollmentForm(forms.Form):
