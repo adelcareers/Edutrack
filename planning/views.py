@@ -1,4 +1,3 @@
-
 import datetime
 from django.http import HttpResponseRedirect
 from django.urls import reverse
@@ -31,6 +30,7 @@ from .models import (
 @role_required_any("parent", "teacher")
 def initiate_oak_scheduling_view(request, course_id):
     import logging
+
     logger = logging.getLogger(__name__)
     try:
         course = get_object_or_404(Course, pk=course_id, parent=request.user)
@@ -46,20 +46,18 @@ def initiate_oak_scheduling_view(request, course_id):
             scheduled_count += generate_schedule(child, child_enrollments)
         messages.success(
             request,
-            f"OAK lesson scheduling complete. {scheduled_count} lessons scheduled."
+            f"OAK lesson scheduling complete. {scheduled_count} lessons scheduled.",
         )
-        return HttpResponseRedirect(
-            reverse("planning:plan_course", args=[course_id])
-        )
+        return HttpResponseRedirect(reverse("planning:plan_course", args=[course_id]))
     except Exception as e:
-        logger.exception("Error during OAK lesson scheduling for course_id=%s", course_id)
+        logger.exception(
+            "Error during OAK lesson scheduling for course_id=%s", course_id
+        )
         messages.error(
             request,
-            f"An error occurred during OAK lesson scheduling: {str(e)}. Please contact support."
+            f"An error occurred during OAK lesson scheduling: {str(e)}. Please contact support.",
         )
-        return HttpResponseRedirect(
-            reverse("planning:plan_course", args=[course_id])
-        )
+        return HttpResponseRedirect(reverse("planning:plan_course", args=[course_id]))
 
 
 WORKFLOW_ASSIGNMENTS = "assignments"
