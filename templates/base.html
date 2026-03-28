@@ -228,12 +228,6 @@
     <div class="app-nav-right">
       {% if user.is_authenticated %}
         {% with role=user.profile.role %}
-        {% if role == 'parent' %}
-        <!-- Upgrade -->
-        <a href="{% url 'payments:pricing' %}" class="btn btn-upgrade d-none d-md-inline-flex">
-          Upgrade ✨
-        </a>
-        {% endif %}
         {% endwith %}
 
         <!-- Create -->

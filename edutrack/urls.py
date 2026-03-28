@@ -47,7 +47,6 @@ urlpatterns = [
     path("", include("scheduler.urls")),
     path("", include("tracker.urls")),
     path("", include("reports.urls")),
-    path("", include("payments.urls")),
     path("", include("courses.urls")),
     path("", include("planning.urls")),
     path("", root_redirect, name="home"),

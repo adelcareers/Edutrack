@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import sys
 import warnings
 from pathlib import Path
 
@@ -76,7 +77,6 @@ INSTALLED_APPS = [
     "scheduler",
     "tracker",
     "reports",
-    "payments",
     "courses",
     "planning",
 ]
@@ -148,6 +148,16 @@ else:
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": str(BASE_DIR / "db.sqlite3"),
         }
+    }
+
+# Override to SQLite in-memory when running the test suite.
+# Avoids Neon network latency (~10x speedup) and mid-run SSL drops.
+# CI already sets DATABASE_URL to a sqlite:// URL so this is a no-op there.
+# Production is never affected — Heroku doesn't run manage.py test.
+if "test" in sys.argv:
+    DATABASES["default"] = {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": ":memory:",
     }
 
 
