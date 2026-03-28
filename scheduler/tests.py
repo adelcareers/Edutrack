@@ -213,12 +213,12 @@ class ChildDetailCourseEnrollmentTests(TestCase):
         self.course_math = Course.objects.create(
             parent=self.parent,
             name="Math",
-            default_days="0,2,4",
+            default_days=[0, 2, 4],
         )
         self.course_science = Course.objects.create(
             parent=self.parent,
             name="Science",
-            default_days="1,3",
+            default_days=[1, 3],
         )
 
     def test_child_detail_can_enroll_multiple_courses(self):
@@ -234,10 +234,10 @@ class ChildDetailCourseEnrollmentTests(TestCase):
         enrollments = CourseEnrollment.objects.filter(child=self.child, status="active")
         self.assertEqual(enrollments.count(), 2)
         self.assertTrue(
-            enrollments.filter(course=self.course_math, days_of_week="0,2,4").exists()
+            enrollments.filter(course=self.course_math, days_of_week=[0, 2, 4]).exists()
         )
         self.assertTrue(
-            enrollments.filter(course=self.course_science, days_of_week="1,3").exists()
+            enrollments.filter(course=self.course_science, days_of_week=[1, 3]).exists()
         )
 
     def test_child_detail_skips_duplicate_active_enrollment(self):
@@ -245,7 +245,7 @@ class ChildDetailCourseEnrollmentTests(TestCase):
             course=self.course_math,
             child=self.child,
             start_date=datetime.date.today(),
-            days_of_week="0,2,4",
+            days_of_week=[0, 2, 4],
             status="active",
         )
 
@@ -812,7 +812,7 @@ class ImportedSubjectSchedulingTests(TestCase):
             key_stage="Custom",
             lessons_per_week=2,
             colour_hex="#3A86FF",
-            days_of_week="0,1,2,3,4",
+            days_of_week=[0, 1, 2, 3, 4],
         )
 
     def test_generate_schedule_uses_canonical_source_subject_name(self):
