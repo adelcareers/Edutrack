@@ -7,201 +7,263 @@
 {% block extra_css %}
 <style>
   .plan-detail-wrap {
-    max-width: 1100px;
+    max-width: 1180px;
     margin: 0 auto;
   }
   .plan-header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 1rem;
     margin-bottom: 1rem;
   }
   .plan-course-pill {
-    background: #3f3f8f;
-    color: #fff;
-    font-weight: 700;
-    font-size: 0.9rem;
-    padding: 0.55rem 1.3rem;
-    border-radius: 10px;
-  }
-  .plan-search {
-    flex: 1;
-  }
-  .plan-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-  .btn-select-all {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #6b7280;
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-  }
-  .btn-new-assign {
-    background: #5b6af8;
-    border: none;
+    gap: 0.5rem;
+    background: #1d3557;
     color: #fff;
-    font-weight: 600;
-    font-size: 0.8rem;
-    padding: 0.45rem 1rem;
-    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.92rem;
+    padding: 0.6rem 1.2rem;
+    border-radius: 999px;
   }
-
+  .plan-header-meta {
+    color: #6b7280;
+    font-size: 0.85rem;
+  }
   .plan-layout {
     display: grid;
-    grid-template-columns: 230px 1fr;
+    grid-template-columns: 260px 1fr;
     gap: 1.5rem;
   }
-  .week-sidebar {
+  .week-sidebar,
+  .plan-panel,
+  .workflow-form {
     background: #fff;
-    border: 1px solid #e9ecef;
-    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+  }
+  .week-sidebar {
     padding: 1rem;
   }
   .week-sidebar-head {
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
     font-weight: 600;
     color: #374151;
   }
   .week-grid {
     display: grid;
-    gap: 0.35rem 0.5rem;
+    gap: 0.4rem 0.55rem;
   }
-  .week-label { font-size: 0.72rem; color: #9ca3af; }
+  .week-row {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+  .week-label {
+    width: 28px;
+    font-size: 0.72rem;
+    color: #9ca3af;
+  }
   .week-dot {
     width: 18px;
     height: 18px;
     border-radius: 6px;
-    border: 1px solid #e5e7eb;
+    border: 1px solid #d1d5db;
     background: #fff;
     display: inline-block;
   }
-  .week-dot.active { background: #c7cdfc; border-color: #a5b4fc; }
-
-  .plan-panel {
-    background: #fff;
-    border: 1px solid #e9ecef;
-    border-radius: 12px;
-    padding: 1rem 1.25rem 1.5rem;
+  .week-dot.active {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
   }
-  .plan-tabs {
+  .plan-panel {
+    padding: 1rem 1.2rem 1.25rem;
+  }
+  .workflow-tabs,
+  .scope-tabs {
     display: flex;
-    gap: 1.5rem;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+  }
+  .workflow-tabs {
+    margin-bottom: 1rem;
     border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 0.85rem;
+  }
+  .workflow-tab,
+  .scope-tab {
+    text-decoration: none;
+    color: #6b7280;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 999px;
+    padding: 0.45rem 0.85rem;
+  }
+  .workflow-tab.active,
+  .scope-tab.active {
+    color: #0f172a;
+    background: #e0ecff;
+  }
+  .panel-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
     margin-bottom: 1rem;
   }
-  .plan-tabs span {
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: #9ca3af;
-    padding-bottom: 0.5rem;
-  }
-  .plan-tabs a {
-    text-decoration: none;
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: #9ca3af;
-    padding-bottom: 0.5rem;
-  }
-  .plan-tabs span.active {
-    color: #4f46e5;
-    border-bottom: 2px solid #4f46e5;
-  }
-  .plan-tabs a.active {
-    color: #4f46e5;
-    border-bottom: 2px solid #4f46e5;
-  }
-
-  .assignment-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    padding: 0.6rem 0.9rem;
-    margin-bottom: 0.65rem;
-  }
-  .assignment-row .pill {
-    background: #e5e7eb;
-    border-radius: 999px;
-    padding: 0.2rem 0.7rem;
-    font-size: 0.75rem;
+  .panel-title {
+    font-size: 1rem;
     font-weight: 700;
+    color: #111827;
+    margin: 0;
+  }
+  .panel-subtitle {
+    font-size: 0.82rem;
     color: #6b7280;
   }
+  .btn-create {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: none;
+    border-radius: 999px;
+    padding: 0.55rem 1rem;
+    background: #2563eb;
+    color: #fff;
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+  .plan-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 0.8rem;
+  }
+  .plan-item-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  .plan-item-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 0.25rem;
+  }
+  .plan-item-meta {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    color: #6b7280;
+    font-size: 0.77rem;
+  }
+  .plan-item-notes {
+    margin-top: 0.6rem;
+    font-size: 0.82rem;
+    color: #4b5563;
+  }
+  .pill,
   .status-pill {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    padding: 0.2rem 0.7rem;
     border-radius: 999px;
+    padding: 0.18rem 0.6rem;
     font-size: 0.72rem;
     font-weight: 700;
-    text-transform: capitalize;
   }
-  .status-pill.pending { background: #e5e7eb; color: #6b7280; }
-  .status-pill.complete { background: #dcfce7; color: #16a34a; }
-  .status-pill.overdue { background: #fee2e2; color: #dc2626; }
-  .status-pill.not-assigned { background: #f3f4f6; color: #9ca3af; }
-  .assignment-actions {
-    display: inline-flex;
+  .pill {
+    background: #e5e7eb;
+    color: #4b5563;
+  }
+  .pill.source-oak {
+    background: #dcfce7;
+    color: #166534;
+  }
+  .pill.source-imported {
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
+  .pill.source-manual {
+    background: #fef3c7;
+    color: #b45309;
+  }
+  .status-pill.pending {
+    background: #e5e7eb;
+    color: #6b7280;
+  }
+  .status-pill.complete {
+    background: #dcfce7;
+    color: #15803d;
+  }
+  .status-pill.overdue {
+    background: #fee2e2;
+    color: #dc2626;
+  }
+  .item-actions {
+    display: flex;
+    gap: 0.5rem;
     align-items: center;
-    gap: 0.4rem;
   }
-  .assignment-actions a,
-  .assignment-actions button {
+  .item-actions a,
+  .item-actions button {
     border: none;
     background: transparent;
     color: #6b7280;
-    font-size: 0.85rem;
+    font-size: 0.95rem;
   }
-
-  .assignment-form {
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    padding: 1rem;
+  .empty-state {
+    border: 1px dashed #cbd5e1;
+    border-radius: 14px;
+    padding: 1.25rem;
+    text-align: center;
+    color: #64748b;
+  }
+  .workflow-form {
     margin-top: 1rem;
+    padding: 1rem 1.1rem 1.2rem;
   }
-  .assignment-form label { font-size: 0.75rem; font-weight: 700; color: #6b7280; }
-  .assignment-form .form-control,
-  .assignment-form .form-select {
-    height: 34px;
-    font-size: 0.82rem;
+  .workflow-form label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #6b7280;
+    margin-bottom: 0.35rem;
+  }
+  .workflow-form .form-control,
+  .workflow-form .form-select {
+    font-size: 0.84rem;
   }
   .rich-tabs {
     display: flex;
-    gap: 1.5rem;
+    gap: 1rem;
     border-bottom: 1px solid #e5e7eb;
-    margin-bottom: 0.75rem;
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: #6b7280;
+    margin-bottom: 0.8rem;
   }
   .rich-tabs button {
     border: none;
     background: transparent;
     padding: 0.35rem 0;
+    font-size: 0.8rem;
+    font-weight: 700;
     color: #6b7280;
   }
   .rich-tabs button.active {
-    color: #4f46e5;
-    border-bottom: 2px solid #4f46e5;
+    color: #2563eb;
+    border-bottom: 2px solid #2563eb;
   }
   .rich-toolbar {
     display: flex;
+    gap: 0.45rem;
     align-items: center;
-    gap: 0.6rem;
     border: 1px solid #e5e7eb;
     border-bottom: none;
-    border-radius: 10px 10px 0 0;
-    padding: 0.5rem 0.75rem;
-    background: #fff;
+    border-radius: 12px 12px 0 0;
+    padding: 0.5rem 0.7rem;
   }
   .rich-toolbar button {
     border: none;
@@ -211,28 +273,61 @@
   }
   .rich-editor {
     border: 1px solid #e5e7eb;
-    border-radius: 0 0 10px 10px;
-    min-height: 140px;
+    border-radius: 0 0 12px 12px;
+    min-height: 135px;
     padding: 0.75rem;
-    font-size: 0.85rem;
+    font-size: 0.84rem;
   }
-  .rich-editor:focus {
-    outline: none;
-    border-color: #c7cdfc;
-    box-shadow: 0 0 0 2px rgba(91, 106, 248, 0.15);
+  .detail-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 0.85rem 1rem;
+    margin-top: 1rem;
+    background: #f8fafc;
   }
-  .attachment-drop {
-    border: 1px dashed #cbd5f5;
-    border-radius: 10px;
-    padding: 0.75rem;
-    background: #f8f9ff;
-    font-size: 0.78rem;
-    color: #6b7280;
-    transition: border-color 0.15s ease, background 0.15s ease;
+  .detail-card summary {
+    cursor: pointer;
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: #374151;
   }
-  .attachment-drop.is-dragover {
-    border-color: #5b6af8;
-    background: #eef2ff;
+  .student-row,
+  .activity-row {
+    border-top: 1px solid #e5e7eb;
+    padding: 0.85rem 0;
+  }
+  .student-row:first-child,
+  .activity-row:first-child {
+    border-top: none;
+  }
+  .student-row-main,
+  .activity-row-main {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: center;
+  }
+  .student-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-weight: 600;
+    color: #111827;
+  }
+  .student-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #dbeafe;
+    color: #1d4ed8;
+    font-weight: 700;
+    font-size: 0.8rem;
+  }
+  .activity-extra {
+    margin-top: 0.75rem;
   }
   .attachment-list {
     list-style: none;
@@ -240,73 +335,18 @@
     margin: 0.5rem 0 0;
   }
   .attachment-list li {
-    font-size: 0.78rem;
-    color: #4b5563;
+    font-size: 0.77rem;
     margin-bottom: 0.25rem;
   }
-  .student-assignments {
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    padding: 0.75rem 0.9rem;
+  .form-actions {
+    display: flex;
+    justify-content: space-between;
     margin-top: 1rem;
-    background: #f8f9ff;
   }
-  .student-assignments summary {
-    list-style: none;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 0.85rem;
-    color: #374151;
-  }
-  .student-assignments summary::-webkit-details-marker { display: none; }
-  .student-assignments .summary-icon {
-    font-size: 1rem;
-    color: #6b7280;
-  }
-  .student-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding: 0.6rem 0;
-    border-bottom: 1px solid #e5e7eb;
-  }
-  .student-row:last-child { border-bottom: none; }
-  .student-meta {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    font-size: 0.85rem;
-    color: #374151;
-  }
-  .student-avatar {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: #5b6af8;
-    color: #fff;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 0.75rem;
-  }
-  .student-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.78rem;
-    color: #6b7280;
-  }
-  .student-status select {
-    font-size: 0.78rem;
-    padding: 0.2rem 0.35rem;
-  }
-  .student-status .status-pill {
-    margin-right: 0.4rem;
+  @media (max-width: 991px) {
+    .plan-layout {
+      grid-template-columns: 1fr;
+    }
   }
 </style>
 {% endblock %}
@@ -314,281 +354,354 @@
 {% block content %}
 <div class="container mt-4 plan-detail-wrap">
   <div class="plan-header">
-    <div class="plan-course-pill">{{ course.name }}</div>
-    <input type="text" class="form-control plan-search" placeholder="Search Plan Items">
-    <div class="plan-actions">
-      <span class="btn-select-all"><i class="bi bi-check2-square"></i>Select All</span>
-      <div class="dropdown">
-        <button class="btn-new-assign dropdown-toggle" data-bs-toggle="dropdown">New Item</button>
-        <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-          <li><a class="dropdown-item" href="?create=1&week={{ selected_week }}&day={{ selected_day }}&view={{ view_mode }}">New Plan Item</a></li>
-        </ul>
-      </div>
+    <div>
+      <span class="plan-course-pill">{{ course.name }}</span>
+      <div class="plan-header-meta mt-2">{{ course.duration_weeks }} weeks • {{ course.frequency_days }} days per week</div>
     </div>
+    <a class="btn btn-light" href="{% url 'planning:plan_sessions' %}">Back to Planning</a>
   </div>
 
   <div class="plan-layout">
-    <div class="week-sidebar">
+    <aside class="week-sidebar">
       <div class="week-sidebar-head">
-        <span>Week {{ selected_week }}, Day {{ selected_day }}</span>
-        <span>
-          <i class="bi bi-chevron-left"></i>
-          <i class="bi bi-chevron-right"></i>
-        </span>
+        <span>Course Grid</span>
+        <span>{{ selected_week }}/{{ course.duration_weeks }}</span>
       </div>
-      <div class="week-grid" style="grid-template-columns: 24px repeat({{ days|length }}, 20px);">
+      <div class="week-grid">
         {% for week in weeks %}
-          <span class="week-label">{{ week }}</span>
-          {% for day in days %}
-            <a class="week-dot {% if week == selected_week and day == selected_day %}active{% endif %}" href="?week={{ week }}&day={{ day }}"></a>
-          {% endfor %}
+          <div class="week-row">
+            <span class="week-label">W{{ week }}</span>
+            {% for day in days %}
+              <a
+                class="week-dot {% if week == selected_week and day == selected_day %}active{% endif %}"
+                href="?week={{ week }}&day={{ day }}&workflow={{ workflow }}&scope={{ scope }}"
+                aria-label="Week {{ week }} Day {{ day }}"
+              ></a>
+            {% endfor %}
+          </div>
         {% endfor %}
       </div>
-    </div>
+    </aside>
 
-    <div class="plan-panel">
-      <div class="plan-tabs">
-        <a class="{% if view_mode == 'day' %}active{% endif %}" href="?week={{ selected_week }}&day={{ selected_day }}&view=day">Week {{ selected_week }}, Day {{ selected_day }} ({{ day_count }})</a>
-        <a class="{% if view_mode == 'unscheduled' %}active{% endif %}" href="?week={{ selected_week }}&day={{ selected_day }}&view=unscheduled">Unscheduled ({{ unscheduled_count }})</a>
-        <a class="{% if view_mode == 'all' %}active{% endif %}" href="?week={{ selected_week }}&day={{ selected_day }}&view=all">All ({{ all_count }})</a>
+    <section class="plan-panel">
+      <div class="workflow-tabs">
+        {% for tab in workflow_tabs %}
+          <a class="workflow-tab {% if workflow == tab.key %}active{% endif %}" href="?week={{ selected_week }}&day={{ selected_day }}&workflow={{ tab.key }}&scope={{ scope }}">
+            {{ tab.label }} ({{ tab.count }})
+          </a>
+        {% endfor %}
+      </div>
+
+      <div class="panel-toolbar">
+        <div>
+          <p class="panel-title mb-1">
+            {% if workflow == 'lessons' %}Lesson Planning{% elif workflow == 'activities' %}Activity Planning{% else %}Assignment Planning{% endif %}
+          </p>
+          <div class="scope-tabs">
+            <a class="scope-tab {% if scope == 'day' %}active{% endif %}" href="?week={{ selected_week }}&day={{ selected_day }}&workflow={{ workflow }}&scope=day">Week {{ selected_week }}, Day {{ selected_day }} ({{ scope_day_count }})</a>
+            <a class="scope-tab {% if scope == 'all' %}active{% endif %}" href="?week={{ selected_week }}&day={{ selected_day }}&workflow={{ workflow }}&scope=all">All {{ workflow|title }} ({{ scope_all_count }})</a>
+          </div>
+        </div>
+        <a class="btn-create" href="?week={{ selected_week }}&day={{ selected_day }}&workflow={{ workflow }}&scope={{ scope }}&create=1">
+          <i class="bi bi-plus-lg"></i>
+          {% if workflow == 'lessons' %}Add Lesson{% elif workflow == 'activities' %}Add Activity{% else %}Add Assignment{% endif %}
+        </a>
       </div>
 
       {% for item in plan_items %}
-      <div class="assignment-row">
-        <div>
-          <input type="checkbox" class="form-check-input me-2">
-          {{ item.template.name }}
-          {% if item.template.item_kind == 'lesson' and item.lesson_child and item.lesson_enrolled_subject %}
-            <span class="text-muted ms-2" style="font-size: 0.78rem;">{{ item.lesson_child.first_name }} - {{ item.lesson_enrolled_subject.subject_name }}</span>
+        <div class="plan-item">
+          <div class="plan-item-head">
+            <div>
+              <div class="plan-item-title">{{ item.template.name }}</div>
+              <div class="plan-item-meta">
+                <span class="pill">Week {{ item.week_number }} / Day {{ item.day_number }}</span>
+                {% with status=plan_status_map|get_item:item.id %}
+                  {% if status %}
+                    <span class="status-pill {{ status }}">{{ status }}</span>
+                  {% endif %}
+                {% endwith %}
+                {% if item.template.assignment_type %}
+                  <span class="pill" style="background: {{ item.template.assignment_type.color }}22; color: #374151;">{{ item.template.assignment_type.name }}</span>
+                {% endif %}
+                {% if item.template.item_kind == 'lesson' and item.lesson_child and item.lesson_enrolled_subject %}
+                  <span class="pill">{{ item.lesson_child.first_name }} • {{ item.lesson_enrolled_subject.subject_name }}</span>
+                  {% with provenance=lesson_provenance_map|get_item:item.id %}
+                    {% if provenance %}
+                      <span class="pill source-{{ provenance|get_item:'css' }}">{{ provenance|get_item:'label' }}</span>
+                    {% endif %}
+                  {% endwith %}
+                {% endif %}
+                {% if item.template.item_kind == 'assignment' %}
+                  <span class="pill">Due in {{ item.due_in_days }} day{{ item.due_in_days|pluralize }}</span>
+                {% endif %}
+              </div>
+              {% if item.template.description %}
+                <div class="plan-item-notes">{{ item.template.description|safe }}</div>
+              {% endif %}
+            </div>
+            <div class="item-actions">
+              <a href="?week={{ selected_week }}&day={{ selected_day }}&workflow={{ workflow }}&scope={{ scope }}&edit={{ item.id }}&create=1" title="Edit"><i class="bi bi-pencil"></i></a>
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="delete_id" value="{{ item.id }}">
+                <input type="hidden" name="workflow" value="{{ workflow }}">
+                <input type="hidden" name="scope" value="{{ scope }}">
+                <input type="hidden" name="week_number" value="{{ selected_week }}">
+                <input type="hidden" name="day_number" value="{{ selected_day }}">
+                <button type="submit" title="Delete"><i class="bi bi-trash"></i></button>
+              </form>
+            </div>
+          </div>
+          {% if item.notes %}
+            <div class="plan-item-notes mt-2">{{ item.notes|safe }}</div>
           {% endif %}
         </div>
-        <div class="assignment-actions">
-          {% with status=plan_status_map|get_item:item.id %}
-            {% if status %}
-              <span class="status-pill {{ status }}">{{ status }}</span>
-            {% endif %}
-          {% endwith %}
-          <span class="pill" style="background: #e2e8f0; color: #334155;">{{ item.template.get_item_kind_display }}</span>
-          {% if item.template.assignment_type %}
-            <span class="pill" style="background: {{ item.template.assignment_type.color }}33; color: #374151;">
-              {{ item.template.assignment_type.name }}
-            </span>
-          {% endif %}
-          <a href="?edit={{ item.id }}&create=1&week={{ selected_week }}&day={{ selected_day }}&view={{ view_mode }}" title="Edit"><i class="bi bi-pencil"></i></a>
-          <form method="post" class="d-inline">
-            {% csrf_token %}
-            <input type="hidden" name="delete_id" value="{{ item.id }}">
-            <button type="submit" title="Delete"><i class="bi bi-trash"></i></button>
-          </form>
-        </div>
-      </div>
       {% empty %}
-      <a class="assignment-row" style="opacity: 0.7; text-decoration: none; color: inherit;" href="?create=1&week={{ selected_week }}&day={{ selected_day }}&view={{ view_mode }}">
-        <span><i class="bi bi-plus-lg"></i> New Plan Item</span>
-      </a>
+        <div class="empty-state">
+          No {{ workflow }} yet for this view.
+        </div>
       {% endfor %}
 
       {% if create_mode %}
-      <form method="post" class="assignment-form" enctype="multipart/form-data">
-        {% csrf_token %}
-        {% if editing_item %}
-          <input type="hidden" name="plan_item_id" value="{{ editing_item.id }}">
-        {% endif %}
-        <div class="row g-3">
-          <div class="col-md-3">
-            <label>Select Week</label>
-            <select class="form-select" name="week_number">
-              {% for week in weeks %}
-                <option value="{{ week }}" {% if editing_item and week == editing_item.week_number %}selected{% elif not editing_item and week == selected_week %}selected{% endif %}>Week {{ week }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-3">
-            <label>Select Day</label>
-            <select class="form-select" name="day_number">
-              {% for day in days %}
-                <option value="{{ day }}" {% if editing_item and day == editing_item.day_number %}selected{% elif not editing_item and day == selected_day %}selected{% endif %}>Day {{ day }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-3">
-            <label>Item Kind</label>
-            <select class="form-select" name="item_kind" id="item_kind_select">
-              {% for item_kind, item_label in item_kind_choices %}
-                <option value="{{ item_kind }}" {% if editing_item and editing_item.template.item_kind == item_kind %}selected{% elif not editing_item and item_kind == 'assignment' %}selected{% endif %}>{{ item_label }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-3 assignment-only-field" id="assignment_type_wrapper">
-            <label>Assignment Type</label>
-            <select class="form-select" name="assignment_type">
-              {% if assignment_types %}
-                {% for at in assignment_types %}
-                  <option value="{{ at.id }}" {% if editing_item and editing_item.template.assignment_type and at.id == editing_item.template.assignment_type.id %}selected{% endif %}>{{ at.name }}</option>
+        <form method="post" class="workflow-form assignment-form" enctype="multipart/form-data">
+          {% csrf_token %}
+          {% if editing_item %}
+            <input type="hidden" name="plan_item_id" value="{{ editing_item.id }}">
+          {% endif %}
+          <input type="hidden" name="workflow" value="{{ workflow }}">
+          <input type="hidden" name="scope" value="{{ scope }}">
+          <input type="hidden" name="item_kind" value="{% if workflow == 'lessons' %}lesson{% elif workflow == 'activities' %}activity{% else %}assignment{% endif %}">
+
+          <div class="row g-3">
+            <div class="col-md-3">
+              <label for="week_number">Week</label>
+              <select class="form-select" name="week_number" id="week_number">
+                {% for week in weeks %}
+                  <option value="{{ week }}" {% if editing_item and week == editing_item.week_number %}selected{% elif not editing_item and week == selected_week %}selected{% endif %}>Week {{ week }}</option>
                 {% endfor %}
-              {% else %}
-                <option value="" selected disabled>No assignment types enabled for this course</option>
-              {% endif %}
-            </select>
-            {% if not assignment_types %}
-              <div class="small text-muted mt-1">Enable assignment types from Course settings.</div>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label for="day_number">Day</label>
+              <select class="form-select" name="day_number" id="day_number">
+                {% for day in days %}
+                  <option value="{{ day }}" {% if editing_item and day == editing_item.day_number %}selected{% elif not editing_item and day == selected_day %}selected{% endif %}>Day {{ day }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="assignment_name">
+                {% if workflow == 'lessons' %}Lesson Title{% elif workflow == 'activities' %}Activity Title{% else %}Assignment Title{% endif %}
+              </label>
+              <input type="text" class="form-control" name="assignment_name" id="assignment_name" value="{% if editing_item %}{{ editing_item.template.name }}{% endif %}" required>
+            </div>
+          </div>
+
+          {% if workflow == 'assignments' %}
+            <div class="row g-3 mt-1">
+              <div class="col-md-6">
+                <label for="assignment_type">Assignment Type</label>
+                <select class="form-select" name="assignment_type" id="assignment_type">
+                  {% if assignment_types %}
+                    {% for at in assignment_types %}
+                      <option value="{{ at.id }}" {% if editing_item and editing_item.template.assignment_type and at.id == editing_item.template.assignment_type.id %}selected{% endif %}>{{ at.name }}</option>
+                    {% endfor %}
+                  {% else %}
+                    <option value="" selected disabled>No assignment types enabled</option>
+                  {% endif %}
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label for="due_in_days">Due Offset</label>
+                <input type="number" class="form-control" name="due_in_days" id="due_in_days" min="0" value="{% if editing_item %}{{ editing_item.due_in_days }}{% else %}0{% endif %}">
+              </div>
+              <div class="col-md-3 d-flex align-items-end">
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" name="is_graded" id="is_graded" {% if editing_item and editing_item.template.is_graded %}checked{% endif %}>
+                  <label class="form-check-label" for="is_graded">Graded</label>
+                </div>
+              </div>
+            </div>
+          {% endif %}
+
+          {% if workflow == 'lessons' %}
+            <div class="row g-3 mt-1">
+              <div class="col-md-6">
+                <label for="lesson_child_select">Student</label>
+                <select class="form-select" name="lesson_child_id" id="lesson_child_select">
+                  <option value="">Select student</option>
+                  {% for child in lesson_child_options %}
+                    <option value="{{ child.id }}" {% if editing_item and editing_item.lesson_child and editing_item.lesson_child.id == child.id %}selected{% endif %}>{{ child.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label for="lesson_subject_select">Subject</label>
+                <select class="form-select" name="lesson_subject_id" id="lesson_subject_select">
+                  <option value="">Select subject</option>
+                  {% for subject in lesson_subject_options %}
+                    <option
+                      value="{{ subject.id }}"
+                      data-child-id="{{ subject.child_id }}"
+                      {% if editing_item and editing_item.lesson_enrolled_subject and editing_item.lesson_enrolled_subject.id == subject.id %}selected{% endif %}
+                    >
+                      {{ subject.subject_name }}{% if subject.source_year %} • {{ subject.source_year }}{% endif %}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            {% if editing_item and editing_item.template.item_kind == 'lesson' %}
+              {% with provenance=lesson_provenance_map|get_item:editing_item.id %}
+                {% if provenance %}
+                  <div class="mt-3">
+                    <span class="pill source-{{ provenance|get_item:'css' }}">Source: {{ provenance|get_item:'label' }}</span>
+                  </div>
+                {% endif %}
+              {% endwith %}
             {% endif %}
-            <div class="form-check mt-2 assignment-only-field" id="is_graded_wrapper">
-              <input class="form-check-input" type="checkbox" name="is_graded" id="is_graded" {% if editing_item and editing_item.template.is_graded %}checked{% endif %}>
-              <label class="form-check-label" for="is_graded" style="font-size: 0.78rem;">Graded</label>
+          {% endif %}
+
+          <div class="mt-3">
+            <div class="rich-tabs" role="tablist">
+              <button type="button" class="active" data-tab="description">Description</button>
+              <button type="button" data-tab="attachments">Attachments ({{ editing_attachments|length }})</button>
+              <button type="button" data-tab="notes">Teacher Notes</button>
             </div>
-          </div>
-        </div>
 
-        <div class="row g-3 mt-2 lesson-only-field" id="lesson_fields_wrapper" style="display:none;">
-          <div class="col-md-6">
-            <label>Student</label>
-            <select class="form-select" name="lesson_child_id" id="lesson_child_select">
-              <option value="">Select student</option>
-              {% for child in lesson_child_options %}
-                <option value="{{ child.id }}" {% if editing_item and editing_item.lesson_child and editing_item.lesson_child.id == child.id %}selected{% endif %}>{{ child.name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-6">
-            <label>Subject</label>
-            <select class="form-select" name="lesson_subject_id" id="lesson_subject_select">
-              <option value="">Select subject</option>
-              {% for subject in lesson_subject_options %}
-                <option
-                  value="{{ subject.id }}"
-                  data-child-id="{{ subject.child_id }}"
-                  {% if editing_item and editing_item.lesson_enrolled_subject and editing_item.lesson_enrolled_subject.id == subject.id %}selected{% endif %}
-                >{{ subject.subject_name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-        </div>
-
-        <div class="row g-3 mt-2">
-          <div class="col-md-8">
-            <label>Item Name (Required)</label>
-            <input type="text" class="form-control" name="assignment_name" placeholder="New Item" value="{% if editing_item %}{{ editing_item.template.name }}{% endif %}" required>
-          </div>
-          <div class="col-md-4 assignment-only-field" id="due_in_wrapper">
-            <label>Due In</label>
-            <div class="d-flex align-items-center gap-2">
-              <input type="number" class="form-control" name="due_in_days" min="0" value="{% if editing_item %}{{ editing_item.due_in_days }}{% else %}0{% endif %}">
-              <span style="font-size: 0.8rem; color: #6b7280;">day(s)</span>
+            <div class="rich-pane" data-pane="description">
+              <div class="rich-toolbar" data-editor="description">
+                <button type="button" data-cmd="bold"><i class="bi bi-type-bold"></i></button>
+                <button type="button" data-cmd="italic"><i class="bi bi-type-italic"></i></button>
+                <button type="button" data-cmd="underline"><i class="bi bi-type-underline"></i></button>
+                <button type="button" data-cmd="insertUnorderedList"><i class="bi bi-list-ul"></i></button>
+                <button type="button" data-cmd="insertOrderedList"><i class="bi bi-list-ol"></i></button>
+                <button type="button" data-cmd="createLink"><i class="bi bi-link-45deg"></i></button>
+              </div>
+              <div class="rich-editor" contenteditable="true" data-editor="description">{% if editing_item %}{{ editing_item.template.description|safe }}{% endif %}</div>
+              <input type="hidden" name="description" data-input="description">
             </div>
-          </div>
-        </div>
 
-        <div class="mt-3">
-          <div class="rich-tabs" role="tablist">
-            <button type="button" class="active" data-tab="description">Description</button>
-            <button type="button" data-tab="attachments">Attachments ({{ editing_attachments|length }})</button>
-            <button type="button" data-tab="notes">Teacher's Notes</button>
-          </div>
-
-          <div class="rich-pane" data-pane="description">
-            <div class="rich-toolbar" data-editor="description">
-              <span style="font-size: 0.78rem; color: #6b7280;">Normal</span>
-              <button type="button" data-cmd="bold"><i class="bi bi-type-bold"></i></button>
-              <button type="button" data-cmd="italic"><i class="bi bi-type-italic"></i></button>
-              <button type="button" data-cmd="underline"><i class="bi bi-type-underline"></i></button>
-              <button type="button" data-cmd="insertUnorderedList"><i class="bi bi-list-ul"></i></button>
-              <button type="button" data-cmd="insertOrderedList"><i class="bi bi-list-ol"></i></button>
-              <button type="button" data-cmd="createLink"><i class="bi bi-link-45deg"></i></button>
+            <div class="rich-pane" data-pane="attachments" style="display:none;">
+              <label for="attachments">Plan Attachments</label>
+              <input type="file" class="form-control" name="attachments" id="attachments" multiple>
+              {% if editing_attachments %}
+                <ul class="attachment-list">
+                  {% for attachment in editing_attachments %}
+                    <li><a href="{{ attachment.file.url }}" target="_blank" rel="noopener noreferrer">{{ attachment.original_name|default:attachment.file.name }}</a></li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
             </div>
-            <div class="rich-editor" contenteditable="true" data-editor="description">{% if editing_item %}{{ editing_item.template.description|safe }}{% endif %}</div>
-            <input type="hidden" name="description" data-input="description">
-          </div>
 
-          <div class="rich-pane" data-pane="attachments" style="display: none;">
-            <div class="attachment-drop">
-              <strong>Drop files here</strong> or click to upload
-              <input type="file" class="form-control mt-2" name="attachments" multiple>
-              <ul class="attachment-list">
-                {% for attachment in editing_attachments %}
-                  <li>
-                    <a href="{{ attachment.file.url }}" target="_blank" rel="noopener noreferrer">
-                      {{ attachment.original_name|default:attachment.file.name }}
-                    </a>
-                  </li>
-                {% endfor %}
-              </ul>
+            <div class="rich-pane" data-pane="notes" style="display:none;">
+              <div class="rich-toolbar" data-editor="notes">
+                <button type="button" data-cmd="bold"><i class="bi bi-type-bold"></i></button>
+                <button type="button" data-cmd="italic"><i class="bi bi-type-italic"></i></button>
+                <button type="button" data-cmd="underline"><i class="bi bi-type-underline"></i></button>
+                <button type="button" data-cmd="insertUnorderedList"><i class="bi bi-list-ul"></i></button>
+                <button type="button" data-cmd="insertOrderedList"><i class="bi bi-list-ol"></i></button>
+                <button type="button" data-cmd="createLink"><i class="bi bi-link-45deg"></i></button>
+              </div>
+              <div class="rich-editor" contenteditable="true" data-editor="notes">{% if editing_item %}{{ editing_item.notes|safe }}{% endif %}</div>
+              <input type="hidden" name="teacher_notes" data-input="notes">
             </div>
           </div>
 
-          <div class="rich-pane" data-pane="notes" style="display: none;">
-            <div class="rich-toolbar" data-editor="notes">
-              <span style="font-size: 0.78rem; color: #6b7280;">Normal</span>
-              <button type="button" data-cmd="bold"><i class="bi bi-type-bold"></i></button>
-              <button type="button" data-cmd="italic"><i class="bi bi-type-italic"></i></button>
-              <button type="button" data-cmd="underline"><i class="bi bi-type-underline"></i></button>
-              <button type="button" data-cmd="insertUnorderedList"><i class="bi bi-list-ul"></i></button>
-              <button type="button" data-cmd="insertOrderedList"><i class="bi bi-list-ol"></i></button>
-              <button type="button" data-cmd="createLink"><i class="bi bi-link-45deg"></i></button>
-            </div>
-            <div class="rich-editor" contenteditable="true" data-editor="notes">{% if editing_item %}{{ editing_item.notes|safe }}{% endif %}</div>
-            <input type="hidden" name="teacher_notes" data-input="notes">
-          </div>
-        </div>
-
-        <details class="student-assignments assignment-only-field" id="student_assignments_wrapper" open>
-          <summary>
-            <span>Student Assignments</span>
-            <i class="bi bi-chevron-down summary-icon"></i>
-          </summary>
-          <div class="mt-2">
-            <input type="hidden" name="assign_enrollment_selection_present" value="1">
-            {% if enrollment_rows %}
+          {% if workflow == 'assignments' %}
+            <details class="detail-card" open>
+              <summary>Student Assignment Delivery</summary>
+              <input type="hidden" name="assign_enrollment_selection_present" value="1">
               {% for row in enrollment_rows %}
-                <div class="student-row" data-has-assignment="{% if row.student_assignment %}1{% else %}0{% endif %}">
-                  <div class="student-meta">
-                    <label class="d-inline-flex align-items-center gap-2 mb-0">
-                      <input
-                        type="checkbox"
-                        class="form-check-input student-assign-toggle"
-                        name="assign_enrollment_ids"
-                        value="{{ row.enrollment.id }}"
-                        {% if row.assigned %}checked{% endif %}
-                      >
+                <div class="student-row">
+                  <div class="student-row-main">
+                    <label class="student-name mb-0">
+                      <input type="checkbox" class="form-check-input" name="assign_enrollment_ids" value="{{ row.enrollment.id }}" {% if row.assigned %}checked{% endif %}>
                       <span class="student-avatar">{{ row.enrollment.child.first_name|slice:':1' }}</span>
                       <span>{{ row.enrollment.child.first_name }}</span>
                     </label>
-                    {% if row.student_assignment %}
-                      <span style="color:#9ca3af; font-size:0.75rem;">{{ row.student_assignment.due_date|date:"D, M j" }}</span>
-                    {% else %}
-                      <span style="color:#9ca3af; font-size:0.75rem;">Not assigned</span>
-                    {% endif %}
-                  </div>
-                  <div class="student-status">
-                    {% if row.student_assignment %}
-                      <span class="status-pill {{ row.student_assignment.status }}">{{ row.student_assignment.status }}</span>
-                    {% else %}
-                      <span class="status-pill not-assigned student-status-pill">not assigned</span>
-                    {% endif %}
-                    <select
-                      class="form-select student-status-select"
-                      {% if not row.student_assignment %}disabled{% endif %}
-                      {% if row.student_assignment %}name="student_status_{{ row.student_assignment.id }}"{% endif %}
-                    >
-                      <option value="pending" {% if row.student_assignment and row.student_assignment.status == 'pending' %}selected{% endif %}>Pending</option>
-                      <option value="complete" {% if row.student_assignment and row.student_assignment.status == 'complete' %}selected{% endif %}>Complete</option>
-                    </select>
+                    <div class="d-flex align-items-center gap-2">
+                      {% if row.student_assignment %}
+                        <span class="status-pill {{ row.student_assignment.status }}">{{ row.student_assignment.status }}</span>
+                      {% endif %}
+                      <select class="form-select" style="max-width: 10rem;" {% if row.student_assignment %}name="student_status_{{ row.student_assignment.id }}"{% else %}disabled{% endif %}>
+                        <option value="pending" {% if row.student_assignment and row.student_assignment.status == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="complete" {% if row.student_assignment and row.student_assignment.status == 'complete' %}selected{% endif %}>Complete</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
+              {% empty %}
+                <p class="mb-0 text-muted">No active students enrolled.</p>
               {% endfor %}
-            {% else %}
-              <div class="text-muted" style="font-size:0.8rem;">No active students enrolled.</div>
-            {% endif %}
-          </div>
-        </details>
+            </details>
+          {% endif %}
 
-        <div class="d-flex justify-content-between mt-3">
-          <a href="?week={{ selected_week }}&day={{ selected_day }}&view={{ view_mode }}" class="btn btn-light" style="background: #e7eafe; border: none;">Cancel</a>
-          <button type="submit" class="btn btn-primary" style="background: #5b6af8; border: none;">{% if editing_item %}Update Item{% else %}Create Item{% endif %}</button>
-        </div>
-      </form>
+          {% if workflow == 'activities' %}
+            <details class="detail-card" open>
+              <summary>Activity Tracking</summary>
+              <input type="hidden" name="activity_enrollment_selection_present" value="1">
+              {% for row in activity_rows %}
+                <div class="activity-row">
+                  <div class="activity-row-main">
+                    <label class="student-name mb-0">
+                      <input type="checkbox" class="form-check-input" name="activity_enrollment_ids" value="{{ row.enrollment.id }}" {% if row.assigned %}checked{% endif %}>
+                      <span class="student-avatar">{{ row.enrollment.child.first_name|slice:':1' }}</span>
+                      <span>{{ row.enrollment.child.first_name }}</span>
+                    </label>
+                    <div class="d-flex align-items-center gap-2">
+                      {% if row.progress %}
+                        <span class="status-pill {{ row.progress.status }}">{{ row.progress.status }}</span>
+                      {% endif %}
+                      <select class="form-select" style="max-width: 10rem;" name="activity_status_{{ row.enrollment.id }}">
+                        <option value="pending" {% if not row.progress or row.progress.status == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="complete" {% if row.progress and row.progress.status == 'complete' %}selected{% endif %}>Complete</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="activity-extra">
+                    <div class="row g-3">
+                      <div class="col-md-6">
+                        <label for="activity_notes_{{ row.enrollment.id }}">Student Notes</label>
+                        <textarea class="form-control" name="activity_notes_{{ row.enrollment.id }}" id="activity_notes_{{ row.enrollment.id }}" rows="3">{% if row.progress %}{{ row.progress.notes }}{% endif %}</textarea>
+                      </div>
+                      <div class="col-md-3">
+                        <label for="activity_files_{{ row.enrollment.id }}">Evidence Files</label>
+                        <input type="file" class="form-control" name="activity_files_{{ row.enrollment.id }}" id="activity_files_{{ row.enrollment.id }}" multiple>
+                      </div>
+                      <div class="col-md-3">
+                        <label for="activity_link_{{ row.enrollment.id }}">Evidence Link</label>
+                        <input type="url" class="form-control" name="activity_link_{{ row.enrollment.id }}" id="activity_link_{{ row.enrollment.id }}" placeholder="https://">
+                      </div>
+                    </div>
+                    {% if row.attachments %}
+                      <ul class="attachment-list">
+                        {% for attachment in row.attachments %}
+                          <li>
+                            {% if attachment.external_url %}
+                              <a href="{{ attachment.external_url }}" target="_blank" rel="noopener noreferrer">{{ attachment.external_url }}</a>
+                            {% elif attachment.file %}
+                              <a href="{{ attachment.file.url }}" target="_blank" rel="noopener noreferrer">{{ attachment.original_name|default:attachment.file.name }}</a>
+                            {% endif %}
+                          </li>
+                        {% endfor %}
+                      </ul>
+                    {% endif %}
+                  </div>
+                </div>
+              {% empty %}
+                <p class="mb-0 text-muted">No active students enrolled.</p>
+              {% endfor %}
+            </details>
+          {% endif %}
+
+          <div class="form-actions">
+            <a href="?week={{ selected_week }}&day={{ selected_day }}&workflow={{ workflow }}&scope={{ scope }}" class="btn btn-light">Cancel</a>
+            <button type="submit" class="btn btn-primary">{% if editing_item %}Update{% else %}Create{% endif %}</button>
+          </div>
+        </form>
       {% endif %}
-    </div>
+    </section>
   </div>
 </div>
 {% endblock %}
@@ -600,10 +713,6 @@
     const panes = document.querySelectorAll('[data-pane]');
     const toolbars = document.querySelectorAll('.rich-toolbar');
     const form = document.querySelector('.assignment-form');
-    const attachmentDrop = document.querySelector('.attachment-drop');
-    const attachmentInput = attachmentDrop ? attachmentDrop.querySelector('input[name="attachments"]') : null;
-    const attachmentList = attachmentDrop ? attachmentDrop.querySelector('.attachment-list') : null;
-    const itemKindSelect = document.getElementById('item_kind_select');
     const lessonChildSelect = document.getElementById('lesson_child_select');
     const lessonSubjectSelect = document.getElementById('lesson_subject_select');
 
@@ -637,50 +746,31 @@
       });
     });
 
+    function syncLessonSubjectOptions() {
+      if (!lessonChildSelect || !lessonSubjectSelect) {
+        return;
+      }
+      const childId = lessonChildSelect.value;
+      Array.from(lessonSubjectSelect.options).forEach((option) => {
+        if (!option.value) {
+          option.hidden = false;
+          return;
+        }
+        option.hidden = Boolean(childId) && option.dataset.childId !== childId;
+      });
+
+      const selectedOption = lessonSubjectSelect.options[lessonSubjectSelect.selectedIndex];
+      if (selectedOption && selectedOption.hidden) {
+        lessonSubjectSelect.value = '';
+      }
+    }
+
+    if (lessonChildSelect) {
+      lessonChildSelect.addEventListener('change', syncLessonSubjectOptions);
+      syncLessonSubjectOptions();
+    }
+
     if (form) {
-      function syncItemKindFields() {
-        if (!itemKindSelect) {
-          return;
-        }
-        const isAssignment = itemKindSelect.value === 'assignment';
-        const isLesson = itemKindSelect.value === 'lesson';
-        document.querySelectorAll('.assignment-only-field').forEach((el) => {
-          el.style.display = isAssignment ? '' : 'none';
-        });
-        document.querySelectorAll('.lesson-only-field').forEach((el) => {
-          el.style.display = isLesson ? '' : 'none';
-        });
-      }
-
-      function syncLessonSubjectOptions() {
-        if (!lessonChildSelect || !lessonSubjectSelect) {
-          return;
-        }
-        const childId = lessonChildSelect.value;
-        Array.from(lessonSubjectSelect.options).forEach((option) => {
-          if (!option.value) {
-            option.hidden = false;
-            return;
-          }
-          option.hidden = childId && option.dataset.childId !== childId;
-        });
-
-        const selectedOption = lessonSubjectSelect.options[lessonSubjectSelect.selectedIndex];
-        if (selectedOption && selectedOption.hidden) {
-          lessonSubjectSelect.value = '';
-        }
-      }
-
-      if (itemKindSelect) {
-        itemKindSelect.addEventListener('change', syncItemKindFields);
-        syncItemKindFields();
-      }
-
-      if (lessonChildSelect) {
-        lessonChildSelect.addEventListener('change', syncLessonSubjectOptions);
-        syncLessonSubjectOptions();
-      }
-
       form.addEventListener('submit', () => {
         document.querySelectorAll('.rich-editor').forEach((editor) => {
           const key = editor.dataset.editor;
@@ -691,85 +781,6 @@
         });
       });
     }
-
-    function renderSelectedFiles(files) {
-      if (!attachmentList) {
-        return;
-      }
-
-      const dynamicItems = attachmentList.querySelectorAll('[data-new-file="1"]');
-      dynamicItems.forEach((item) => item.remove());
-
-      Array.from(files || []).forEach((file) => {
-        const li = document.createElement('li');
-        li.dataset.newFile = '1';
-        li.textContent = `Selected: ${file.name}`;
-        attachmentList.appendChild(li);
-      });
-    }
-
-    if (attachmentInput) {
-      attachmentInput.addEventListener('change', () => {
-        renderSelectedFiles(attachmentInput.files);
-      });
-    }
-
-    if (attachmentDrop && attachmentInput) {
-      ['dragenter', 'dragover'].forEach((eventName) => {
-        attachmentDrop.addEventListener(eventName, (event) => {
-          event.preventDefault();
-          attachmentDrop.classList.add('is-dragover');
-        });
-      });
-
-      ['dragleave', 'dragend', 'drop'].forEach((eventName) => {
-        attachmentDrop.addEventListener(eventName, (event) => {
-          event.preventDefault();
-          attachmentDrop.classList.remove('is-dragover');
-        });
-      });
-
-      attachmentDrop.addEventListener('drop', (event) => {
-        const droppedFiles = event.dataTransfer ? event.dataTransfer.files : null;
-        if (!droppedFiles || !droppedFiles.length) {
-          return;
-        }
-        attachmentInput.files = droppedFiles;
-        renderSelectedFiles(droppedFiles);
-      });
-    }
-
-    document.querySelectorAll('.student-assign-toggle').forEach((toggle) => {
-      const row = toggle.closest('.student-row');
-      const statusSelect = row ? row.querySelector('.student-status-select') : null;
-      const statusPill = row ? row.querySelector('.student-status-pill') : null;
-      const hasAssignment = row && row.dataset.hasAssignment === '1';
-
-      const applyState = () => {
-        if (!row) {
-          return;
-        }
-        row.style.opacity = toggle.checked ? '1' : '0.55';
-        if (statusSelect) {
-          statusSelect.disabled = !toggle.checked || !hasAssignment;
-        }
-
-        if (statusPill && !hasAssignment) {
-          if (toggle.checked) {
-            statusPill.textContent = 'pending';
-            statusPill.classList.remove('not-assigned');
-            statusPill.classList.add('pending');
-          } else {
-            statusPill.textContent = 'not assigned';
-            statusPill.classList.remove('pending');
-            statusPill.classList.add('not-assigned');
-          }
-        }
-      };
-
-      toggle.addEventListener('change', applyState);
-      applyState();
-    });
   })();
 </script>
 {% endblock %}

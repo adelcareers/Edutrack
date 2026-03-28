@@ -64,7 +64,6 @@
 
   .week-grid {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 0.35rem 0.9rem;
     margin-top: 0.75rem;
   }
@@ -117,7 +116,7 @@
         <div class="week-row">
           <span class="week-label">{{ row.week }}</span>
           {% for day in row.days %}
-            <span class="day-dot{% if row.week == 1 and day == 1 %} filled{% endif %}"></span>
+            <span class="day-dot"></span>
           {% endfor %}
         </div>
       {% endfor %}

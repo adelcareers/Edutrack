@@ -210,3 +210,59 @@ class AssignmentSubmission(models.Model):
 
     def __str__(self):
         return self.original_name or self.file.name
+
+
+class ActivityProgress(models.Model):
+    """Child-level progress tracking for planned activity items."""
+
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("complete", "Complete"),
+    ]
+
+    enrollment = models.ForeignKey(
+        CourseEnrollment,
+        on_delete=models.CASCADE,
+        related_name="activity_progress_items",
+    )
+    plan_item = models.ForeignKey(
+        AssignmentPlanItem,
+        on_delete=models.CASCADE,
+        related_name="activity_progress_items",
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    notes = models.TextField(blank=True, default="")
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["enrollment__child__first_name", "created_at"]
+        unique_together = [("enrollment", "plan_item")]
+
+    def __str__(self):
+        return f"{self.enrollment.child.first_name} - {self.plan_item}"
+
+
+class ActivityProgressAttachment(models.Model):
+    """Evidence attached to an activity progress row."""
+
+    progress = models.ForeignKey(
+        ActivityProgress,
+        on_delete=models.CASCADE,
+        related_name="attachments",
+    )
+    file = models.FileField(upload_to="activity_progress_attachments/", null=True, blank=True)
+    original_name = models.CharField(max_length=255, blank=True, default="")
+    external_url = models.URLField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return (
+            self.original_name
+            or self.external_url
+            or (self.file.name if self.file else f"Activity attachment {self.pk}")
+        )
