@@ -1407,7 +1407,7 @@ class CalendarSemanticsCopyTests(TestCase):
         enrollment = course.enrollments.create(
             child=self.child,
             start_date=monday,
-            days_of_week="0,1,2,3,4",
+            days_of_week=[0, 1, 2, 3, 4],
             status="active",
         )
         template = CourseAssignmentTemplate.objects.create(
@@ -1742,7 +1742,7 @@ class AssignmentCalendarEndpointTests(TestCase):
         self.enrollment = self.course.enrollments.create(
             child=self.child,
             start_date=datetime.date(2026, 1, 6),
-            days_of_week="0,2,4",
+            days_of_week=[0, 2, 4],
             status="active",
         )
         self.assignment_type = AssignmentType.objects.create(
@@ -1858,7 +1858,7 @@ class HomeAssignmentsDashboardTests(TestCase):
         self.enrollment = self.course.enrollments.create(
             child=self.child,
             start_date=datetime.date(2026, 1, 6),
-            days_of_week="0,2,4",
+            days_of_week=[0, 2, 4],
             status="active",
         )
         self.assignment_type = AssignmentType.objects.create(
