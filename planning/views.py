@@ -1,9 +1,13 @@
-import datetime
 
+import datetime
+from django.http import HttpResponseRedirect
+from django.urls import reverse
 from django.contrib import messages
 from django.db.models import Max
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+
+from scheduler.services import generate_schedule
 
 from accounts.decorators import role_required_any
 from courses.models import (
@@ -22,6 +26,29 @@ from .models import (
     CourseAssignmentTemplate,
     StudentAssignment,
 )
+
+
+@role_required_any("parent", "teacher")
+def initiate_oak_scheduling_view(request, course_id):
+    course = get_object_or_404(Course, pk=course_id, parent=request.user)
+    active_enrollments = list(
+        course.enrollments.select_related("child").filter(status="active")
+    )
+    children = {enrollment.child for enrollment in active_enrollments}
+    scheduled_count = 0
+    for child in children:
+        child_enrollments = [
+            enr for enr in active_enrollments if enr.child_id == child.id
+        ]
+        scheduled_count += generate_schedule(child, child_enrollments)
+    messages.success(
+        request,
+        f"OAK lesson scheduling complete. {scheduled_count} lessons scheduled."
+    )
+    return HttpResponseRedirect(
+        reverse("planning:plan_course", args=[course_id])
+    )
+
 
 WORKFLOW_ASSIGNMENTS = "assignments"
 WORKFLOW_LESSONS = "lessons"
