@@ -1,0 +1,6 @@
+/
+/accounts/login/
+/accounts/register/
+/courses/
+/reports/gradebooks/
+/scheduler/children/

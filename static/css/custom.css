@@ -1,0 +1,154 @@
+/* EduTrack — Custom CSS */
+/* Colour system variables used throughout the project. */
+
+:root {
+  --primary:   #2563EB;
+  --secondary: #EA580C;
+  --success:   #16A34A;
+  --warning:   #D97706;
+  --danger:    #DC2626;
+  --dark:      #1B2A4A;
+  --light-bg:  #F8FAFC;
+  --border:    #E2E8F0;
+}
+
+body {
+  background-color: var(--light-bg);
+  color: var(--dark);
+}
+
+/* Lesson / subject cards */
+.card {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+/* Mastery badges */
+.mastery-green  { background-color: var(--success); color: #fff; }
+.mastery-amber  { background-color: var(--warning); color: #fff; }
+.mastery-red    { background-color: var(--danger);  color: #fff; }
+.mastery-unset  { background-color: var(--border);  color: var(--dark); }
+
+/* Calendar lesson cards (S2.3) */
+.lesson-card {
+  --subject-colour: #6c757d;
+  border: 1px solid #dee2e6;
+  border-left: 4px solid var(--subject-colour);
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  overflow: hidden;
+  background: #fff;
+  cursor: pointer;
+}
+.lesson-card:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  border-color: #adb5bd;
+}
+.lesson-card .card-header {
+  background-color: var(--subject-colour);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.3rem 0.75rem;
+  border-bottom: none;
+}
+.lesson-card .card-body {
+  padding: 0.4rem 0.75rem;
+  color: #212529;
+}
+.lesson-card .card-footer {
+  padding: 0.25rem 0.75rem;
+  background: transparent;
+  border-top: none;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 1.5rem;
+}
+.mastery-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.mastery-dot.green { background: #16A34A; }
+.mastery-dot.amber { background: #D97706; }
+.mastery-dot.red   { background: #DC2626; }
+
+/* ── Subject colour swatch (small filled circle, used in grid + lists) ── */
+.subject-colour-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+/* ── 5-day scheduling grid ── */
+.scheduling-grid {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.scheduling-grid th {
+  background: #1B2A4A;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.65rem 0.5rem;
+  white-space: nowrap;
+}
+.scheduling-grid th.day-col {
+  text-align: center;
+  min-width: 52px;
+}
+.scheduling-grid tbody tr {
+  transition: background 0.1s;
+}
+.scheduling-grid tbody tr:hover {
+  background: #f0f4ff;
+}
+.scheduling-grid tbody tr.subject-selected {
+  background: #eef2ff;
+}
+.day-cb {
+  width: 1.1rem;
+  height: 1.1rem;
+  cursor: pointer;
+}
+
+/* ── Vacation cards (calendar) ──────────────────────────────────────────── */
+.vacation-card {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-left: 4px solid #f59e0b;
+  border-radius: 6px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
+  margin-bottom: 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #92400e;
+}
+.vacation-card .vac-name  { font-weight: 600; }
+.vacation-card .vac-child { opacity: 0.7; font-size: 0.72rem; }
+
+/* ── Today dot (blue circle in day header) ───────────────────────────────── */
+.today-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3b82f6;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* ── 6-column calendar override ─────────────────────────────────────────── */
+.calendar-grid { grid-template-columns: repeat(6, 1fr); }

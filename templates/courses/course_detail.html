@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ course.name }} — EduTrack{% endblock %}
+{% block nav_courses %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  body { background: #f8f9fb; }
+  .back-link {
+    color: #6c757d; font-size: 0.9rem; text-decoration: none;
+    display: inline-flex; align-items: center; gap: 4px; margin-bottom: 1.25rem;
+  }
+  .back-link:hover { color: #4f46e5; }
+  .detail-card {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.05);
+  }
+  .course-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.25rem;
+  }
+  .course-swatch {
+    width: 72px; height: 72px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem; font-weight: 700; color: #fff; flex-shrink: 0;
+  }
+  .course-header-info { flex: 1; }
+  .course-header-info h3 { font-weight: 700; margin-bottom: 0.25rem; }
+  .meta-row { font-size: 0.85rem; color: #6c757d; margin-bottom: 0.4rem; }
+  .tag-pill {
+    font-size: 0.72rem; font-weight: 600;
+    padding: 0.15rem 0.55rem; border-radius: 20px;
+    background: #e8eefe; color: #4a4dc4;
+  }
+  .tag-pill.grade { background: #e7f5ea; color: #1a7f37; }
+
+  /* Enrollments table */
+  .enrollments-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 1rem;
+  }
+  .enrollments-header h5 { font-weight: 700; margin: 0; font-size: 1rem; }
+  .enrollment-tabs {
+    border-bottom: 1px solid #dee2e6; margin-bottom: 1rem;
+  }
+  .enrollment-tabs .nav-link {
+    color: #6c757d; font-size: 0.875rem; border: none;
+    border-bottom: 2px solid transparent; border-radius: 0;
+    padding: 0.45rem 0.9rem; margin-bottom: -1px;
+  }
+  .enrollment-tabs .nav-link.active {
+    color: #4f46e5; border-bottom-color: #4f46e5; font-weight: 600;
+  }
+  .enrollment-row {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 0.75rem 0; border-bottom: 1px solid #f3f4f6;
+  }
+  .enrollment-row:last-child { border-bottom: none; }
+  .student-circle {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: #5b6af8; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.9rem; flex-shrink: 0;
+  }
+  .enrollment-info { flex: 1; }
+  .enrollment-info .name { font-weight: 600; font-size: 0.9rem; }
+  .enrollment-info .sub { font-size: 0.78rem; color: #6c757d; }
+  .status-badge {
+    font-size: 0.75rem; font-weight: 600; padding: 0.2rem 0.55rem;
+    border-radius: 20px;
+  }
+  .status-active { background: #e7f5ea; color: #1a7f37; }
+  .status-completed { background: #e8eefe; color: #4a4dc4; }
+  .status-unenrolled { background: #f3f4f6; color: #6c757d; }
+
+  /* Section headers */
+  .section-label {
+    font-size: 0.8rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    color: #6c757d; margin-bottom: 0.75rem;
+  }
+  .info-row { display: flex; gap: 2rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .info-item label { font-size: 0.78rem; color: #6c757d; font-weight: 600; display: block; }
+  .info-item span { font-size: 0.9rem; font-weight: 600; color: #1a1a2e; }
+
+  /* Assignment types */
+  .at-table { font-size: 0.85rem; width: 100%; }
+  .at-table th { font-size: 0.75rem; color: #6c757d; font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block messages_block %}{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 820px;">
+
+  <!-- Back link -->
+  <a href="{% url 'courses:course_list' %}" class="back-link">
+    <i class="bi bi-chevron-left"></i> All courses
+  </a>
+
+  <!-- Flash messages -->
+  {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show" role="alert">
+      {{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  {% endfor %}
+
+  <!-- ── Course Info ── -->
+  <div class="detail-card">
+    <div class="course-header mb-3">
+      <div class="course-swatch" style="background: {{ course.color }};">
+        {{ course.name|slice:":1"|upper }}
+      </div>
+      <div class="course-header-info">
+        <h3>{{ course.name }}</h3>
+        <p class="meta-row mb-2">
+          {{ course.duration_weeks }} weeks &bull; {{ course.frequency_days }} days/week
+          {% if course.credits %}&bull; {{ course.credits }} credits{% endif %}
+        </p>
+        <div class="d-flex flex-wrap gap-1 mb-2">
+          {% for subj in course.subjects.all %}
+            <span class="tag-pill">{{ subj.name }}</span>
+          {% endfor %}
+          {% for gy in grade_year_labels %}
+            <span class="tag-pill grade">{{ gy }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      <!-- Actions -->
+      <div class="d-flex gap-2 align-items-start">
+        <a href="{% url 'courses:course_edit' course_id=course.pk %}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-pencil me-1"></i>Edit
+        </a>
+        <div class="dropdown">
+          <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="dropdown" aria-label="More options">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+            <li>
+              <a class="dropdown-item" href="{% url 'courses:course_enroll' course_id=course.pk %}">
+                <i class="bi bi-person-plus me-2 text-secondary"></i>Enroll Student
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'courses:course_export' course_id=course.pk %}">
+                <i class="bi bi-download me-2 text-secondary"></i>Export CSV
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'courses:archived_courses' %}">
+                <i class="bi bi-clock-history me-2 text-secondary"></i>Archived Records
+              </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <form method="post" action="{% url 'courses:course_archive' course_id=course.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="dropdown-item text-warning">
+                  <i class="bi bi-archive me-2"></i>
+                  {% if course.is_archived %}Unarchive{% else %}Archive{% endif %}
+                </button>
+              </form>
+            </li>
+            <li>
+              <form
+                method="post"
+                action="{% url 'courses:course_delete' course_id=course.pk %}"
+                onsubmit="return confirm('Hard delete this course? Full assignment history will be archived and the live course will be removed.');"
+              >
+                {% csrf_token %}
+                <button type="submit" class="dropdown-item text-danger">
+                  <i class="bi bi-trash me-2"></i>Hard Delete
+                </button>
+              </form>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Info rows -->
+    <div class="info-row">
+      <div class="info-item">
+        <label>Grading Style</label>
+        <span>{{ course.get_grading_style_display }}</span>
+      </div>
+      <div class="info-item">
+        <label>Duration</label>
+        <span>{{ course.duration_weeks }} weeks</span>
+      </div>
+      <div class="info-item">
+        <label>Frequency</label>
+        <span>{{ course.frequency_days }} days/week</span>
+      </div>
+      {% if course.credits %}
+      <div class="info-item">
+        <label>Credits</label>
+        <span>{{ course.credits }}</span>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if course.description %}
+    <div class="mb-2">
+      <p class="section-label">Description</p>
+      <p style="font-size: 0.9rem; color: #374151;">{{ course.description|striptags|linebreaksbr }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Assignment Types -->
+    {% if assignment_types %}
+    <div>
+      <p class="section-label">Assignment Types</p>
+      <table class="at-table">
+        <thead>
+          <tr>
+            <th class="py-1">Type</th>
+            {% if course.use_assignment_weights %}<th class="py-1">Weight</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for at in assignment_types %}
+          <tr>
+            <td class="py-1">{{ at.name }}</td>
+            {% if course.use_assignment_weights %}<td class="py-1">{{ at.weight }}%</td>{% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ── Enrolled Students ── -->
+  <div class="detail-card">
+    <div class="enrollments-header">
+      <h5>Enrolled Students</h5>
+      <a href="{% url 'courses:course_enroll' course_id=course.pk %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-person-plus me-1"></i>Enroll Student
+      </a>
+    </div>
+
+    <ul class="nav enrollment-tabs">
+      <li class="nav-item">
+        <a class="nav-link active" href="#activeEnrollments" data-bs-toggle="tab">
+          Active ({{ active_count }})
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#completedEnrollments" data-bs-toggle="tab">
+          Completed ({{ completed_count }})
+        </a>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="activeEnrollments">
+        {% with active_list=active_enrollments %}
+          {% for enrollment in active_list %}
+            <div class="enrollment-row">
+              <div class="student-circle">{{ enrollment.child.first_name|slice:":1"|upper }}</div>
+              <div class="enrollment-info">
+                <div class="name">{{ enrollment.child.first_name }}</div>
+                <div class="sub">
+                  Started {{ enrollment.start_date|date:"M d, Y" }} &bull;
+                  {{ enrollment.get_days_display }}
+                </div>
+              </div>
+              <span class="status-badge status-{{ enrollment.status }}">
+                {{ enrollment.get_status_display }}
+              </span>
+              <div class="dropdown">
+                <button class="btn btn-link p-0 text-muted" data-bs-toggle="dropdown" aria-label="Options">
+                  <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                  <li>
+                    <a class="dropdown-item" href="{% url 'courses:enrollment_complete' enrollment_id=enrollment.pk %}">
+                      <i class="bi bi-check-circle me-2 text-success"></i>Complete Course
+                    </a>
+                  </li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li>
+                    <form method="post" action="{% url 'courses:enrollment_unenroll' enrollment_id=enrollment.pk %}"
+                          onsubmit="return confirm('Unenroll {{ enrollment.child.first_name }}? This will remove all their progress in this course.')">
+                      {% csrf_token %}
+                      <button type="submit" class="dropdown-item text-danger">
+                        <i class="bi bi-person-x me-2"></i>Unenroll
+                      </button>
+                    </form>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          {% empty %}
+            <p class="text-center text-muted py-3" style="font-size: 0.9rem; font-style: italic;">
+              No students currently enrolled.
+              <a href="{% url 'courses:course_enroll' course_id=course.pk %}">Enroll one now.</a>
+            </p>
+          {% endfor %}
+        {% endwith %}
+      </div>
+
+      <div class="tab-pane fade" id="completedEnrollments">
+        {% for enrollment in completed_enrollments %}
+          <div class="enrollment-row">
+            <div class="student-circle">{{ enrollment.child.first_name|slice:":1"|upper }}</div>
+            <div class="enrollment-info">
+              <div class="name">{{ enrollment.child.first_name }}</div>
+              <div class="sub">
+                Completed {{ enrollment.completed_at|date:"M d, Y"|default:"—" }}
+                {% if enrollment.completed_school_year %}&bull; {{ enrollment.completed_school_year }}{% endif %}
+              </div>
+            </div>
+            <span class="status-badge status-completed">Completed</span>
+            <form method="post" action="{% url 'courses:enrollment_reactivate' enrollment_id=enrollment.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-outline-secondary btn-sm">Make Active</button>
+            </form>
+          </div>
+        {% empty %}
+          <p class="text-center text-muted py-3" style="font-size: 0.9rem; font-style: italic;">
+            No completed enrollments.
+          </p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

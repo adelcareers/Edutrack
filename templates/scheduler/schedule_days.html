@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Choose Teaching Days for {{ child.first_name }} — EduTrack{% endblock %}
+
+{% block nav_students %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+.days-grid th, .days-grid td { vertical-align: middle; padding: 0.6rem 0.6rem; }
+.days-grid td:first-child { padding-left: 1rem; }
+.days-grid td:last-child  { padding-right: 1rem; }
+.swatch-cell { width: 2.2rem; text-align: center; }
+.day-cell    { text-align: center; width: 4rem; }
+.num-col     { width: 5.5rem; text-align: right; }
+.lpw-col     { width: 7rem; text-align: center; }
+.lpw-input   { width: 4.2rem; text-align: center; }
+.lpw-warn    { font-size: 0.68rem; color: #d97706; display: none; margin-top: 0.15rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width:900px;">
+
+  <a href="{% url 'scheduler:subject_selection' child_id=child.pk %}"
+     class="text-decoration-none text-muted small d-inline-flex align-items-center gap-1 mb-3">
+    <i class="bi bi-arrow-left"></i> Back to subject selection
+  </a>
+
+  <div class="mb-4">
+    <h2 class="fw-bold mb-1">Choose teaching days for {{ child.first_name }}</h2>
+    <p class="text-muted mb-0">
+      Set how many lessons per week and tick which days each subject is taught.
+      All days are pre-selected — untick any you want to skip.
+    </p>
+  </div>
+
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags }} alert-dismissible fade show" role="alert">
+      {{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+
+    <div class="card shadow-sm mb-4">
+      <table class="table days-grid mb-0" aria-label="Day assignment grid">
+        <thead>
+          <tr style="background:#1e293b; color:#fff;">
+            <th class="swatch-cell"></th>
+            <th>Subject</th>
+            <th class="num-col" style="text-align:right;">Units</th>
+            <th class="num-col" style="text-align:right;">Lessons</th>
+            <th class="lpw-col">Lessons / wk</th>
+            {% for day_val, day_name in day_choices %}
+            <th class="day-cell">{{ day_name }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in subject_rows %}
+          <tr>
+            {# Colour swatch #}
+            <td class="swatch-cell">
+              <span class="subject-colour-swatch"
+                    style="background:{{ row.subject.colour_hex }};"
+                    aria-hidden="true"></span>
+            </td>
+
+            {# Subject name #}
+            <td>
+              <div class="fw-semibold">{{ row.subject.subject_name }}</div>
+              {% if row.subject.source_year %}
+              <div class="small text-muted">
+                Source: {{ row.query_subject }} ({{ row.query_year }})
+              </div>
+              {% endif %}
+            </td>
+
+            {# Units count #}
+            <td class="text-end text-muted">{{ row.total_units }}</td>
+
+            {# Total lessons badge #}
+            <td class="text-end">
+              <span class="badge bg-dark bg-opacity-75"
+                    style="font-size:0.72rem; padding:0.2rem 0.5rem; border-radius:999px;">
+                {{ row.total_lessons }}
+              </span>
+            </td>
+
+            {# Lessons per week input #}
+            <td class="text-center">
+              <input
+                type="number"
+                class="form-control form-control-sm lpw-input mx-auto lpw-field"
+                name="lpw_{{ row.subject.pk }}"
+                value="{{ row.subject.lessons_per_week }}"
+                min="1"
+                max="10"
+                aria-label="Lessons per week for {{ row.subject.subject_name }}"
+              >
+              <div class="lpw-warn">That's a lot!</div>
+            </td>
+
+            {# Day checkboxes #}
+            {% for day_val, day_name in day_choices %}
+            <td class="day-cell">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                name="days_{{ row.subject.pk }}"
+                value="{{ day_val }}"
+                id="day-{{ row.subject.pk }}-{{ day_val }}"
+                {% if day_val in row.checked_days %}checked{% endif %}
+                aria-label="{{ day_name }} for {{ row.subject.subject_name }}"
+              >
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="d-flex justify-content-between flex-wrap gap-2">
+      <a href="{% url 'scheduler:subject_selection' child_id=child.pk %}"
+         class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back
+      </a>
+      <button type="submit" class="btn btn-primary px-4">
+        Next: review &amp; generate <i class="bi bi-arrow-right ms-1"></i>
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.lpw-field').forEach(function (input) {
+    var warn = input.closest('td').querySelector('.lpw-warn');
+    function check() {
+      var v = parseInt(input.value, 10);
+      warn.style.display = (!isNaN(v) && v > 7) ? 'block' : 'none';
+    }
+    input.addEventListener('input', check);
+    check();
+  });
+});
+</script>
+{% endblock %}

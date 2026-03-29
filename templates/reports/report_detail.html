@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Report — {{ report.child.first_name }} | EduTrack{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">
+      <i class="bi bi-file-earmark-text me-2"></i>Report: {{ report.child.first_name }}
+    </h1>
+    <a href="{% url 'scheduler:child_list' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Students
+    </a>
+  </div>
+
+  {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+      <i class="bi bi-check-circle me-1"></i>{{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <!-- Report details -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5 class="mb-0">Report Details</h5>
+    </div>
+    <div class="card-body">
+      <dl class="row mb-0">
+        <dt class="col-sm-3">Child</dt>
+        <dd class="col-sm-9">{{ report.child.first_name }}</dd>
+
+        <dt class="col-sm-3">Report Type</dt>
+        <dd class="col-sm-9">{{ report.get_report_type_display }}</dd>
+
+        <dt class="col-sm-3">Date Range</dt>
+        <dd class="col-sm-9">{{ report.date_from|date:"d M Y" }} – {{ report.date_to|date:"d M Y" }}</dd>
+
+        <dt class="col-sm-3">Generated</dt>
+        <dd class="col-sm-9">{{ report.created_at|date:"d M Y H:i" }}</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- PDF download -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5 class="mb-0">Download PDF</h5>
+    </div>
+    <div class="card-body">
+      {% if download_url %}
+      <a href="{{ download_url }}" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
+        <i class="bi bi-file-earmark-pdf me-1"></i>Download PDF Report
+      </a>
+      {% else %}
+      <p class="text-muted mb-0">PDF is not yet available for this report.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Share link -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5 class="mb-0">Share with Local Authority</h5>
+    </div>
+    <div class="card-body">
+      <p class="mb-2">Use this secure link to share the report without requiring login.</p>
+      <div class="input-group">
+        <input
+          id="share-url-input"
+          type="text"
+          class="form-control"
+          value="{{ share_url }}"
+          readonly
+        >
+        <button id="copy-share-url" class="btn btn-outline-secondary" type="button">
+          Copy Link
+        </button>
+      </div>
+      <small id="copy-feedback" class="text-success d-none">Copied.</small>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  (function () {
+    var btn = document.getElementById('copy-share-url');
+    var input = document.getElementById('share-url-input');
+    var feedback = document.getElementById('copy-feedback');
+
+    if (!btn || !input || !feedback) {
+      return;
+    }
+
+    btn.addEventListener('click', function () {
+      input.select();
+      input.setSelectionRange(0, input.value.length);
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(input.value).then(function () {
+          feedback.classList.remove('d-none');
+        });
+        return;
+      }
+
+      document.execCommand('copy');
+      feedback.classList.remove('d-none');
+    });
+  })();
+</script>
+{% endblock %}

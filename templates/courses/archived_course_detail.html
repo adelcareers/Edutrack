@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Archived Course History — EduTrack{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 1080px;">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h3 class="mb-1">{{ archive.course_name }}</h3>
+      <p class="text-muted mb-0">
+        Archived {{ archive.archived_at|date:"M d, Y H:i" }}
+        <span class="mx-1">•</span>
+        {{ archive.remark }}
+      </p>
+    </div>
+    <a href="{% url 'courses:archived_courses' %}" class="btn btn-outline-secondary btn-sm">
+      Back to Archived Records
+    </a>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <div class="card"><div class="card-body">
+        <div class="text-muted small">Assignments</div>
+        <div class="h4 mb-0">{{ assignment_count }}</div>
+      </div></div>
+    </div>
+    <div class="col-md-4">
+      <div class="card"><div class="card-body">
+        <div class="text-muted small">Enrollments</div>
+        <div class="h4 mb-0">{{ enrollment_count }}</div>
+      </div></div>
+    </div>
+    <div class="col-md-4">
+      <div class="card"><div class="card-body">
+        <div class="text-muted small">Original Course ID</div>
+        <div class="h4 mb-0">{{ archive.original_course_id }}</div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">Course Snapshot</div>
+    <div class="card-body">
+      <pre class="mb-0" style="white-space: pre-wrap;">{{ archive.course_data|pprint }}</pre>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">Enrollment History</div>
+    <div class="card-body">
+      <pre class="mb-0" style="white-space: pre-wrap;">{{ archive.enrollment_history|pprint }}</pre>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Assignment History</div>
+    <div class="card-body">
+      <pre class="mb-0" style="white-space: pre-wrap;">{{ archive.assignment_history|pprint }}</pre>
+    </div>
+  </div>
+</div>
+{% endblock %}

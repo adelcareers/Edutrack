@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main, 'ci/**', 'feat/**', 'fix/**', 'chore/**' ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+      DJANGO_SECRET_KEY: ci-secret-key-for-testing-only-please-change-in-production-1234567890
+      DJANGO_DEBUG: "True"
+      ALLOWED_HOSTS: "localhost,127.0.0.1,testserver"
+      # Use SQLite for CI — no database secret required.
+      # Heroku uses its own DATABASE_URL config var at runtime.
+      DATABASE_URL: "sqlite:////tmp/ci-test-db.sqlite3"
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up Java (for html5 validator)
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Cache pip
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+
+      - name: Run Django checks
+        run: |
+          python manage.py check
+
+      - name: Run Django deploy checks
+        env:
+          DJANGO_DEBUG: "False"
+          SECURE_SSL_REDIRECT: "True"
+          SESSION_COOKIE_SECURE: "True"
+          CSRF_COOKIE_SECURE: "True"
+          SECURE_HSTS_SECONDS: "31536000"
+          SECURE_HSTS_INCLUDE_SUBDOMAINS: "True"
+          SECURE_HSTS_PRELOAD: "True"
+        run: |
+          python manage.py check --deploy --fail-level WARNING
+
+      - name: Run tests
+        run: |
+          python manage.py test --verbosity=2 --parallel
+
+      - name: Code style checks (changed Python files)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+          fi
+
+          if [ -z "${BASE_SHA}" ] || [ "${BASE_SHA}" = "0000000000000000000000000000000000000000" ]; then
+            echo "No valid base SHA found; skipping style checks for this run."
+            exit 0
+          fi
+
+          CHANGED_PY_FILES=$(git diff --name-only --diff-filter=d "${BASE_SHA}" "${{ github.sha }}" -- '*.py' | tr '\n' ' ')
+
+          if [ -z "${CHANGED_PY_FILES}" ]; then
+            echo "No changed Python files. Skipping black/isort/flake8."
+            exit 0
+          fi
+
+          echo "Checking changed Python files: ${CHANGED_PY_FILES}"
+          black --check ${CHANGED_PY_FILES}
+          isort --profile black --check-only ${CHANGED_PY_FILES}
+          flake8 --select=E9,F63,F7,F82 ${CHANGED_PY_FILES}
+
+      - name: HTML validation (rendered pages)
+        run: |
+          set -euo pipefail
+          python manage.py migrate
+          python manage.py render_templates --output /tmp/ci_rendered_templates --pages-file .ci_html_pages.txt
+          html5validator --root /tmp/ci_rendered_templates --ignore-re 'CSS:.*'
+
+      - name: Run gitleaks scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

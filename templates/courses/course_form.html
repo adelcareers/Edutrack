@@ -1,0 +1,993 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% if editing %}Edit {{ course.name }}{% else %}New Course{% endif %} — EduTrack{% endblock %}
+{% block nav_courses %}active{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css">
+<style>
+  body { background: #f8f9fb; }
+
+  .back-link {
+    color: #6c757d;
+    font-size: 0.9rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 1.5rem;
+  }
+  .back-link:hover { color: #4f46e5; }
+
+  .course-form-layout {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+  }
+
+  /* ── Left column — photo/color ── */
+  .form-left {
+    width: 200px;
+    flex-shrink: 0;
+  }
+  .course-photo-block {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+  }
+  .course-thumbnail {
+    width: 100%;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3.5rem;
+    font-weight: 700;
+    color: #fff;
+    cursor: pointer;
+    transition: opacity .15s;
+    position: relative;
+  }
+  .course-thumbnail:hover { opacity: 0.9; }
+  .thumbnail-overlay {
+    position: absolute;
+    bottom: 0.5rem;
+    right: 0.5rem;
+    background: rgba(0,0,0,.4);
+    color: #fff;
+    border-radius: 6px;
+    padding: 0.2rem 0.45rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+  .photo-label { text-align: center; padding: 0.6rem; font-size: 0.8rem; color: #6c757d; border-top: 1px solid #e9ecef; }
+  .color-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border-top: 1px solid #e9ecef; }
+  .color-row label { font-size: 0.85rem; font-weight: 600; color: #374151; margin: 0; flex: 1; }
+  .color-swatch-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 0.75rem 1rem; border-top: 1px solid #e9ecef; }
+  .color-swatch-btn {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform .1s;
+  }
+  .color-swatch-btn:hover, .color-swatch-btn.selected { border-color: #374151; transform: scale(1.15); }
+
+  /* ── Inline color palette grid ── */
+  .color-palette-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 28px);
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .cp-swatch {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 2.5px solid transparent;
+    cursor: pointer;
+    transition: transform .12s, border-color .12s;
+    outline: none;
+    flex-shrink: 0;
+  }
+  .cp-swatch:hover { transform: scale(1.18); }
+  .cp-swatch.active { border-color: #374151; transform: scale(1.18); box-shadow: 0 0 0 2px #fff inset; }
+
+  /* ── Right column — form fields ── */
+  .form-right { flex: 1; min-width: 0; }
+
+  .form-card {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .form-card h5 {
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .form-section-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+  }
+
+  /* ── Consistent field heights ── */
+  .form-control,
+  .form-select,
+  .input-group-text {
+    height: 36px;
+    font-size: 0.85rem;
+    border-radius: 6px;
+  }
+  .form-control::placeholder { color: #9ca3af; font-size: 0.8rem; }
+  .form-control-sm { height: 30px; font-size: 0.8rem; }
+  .input-group .form-control { height: 36px; }
+  .input-group-text { padding: 0 0.6rem; }
+
+  /* ── Tab bar (Description / Course Introduction) ── */
+  .content-tabs {
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 1rem;
+    display: flex;
+  }
+  .content-tabs button {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #6c757d;
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    margin-bottom: -2px;
+    cursor: pointer;
+    transition: color .15s;
+  }
+  .content-tabs button:hover { color: #4f46e5; }
+  .content-tabs button.active { color: #4f46e5; border-bottom-color: #4f46e5; font-weight: 600; }
+
+  /* ── Days inline checkboxes (Image 1 style) ── */
+  .days-inline-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    padding-top: 0.2rem;
+  }
+  .day-check-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #374151;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .day-check-item input[type="checkbox"] {
+    width: 1em;
+    height: 1em;
+    accent-color: #4f46e5;
+    cursor: pointer;
+  }
+
+  /* ── Grade years checkboxes ── */
+  .grade-years-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .grade-toggle input { display: none; }
+  .grade-toggle label {
+    padding: 0.25rem 0.65rem;
+    border-radius: 20px;
+    border: 1.5px solid #dee2e6;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: #6c757d;
+    transition: background .15s, color .15s, border-color .15s;
+  }
+  .grade-toggle input:checked + label {
+    background: #e7f5ea;
+    border-color: #1a7f37;
+    color: #1a7f37;
+  }
+
+  /* ── Subject tags ── */
+  .subject-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.5rem; }
+  .subject-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #e8eefe;
+    color: #4a4dc4;
+    border-radius: 20px;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+  .subject-tag button {
+    background: none;
+    border: none;
+    color: #4a4dc4;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    font-size: 0.85rem;
+  }
+  .subject-input-wrap { display: flex; gap: 0.5rem; }
+  .subject-input-wrap input { flex: 1; }
+
+  /* ── Students card ── */
+  .students-card {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 1.5rem;
+  }
+  .students-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+  .students-header h5 { margin: 0; font-weight: 700; font-size: 1rem; }
+  .students-tabs {
+    border-bottom: 1px solid #e5e7eb;
+    gap: 1rem;
+  }
+  .students-tabs .nav-link {
+    border: none;
+    color: #6b7280;
+    font-size: 0.85rem;
+    padding: 0.4rem 0;
+  }
+  .students-tabs .nav-link.active {
+    color: #3730A3;
+    font-weight: 600;
+    border-bottom: 2px solid #3730A3;
+  }
+  .student-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .student-row:last-child { border-bottom: 0; }
+  .student-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+  }
+  .student-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #eef2ff;
+    color: #3730A3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .student-name { font-weight: 600; font-size: 0.9rem; color: #111827; }
+  .student-meta { font-size: 0.78rem; color: #6b7280; }
+  .student-progress {
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .student-progress-bar {
+    height: 100%;
+    background: #22c55e;
+    width: 0%;
+  }
+
+  /* ── Assignment Types ── */
+  .at-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+  .at-row .at-name { flex: 1; }
+  .at-row .at-weight { width: 90px; }
+  .at-row .at-pct { font-size: 0.85rem; color: #6c757d; white-space: nowrap; }
+  .at-row .btn-remove {
+    background: none;
+    border: none;
+    color: #dc3545;
+    cursor: pointer;
+    padding: 0;
+    font-size: 1rem;
+    line-height: 1;
+  }
+  .total-weight-row {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .total-weight-badge {
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+  }
+  .total-weight-badge.ok { background: #e7f5ea; color: #1a7f37; }
+  .total-weight-badge.bad { background: #fde8e8; color: #dc3545; }
+
+  /* ── Grading Scale table ── */
+  .grading-scale-table { font-size: 0.85rem; width: 100%; }
+  .grading-scale-table th { font-size: 0.75rem; color: #6c757d; font-weight: 600; }
+
+  /* ── Bottom actions ── */
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+
+  /* ── Quill rich-text editor ── */
+  .ql-toolbar.ql-snow {
+    border-radius: 8px 8px 0 0;
+    border-color: #dee2e6;
+    background: #fff;
+    padding: 8px 10px;
+    font-family: inherit;
+  }
+  .ql-container.ql-snow {
+    border-radius: 0 0 8px 8px;
+    border-color: #dee2e6;
+    font-family: inherit;
+    font-size: 0.9rem;
+  }
+  .ql-editor {
+    min-height: 180px;
+    line-height: 1.6;
+  }
+  .ql-editor.ql-blank::before {
+    color: #9ca3af;
+    font-style: normal;
+  }
+  .ql-snow .ql-picker.ql-header { width: 90px; }
+  .ql-snow .ql-stroke { stroke: #374151; }
+  .ql-snow .ql-fill { fill: #374151; }
+  .ql-snow .ql-picker { color: #374151; }
+  .ql-snow .ql-picker-label:hover,
+  .ql-snow button:hover .ql-stroke { stroke: #4f46e5; }
+  .ql-snow .ql-active .ql-stroke { stroke: #4f46e5; }
+  .ql-snow .ql-active { color: #4f46e5; }
+</style>
+{% endblock %}
+
+{% block messages_block %}{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 900px;">
+
+  <!-- Back link -->
+  {% if editing %}
+    <a href="{% url 'courses:course_detail' course_id=course.pk %}" class="back-link">
+      <i class="bi bi-chevron-left"></i> {{ course.name }}
+    </a>
+  {% else %}
+    <a href="{% url 'courses:course_list' %}" class="back-link">
+      <i class="bi bi-chevron-left"></i> All courses
+    </a>
+  {% endif %}
+
+  <h4 class="fw-bold mb-4">
+    {% if editing %}Edit Course{% else %}New Course Information{% endif %}
+  </h4>
+
+  <form method="post" enctype="multipart/form-data" id="courseForm">
+    {% csrf_token %}
+
+    <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px;">
+      <div class="card-body p-4">
+
+        <!-- Top Header inside card -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+           <h5 class="fw-bold mb-0 text-dark">Course Information</h5>
+           <div class="d-flex align-items-center gap-3">
+             <button type="button" class="btn btn-sm btn-link text-decoration-none text-dark d-flex align-items-center gap-2 p-0">
+               <i class="bi bi-book"></i> <span style="font-size: 0.85rem; font-weight: 500;">Plan Assignments</span>
+             </button>
+             <button type="button" class="btn btn-sm btn-link text-dark p-0">
+               <i class="bi bi-three-dots-vertical fs-5"></i>
+             </button>
+           </div>
+        </div>
+
+        <div class="course-form-layout d-flex gap-4">
+
+          <!-- ── Left Profile Column ── -->
+          <div style="width: 150px; flex-shrink: 0;" class="text-center">
+             <div class="rounded-3 mb-2 d-flex align-items-center justify-content-center" id="courseThumbnail" 
+                  style="width: 150px; height: 150px; font-size: 4rem; font-weight: 400; background-color: #d1d5db; color: #3730A3;">
+                <span id="thumbnailInitial">{{ form.instance.name|slice:":1"|upper|default:"Y" }}</span>
+             </div>
+             <label for="id_photo" class="text-secondary mb-3 d-flex align-items-center justify-content-center gap-1 w-100" style="cursor:pointer; font-size: 0.75rem;">
+               <i class="bi bi-camera"></i> Edit Photo
+             </label>
+             <input type="file" name="photo" id="id_photo" accept="image/*" class="d-none">
+
+             <!-- Grade Year Pill -->
+             <div class="badge w-100 py-2" style="background-color: #3730A3; font-size: 0.85rem; font-weight: 600; border-radius: 20px;">
+                <span id="leftGradeYearLabel">
+                  {% if form.instance.grade_years %}
+                     {% for gy in form.instance.get_grade_year_labels %}
+                        {{ gy }}{% if not forloop.last %}, {% endif %}
+                     {% endfor %}
+                  {% else %}
+                     Year 8
+                  {% endif %}
+                </span>
+             </div>
+          </div>
+
+          <!-- ── Right Form Fields ── -->
+          <div class="flex-grow-1" style="min-width: 0;">
+
+            <!-- Row 1: Course Name (flex), Color (auto) -->
+            <div class="row gx-4 gy-3 mb-4 align-items-end">
+              <div class="col">
+                <label class="form-label fw-bold mb-1" style="font-size: 0.8rem; color: #374151;">Course Name <span class="text-muted fw-normal fst-italic" style="font-size: 0.75rem;">(Required)</span></label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                  <div class="text-danger small mt-1">{{ form.name.errors|join:", " }}</div>
+                {% endif %}
+              </div>
+              <div class="col-auto">
+                 <label class="form-label fw-bold mb-1" style="font-size: 0.8rem; color: #374151;">Color</label>
+                 <div style="display:none;">{{ form.color }}</div>
+                 <div class="position-relative">
+                    <div id="colorSwatchBtn" class="rounded" style="width: 36px; height: 36px; background: {{ form.color.value|default:'#3730a3' }}; cursor: pointer;"></div>
+                    <div id="colorPalettePopup" class="position-absolute bg-white border p-2 rounded shadow-sm" style="display:none; right: 0; top: 40px; z-index: 100; flex-wrap: wrap; width: 180px;">
+                        <div class="color-palette-grid" id="colorPaletteGrid">
+                          <button type="button" class="cp-swatch" data-color="#e879a0" style="background:#e879a0;" onclick="pickColor('#e879a0', this)"></button>
+                          <button type="button" class="cp-swatch" data-color="#f97316" style="background:#f97316;" onclick="pickColor('#f97316', this)"></button>
+                          <button type="button" class="cp-swatch" data-color="#eab308" style="background:#eab308;" onclick="pickColor('#eab308', this)"></button>
+                          <button type="button" class="cp-swatch" data-color="#22c55e" style="background:#22c55e;" onclick="pickColor('#22c55e', this)"></button>
+                          <button type="button" class="cp-swatch" data-color="#06b6d4" style="background:#06b6d4;" onclick="pickColor('#06b6d4', this)"></button>
+                          <button type="button" class="cp-swatch" data-color="#4f46e5" style="background:#4f46e5;" onclick="pickColor('#4f46e5', this)"></button>
+                          <button type="button" class="cp-swatch" data-color="#8b5cf6" style="background:#8b5cf6;" onclick="pickColor('#8b5cf6', this)"></button>
+                          <button type="button" class="cp-swatch" data-color="#ec4899" style="background:#ec4899;" onclick="pickColor('#ec4899', this)"></button>
+                          <button type="button" class="cp-swatch" data-color="#6b7280" style="background:#6b7280;" onclick="pickColor('#6b7280', this)"></button>
+                          <button type="button" class="cp-swatch" data-color="#374151" style="background:#374151;" onclick="pickColor('#374151', this)"></button>
+                        </div>
+                    </div>
+                 </div>
+              </div>
+            </div>
+
+            <!-- Row 2: Subject(s), Label(s), Grade Year(s) -->
+            <div class="row gx-4 gy-3 mb-4">
+              <div class="col-md-4">
+                <label class="form-label fw-bold mb-1" style="font-size: 0.8rem; color: #374151;">Subject(s)</label>
+                <div class="border rounded bg-white p-1" style="min-height: 38px;">
+                  <div class="subject-tags d-flex gap-1 flex-wrap align-items-center h-100 px-1" id="subjectTags">
+                    {% if form.instance.pk %}
+                      {% for subj in form.instance.subjects.all %}
+                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill d-inline-flex align-items-center px-2 py-1" style="font-size: 0.75rem; font-weight: 500;" data-id="{{ subj.pk }}">
+                          {{ subj.name }}
+                          <input type="hidden" name="subject_ids" value="{{ subj.pk }}">
+                          <button type="button" class="btn-close btn-close-sm ms-1" style="font-size: 0.4rem;" onclick="removeSubject(this)" aria-label="Remove {{ subj.name }}"></button>
+                        </span>
+                      {% endfor %}
+                    {% endif %}
+                    <div class="subject-input-wrap flex-grow-1 position-relative">
+                       <input type="text" id="subjectInput" class="form-control form-control-sm border-0 shadow-none p-0"
+                           placeholder="Type a subject..." autocomplete="off" list="subjectDatalist">
+                       <datalist id="subjectDatalist"></datalist>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold mb-1" style="font-size: 0.8rem; color: #374151;">Label(s)</label>
+                {{ form.labels }}
+              </div>
+              <div class="col-md-4">
+                 <label class="form-label fw-bold mb-1" style="font-size: 0.8rem; color: #374151;">Grade Year(s)</label>
+                 {{ form.grade_years_list }}
+              </div>
+            </div>
+
+            <!-- Row 3: Duration, Frequency, Days of Week -->
+            <div class="row gx-4 gy-3 mb-4 align-items-end">
+               <div class="col-md-3">
+                  <label class="form-label fw-bold mb-1 text-nowrap" style="font-size: 0.8rem; color: #374151;">Duration <span class="text-muted fw-normal fst-italic" style="font-size: 0.75rem;">(Required)</span></label>
+                  <div class="input-group">
+                    {{ form.duration_weeks }}
+                    <span class="input-group-text bg-white" style="font-size: 0.85rem;">weeks</span>
+                  </div>
+                  {% if form.duration_weeks.errors %}
+                    <div class="text-danger small mt-1">{{ form.duration_weeks.errors|join:", " }}</div>
+                  {% endif %}
+               </div>
+               <div class="col-md-4">
+                  <label class="form-label fw-bold mb-1 text-nowrap" style="font-size: 0.8rem; color: #374151;">Frequency <span class="text-muted fw-normal fst-italic" style="font-size: 0.75rem;">(Required)</span></label>
+                  <div class="input-group">
+                    {{ form.frequency_days }}
+                    <span class="input-group-text bg-white" style="font-size: 0.85rem;">days per week</span>
+                  </div>
+                  {% if form.frequency_days.errors %}
+                     <div class="text-danger small mt-1">{{ form.frequency_days.errors|join:", " }}</div>
+                  {% endif %}
+               </div>
+               <div class="col-md-5">
+                  <label class="form-label fw-bold mb-1" style="font-size: 0.8rem; color: #374151;">Default Days</label>
+                  {% with default_days=form.instance.default_days|default:'0,1,2,3,4' %}
+                  <div class="days-inline-wrap d-flex gap-2" id="defaultDaysGrid">
+                    <label class="day-check-item d-flex align-items-center gap-1" style="font-size: 0.8rem;">
+                      <input type="checkbox" name="default_days_cb" value="0" style="margin-top:0;" {% if '0' in default_days %}checked{% endif %}> <span class="text-muted">M</span>
+                    </label>
+                    <label class="day-check-item d-flex align-items-center gap-1" style="font-size: 0.8rem;">
+                      <input type="checkbox" name="default_days_cb" value="1" style="margin-top:0;" {% if '1' in default_days %}checked{% endif %}> <span class="text-muted">Tu</span>
+                    </label>
+                    <label class="day-check-item d-flex align-items-center gap-1" style="font-size: 0.8rem;">
+                      <input type="checkbox" name="default_days_cb" value="2" style="margin-top:0;" {% if '2' in default_days %}checked{% endif %}> <span class="text-muted">W</span>
+                    </label>
+                    <label class="day-check-item d-flex align-items-center gap-1" style="font-size: 0.8rem;">
+                      <input type="checkbox" name="default_days_cb" value="3" style="margin-top:0;" {% if '3' in default_days %}checked{% endif %}> <span class="text-muted">Th</span>
+                    </label>
+                    <label class="day-check-item d-flex align-items-center gap-1" style="font-size: 0.8rem;">
+                      <input type="checkbox" name="default_days_cb" value="4" style="margin-top:0;" {% if '4' in default_days %}checked{% endif %}> <span class="text-muted">F</span>
+                    </label>
+                    <label class="day-check-item d-flex align-items-center gap-1" style="font-size: 0.8rem;">
+                      <input type="checkbox" name="default_days_cb" value="5" style="margin-top:0;" {% if '5' in default_days %}checked{% endif %}> <span class="text-muted">Sa</span>
+                    </label>
+                    <label class="day-check-item d-flex align-items-center gap-1" style="font-size: 0.8rem;">
+                      <input type="checkbox" name="default_days_cb" value="6" style="margin-top:0;" {% if '6' in default_days %}checked{% endif %}> <span class="text-muted">Su</span>
+                    </label>
+                  </div>
+                  {% endwith %}
+                  <input type="hidden" name="default_days_hidden" id="defaultDaysHidden"
+                         value="{{ form.instance.default_days|default:'0,1,2,3,4' }}">
+               </div>
+            </div>
+
+            <!-- Row 4: Grading Style, Credits -->
+            <div class="row gx-4 gy-3 mb-4">
+              <div class="col-md-3">
+                 <label class="form-label fw-bold mb-1 text-nowrap" style="font-size: 0.8rem; color: #374151;">Grading Style <span class="text-muted fw-normal fst-italic" style="font-size: 0.75rem;">(Required)</span></label>
+                 {{ form.grading_style }}
+                 {% if form.grading_style.errors %}
+                   <div class="text-danger small mt-1">{{ form.grading_style.errors|join:", " }}</div>
+                 {% endif %}
+              </div>
+              <div class="col-md-3">
+                 <label class="form-label fw-bold mb-1" style="font-size: 0.8rem; color: #374151;">Credits</label>
+                 {{ form.credits }}
+              </div>
+            </div>
+
+          </div> <!-- End Right Form Fields -->
+
+        </div> <!-- End Flex Layout -->
+
+        <!-- Divider -->
+        <hr class="my-4" style="border-color: #e5e7eb;">
+
+        <!-- Description Tabs -->
+        <div class="mb-4">
+          <div class="content-tabs">
+            <button type="button" class="active" onclick="switchTab(this,'descPanel')">Description</button>
+            <button type="button" onclick="switchTab(this,'introPanel')">Course Introduction</button>
+          </div>
+          <div id="descPanel" class="mt-3">
+             <div style="display:none;">{{ form.description }}</div>
+             <div id="descEditor"></div>
+          </div>
+          <div id="introPanel" class="mt-3" style="display:none;">
+             <div style="display:none;">{{ form.course_intro }}</div>
+             <div id="introEditor"></div>
+          </div>
+        </div>
+
+        <!-- Grading Weights -->
+        <div class="mb-4">
+            <p class="form-section-label" style="margin-bottom: 0.6rem;">Assignment Types</p>
+           <div class="form-check mb-2">
+              {{ form.use_assignment_weights }}
+              <label class="form-check-label fw-bold" style="font-size: 0.85rem; color: #374151;" for="{{ form.use_assignment_weights.id_for_label }}">
+                Use custom weights for grading
+              </label>
+           </div>
+           
+           <div id="atWeightsBlock" style="margin-top: 10px;">
+              <p class="text-muted small mb-2">
+                Only assignment types checked as included here will be available when planning assignments for this course.
+              </p>
+              <div id="atRows">
+                    {% if assignment_types %}
+                      {% for at in assignment_types %}
+                        <div class="at-row" data-index="{{ forloop.counter0 }}">
+                          {% if at.id %}<input type="hidden" name="at_id_{{ forloop.counter0 }}" value="{{ at.id }}">{% endif %}
+                          {% if at.global_type_id %}<input type="hidden" name="at_global_id_{{ forloop.counter0 }}" value="{{ at.global_type_id }}">{% endif %}
+                          <input class="form-check-input" type="checkbox" name="at_enabled_{{ forloop.counter0 }}" {% if not at.is_hidden %}checked{% endif %} title="Include in this course">
+                          <input type="text" value="{{ at.name }}"
+                                 class="form-control form-control-sm at-name" readonly
+                                 style="background: {{ at.color|default:'#e5e7eb' }}33; border-color: {{ at.color|default:'#d1d5db' }}; color: #374151; font-weight: 600;">
+                          <input type="number" name="at_weight_{{ forloop.counter0 }}" value="{{ at.weight }}"
+                                 class="form-control form-control-sm at-weight" min="0" max="100"
+                                 onchange="updateTotal()">
+                          <span class="at-pct">%</span>
+                        </div>
+                      {% endfor %}
+                    {% else %}
+                      <p class="text-muted small mb-0">
+                        No visible assignment types found in Settings. Add or unhide assignment types in Settings first.
+                      </p>
+                    {% endif %}
+                  </div>
+                  <div class="total-weight-row mt-2">
+                    Total <span id="totalWeightBadge" class="total-weight-badge ok">100%</span>
+                  </div>
+               </div>
+            </div>
+          
+             <!-- Grading Scale -->
+            <div class="mt-4 pt-3 border-top">
+              <p class="form-section-label">Grading Scale</p>
+              <table class="grading-scale-table text-muted" style="max-width:400px;">
+                 <thead><tr><th>Grade</th><th>Percentage</th><th>GPA</th></tr></thead>
+                 <tbody>
+                  <tr><td>A</td><td>&ge; 90%</td><td>4.0</td></tr>
+                  <tr><td>B</td><td>80% &ndash; 89%</td><td>3.0</td></tr>
+                  <tr><td>C</td><td>70% &ndash; 79%</td><td>2.0</td></tr>
+                  <tr><td>D</td><td>60% &ndash; 69%</td><td>1.0</td></tr>
+                  <tr><td>F</td><td>&lt; 60%</td><td>0.0</td></tr>
+                 </tbody>
+              </table>
+            </div>
+
+            <!-- Actions -->
+            <div class="form-actions mt-4 d-flex justify-content-end gap-2">
+               {% if editing %}
+                  <a href="{% url 'courses:course_detail' course_id=course.pk %}" class="btn btn-light border px-4" style="border-radius: 8px;">Cancel</a>
+                  <button type="submit" class="btn btn-primary px-4" style="border-radius: 8px; background-color: #3730A3; border-color: #3730A3;">Save Changes</button>
+               {% else %}
+                  <a href="{% url 'courses:course_list' %}" class="btn btn-light border px-4" style="border-radius: 8px;">Cancel</a>
+                  <button type="submit" class="btn btn-primary px-4" style="border-radius: 8px; background-color: #3730A3; border-color: #3730A3;">Add Course</button>
+               {% endif %}
+            </div>
+
+      </div>
+    </div> <!-- End Single Course Card -->
+
+  </form>
+
+  {% if editing %}
+  <div class="students-card shadow-sm mb-4">
+    <div class="students-header">
+      <h5>Students</h5>
+      <a href="{% url 'courses:course_enroll' course_id=course.pk %}" class="btn btn-light border px-3" style="border-radius: 8px; font-size: 0.8rem;">
+        <i class="bi bi-person-plus me-1"></i>Enroll Student
+      </a>
+    </div>
+
+    <ul class="nav students-tabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <a class="nav-link active" data-bs-toggle="tab" href="#currentStudents" role="tab">
+          Current ({{ active_enrollments|length }})
+        </a>
+      </li>
+      <li class="nav-item" role="presentation">
+        <a class="nav-link" data-bs-toggle="tab" href="#completedStudents" role="tab">
+          Completed ({{ completed_enrollments|length }})
+        </a>
+      </li>
+    </ul>
+
+    <div class="tab-content pt-3">
+      <div class="tab-pane fade show active" id="currentStudents" role="tabpanel">
+        {% for row in active_enrollment_data %}
+        {% with enrollment=row.enrollment progress=row.progress %}
+        <div class="student-row">
+          <div class="student-info">
+            <div class="student-avatar">{{ enrollment.child.first_name|slice:":1"|upper }}</div>
+            <div>
+              <div class="student-name">{{ enrollment.child.first_name }}</div>
+              <div class="student-meta">
+                Current Grade: {% if course.grading_style == 'not_graded' %}Not Graded{% else %}{{ course.get_grading_style_display }}{% endif %}
+              </div>
+              <div class="student-meta">Schedule: {{ enrollment.get_days_display }}</div>
+              <div class="student-meta" style="margin-top: 6px;">Assignment Progress: {{ progress.completed }} of {{ progress.total }} ({{ progress.percent }}%)</div>
+              <div class="student-progress" style="max-width: 220px;">
+                <div class="student-progress-bar" style="width: {{ progress.percent }}%;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <a href="{% url 'reports:create_report' child_id=enrollment.child_id %}" class="btn btn-link text-muted p-0" style="font-size: 0.8rem; text-decoration: none;">
+              <i class="bi bi-bar-chart-line me-1"></i>View Grades
+            </a>
+            <button type="button" class="btn btn-link text-muted p-0">
+              <i class="bi bi-three-dots-vertical"></i>
+            </button>
+          </div>
+        </div>
+        {% endwith %}
+        {% empty %}
+        <p class="text-muted" style="font-size: 0.85rem;">No current students enrolled.</p>
+        {% endfor %}
+      </div>
+
+      <div class="tab-pane fade" id="completedStudents" role="tabpanel">
+        {% for row in completed_enrollment_data %}
+        {% with enrollment=row.enrollment progress=row.progress %}
+        <div class="student-row">
+          <div class="student-info">
+            <div class="student-avatar">{{ enrollment.child.first_name|slice:":1"|upper }}</div>
+            <div>
+              <div class="student-name">{{ enrollment.child.first_name }}</div>
+              <div class="student-meta">Completed {{ enrollment.completed_at|date:"M d, Y"|default:"—" }}</div>
+            </div>
+          </div>
+        </div>
+        {% endwith %}
+        {% empty %}
+        <p class="text-muted" style="font-size: 0.85rem;">No completed students.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script>
+// ── Color picker ──────────────────────────────────────────────────────────
+const colorInput = document.getElementById('id_color');
+const thumbnail  = document.getElementById('courseThumbnail');
+const nameInput  = document.querySelector('input[name="name"]');
+
+// Initialise palette — mark the current colour as active
+const _initColor = (colorInput ? colorInput.value : '') || '#6c757d';
+function pickColor(hex) {
+  const btn = document.getElementById("colorSwatchBtn");
+  if (btn) btn.style.background = hex;
+  const popup = document.getElementById("colorPalettePopup");
+  if (popup) popup.style.display = "none";
+
+  if (colorInput) colorInput.value = hex;
+  if (thumbnail)  thumbnail.style.background = hex;
+  document.querySelectorAll('.cp-swatch').forEach(b => {
+    b.classList.toggle('active', b.dataset.color === hex);
+  });
+}
+pickColor(_initColor);
+if (nameInput) {
+  nameInput.addEventListener('input', () => {
+    const tInit = document.getElementById('thumbnailInitial');
+    if (tInit) tInit.textContent = (nameInput.value[0] || 'N').toUpperCase();
+  });
+}
+
+// ── Content tabs ─────────────────────────────────────────────────────────
+function switchTab(btn, panelId) {
+  document.querySelectorAll('.content-tabs button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('descPanel').style.display = 'none';
+  document.getElementById('introPanel').style.display = 'none';
+  document.getElementById(panelId).style.display = '';
+}
+
+// ── Default days → hidden CSV ─────────────────────────────────────────────
+function syncDefaultDays() {
+  const checked = Array.from(document.querySelectorAll('input[name="default_days_cb"]:checked'))
+                       .map(cb => cb.value);
+  const hidden = document.getElementById('defaultDaysHidden');
+  if (hidden) hidden.value = checked.join(',');
+}
+document.querySelectorAll('input[name="default_days_cb"]').forEach(cb => {
+  cb.addEventListener('change', syncDefaultDays);
+});
+
+// Override form submission to map default_days_hidden → default_days
+document.getElementById('courseForm').addEventListener('submit', function() {
+  const hidden = document.getElementById('defaultDaysHidden');
+  if (hidden) {
+    const realInput = document.createElement('input');
+    realInput.type = 'hidden';
+    realInput.name = 'default_days';
+    realInput.value = hidden.value;
+    this.appendChild(realInput);
+  }
+});
+
+// ── Assignment type weights ───────────────────────────────────────────────
+const weightsCheckbox = document.getElementById('{{ form.use_assignment_weights.id_for_label }}');
+const atBlock = document.getElementById('atWeightsBlock');
+
+if (weightsCheckbox) {
+  const toggleWeightInputs = () => {
+    document.querySelectorAll('.at-weight').forEach((input) => {
+      input.disabled = !weightsCheckbox.checked;
+    });
+  };
+  weightsCheckbox.addEventListener('change', function() {
+    toggleWeightInputs();
+    updateTotal();
+  });
+  toggleWeightInputs();
+}
+
+function updateTotal() {
+  if (weightsCheckbox && !weightsCheckbox.checked) {
+    const badge = document.getElementById('totalWeightBadge');
+    if (badge) {
+      badge.textContent = 'off';
+      badge.className = 'total-weight-badge ok';
+    }
+    return;
+  }
+  const inputs = document.querySelectorAll('.at-weight');
+  let total = 0;
+  inputs.forEach(i => total += (parseInt(i.value, 10) || 0));
+  const badge = document.getElementById('totalWeightBadge');
+  if (badge) {
+    badge.textContent = total + '%';
+    badge.className = 'total-weight-badge ' + (total === 100 ? 'ok' : 'bad');
+  }
+}
+updateTotal();
+
+// ── Subject tags ──────────────────────────────────────────────────────────
+const subjectTagsContainer = document.getElementById('subjectTags');
+const subjectInput = document.getElementById('subjectInput');
+const datalist = document.getElementById('subjectDatalist');
+
+// Load existing subjects for autocomplete
+fetch('{% url "courses:subject_list" %}')
+  .then(r => r.json())
+  .then(data => {
+    datalist.innerHTML = '';
+    data.subjects.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.name;
+      opt.dataset.id = s.id;
+      datalist.appendChild(opt);
+    });
+  });
+
+function addSubjectTag(id, name) {
+  // Check not already added
+  if (subjectTagsContainer.querySelector(`[data-id="${id}"]`)) return;
+  const span = document.createElement('span');
+  span.className = 'subject-tag';
+  span.dataset.id = id;
+  span.innerHTML = `${name}<input type="hidden" name="subject_ids" value="${id}">
+    <button type="button" onclick="removeSubject(this)" aria-label="Remove ${name}">×</button>`;
+  subjectTagsContainer.appendChild(span);
+}
+
+function removeSubject(btn) {
+  btn.closest('.subject-tag').remove();
+}
+
+function addSubjectFromInput() {
+  const name = (subjectInput.value || '').trim();
+  if (!name) return;
+  // Check if it matches a datalist option
+  const opt = Array.from(datalist.options).find(o => o.value.toLowerCase() === name.toLowerCase());
+  if (opt) {
+    addSubjectTag(opt.dataset.id, opt.value);
+    subjectInput.value = '';
+    return;
+  }
+  // Create new subject via AJAX
+  fetch('{% url "courses:subject_create" %}', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+    body: JSON.stringify({name: name}),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.id) {
+      addSubjectTag(data.id, data.name);
+      // Add to datalist
+      const newOpt = document.createElement('option');
+      newOpt.value = data.name;
+      newOpt.dataset.id = data.id;
+      datalist.appendChild(newOpt);
+      subjectInput.value = '';
+    }
+  });
+}
+
+subjectInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); addSubjectFromInput(); }
+});
+
+function getCookie(name) {
+  const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+  return v ? v[2] : null;
+}
+
+// ── Color Swatch ──────────────────
+const colorBtn = document.getElementById("colorSwatchBtn");
+const colorPopup = document.getElementById("colorPalettePopup");
+if (colorBtn && colorPopup) {
+   colorBtn.addEventListener("click", function(e) {
+       e.stopPropagation();
+       colorPopup.style.display = colorPopup.style.display === "none" ? "flex" : "none";
+   });
+   document.addEventListener("click", function(e) {
+       if (!colorBtn.contains(e.target) && !colorPopup.contains(e.target)) {
+           colorPopup.style.display = "none";
+       }
+   });
+}
+
+// ── Bootstrap tooltips ────────────────────────────────────────────────────
+document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+  new bootstrap.Tooltip(el);
+});
+
+// ── Quill rich-text editors ──────────────────────────────────────────────
+const QUILL_TOOLBAR = [
+  [{ header: [false, 1, 2, 3] }],
+  ['bold', 'italic', 'underline'],
+  [{ list: 'ordered' }, { list: 'bullet' }],
+  ['link'],
+];
+
+const descQuill = new Quill('#descEditor', {
+  theme: 'snow',
+  placeholder: 'Write a description…',
+  modules: { toolbar: QUILL_TOOLBAR },
+});
+const introQuill = new Quill('#introEditor', {
+  theme: 'snow',
+  placeholder: 'Write a course introduction…',
+  modules: { toolbar: QUILL_TOOLBAR },
+});
+
+// Pre-fill with existing saved content
+const descTA  = document.getElementById('id_description');
+const introTA = document.getElementById('id_course_intro');
+if (descTA  && descTA.value.trim())  descQuill.clipboard.dangerouslyPasteHTML(descTA.value);
+if (introTA && introTA.value.trim()) introQuill.clipboard.dangerouslyPasteHTML(introTA.value);
+
+// Sync Quill HTML → textarea before form submits
+document.getElementById('courseForm').addEventListener('submit', function() {
+  if (descTA)  descTA.value  = descQuill.root.innerHTML;
+  if (introTA) introTA.value = introQuill.root.innerHTML;
+});
+
+// Refresh intro Quill layout the first time its panel becomes visible
+let introQuillInit = false;
+const _origSwitchTab = switchTab;
+window.switchTab = function(btn, panelId) {
+  _origSwitchTab(btn, panelId);
+  if (panelId === 'introPanel' && !introQuillInit) {
+    introQuill.update();
+    introQuillInit = true;
+  }
+};
+</script>
+{% endblock %}

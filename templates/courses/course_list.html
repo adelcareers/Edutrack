@@ -1,0 +1,469 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Courses — EduTrack{% endblock %}
+{% block nav_courses %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* ── Layout ── */
+  .courses-layout {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+  }
+  .courses-sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 1.25rem;
+    position: sticky;
+    top: 72px;
+  }
+  .courses-sidebar h6 {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6c757d;
+    margin-bottom: 0.75rem;
+  }
+  .courses-main { flex: 1; min-width: 0; }
+
+  /* ── Filter form ── */
+  .filter-group { margin-bottom: 1.25rem; }
+  .filter-group label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #374151;
+    display: block;
+    margin-bottom: 0.4rem;
+  }
+  .filter-group select, .filter-group input {
+    font-size: 0.85rem;
+  }
+  .filter-clear {
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .filter-clear:hover { color: #dc3545; }
+
+  /* ── Top bar ── */
+  .courses-topbar {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  .courses-topbar .search-wrap {
+    flex: 1;
+    position: relative;
+  }
+  .courses-topbar .search-wrap input {
+    padding-left: 2.2rem;
+    font-size: 0.875rem;
+  }
+  .courses-topbar .search-icon {
+    position: absolute;
+    left: 0.65rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    pointer-events: none;
+  }
+  .btn-new-course {
+    background: #4f46e5;
+    color: #fff;
+    border: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.45rem 1rem;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    text-decoration: none;
+  }
+  .btn-new-course:hover { background: #4338ca; color: #fff; }
+
+  /* ── Tabs ── */
+  .courses-tabs {
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 1rem;
+    display: flex;
+    gap: 0;
+  }
+  .courses-tabs a {
+    color: #6c757d;
+    font-weight: 500;
+    font-size: 0.875rem;
+    padding: 0.6rem 1.1rem;
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color .15s;
+  }
+  .courses-tabs a:hover { color: #4f46e5; }
+  .courses-tabs a.active { color: #4f46e5; border-bottom-color: #4f46e5; font-weight: 600; }
+
+  .courses-count {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-bottom: 0.75rem;
+  }
+
+  /* ── List/Grid toggle ── */
+  .view-toggle .btn {
+    padding: 0.3rem 0.55rem;
+    color: #6c757d;
+    border-color: #dee2e6;
+  }
+  .view-toggle .btn.active { background: #f0f0f8; color: #4f46e5; }
+
+  /* ── Course row (list view) ── */
+  .course-row {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: box-shadow .15s;
+  }
+  .course-row:hover { box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+  .course-swatch {
+    width: 46px;
+    height: 46px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #fff;
+  }
+  .course-info { flex: 1; min-width: 0; }
+  .course-name {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #1a1a2e;
+    margin-bottom: 0.15rem;
+    text-decoration: none;
+  }
+  .course-name:hover { color: #4f46e5; }
+  .course-meta {
+    font-size: 0.78rem;
+    color: #6c757d;
+    margin-bottom: 0.3rem;
+  }
+  .course-tags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .tag-pill {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.15rem 0.55rem;
+    border-radius: 20px;
+    background: #e8eefe;
+    color: #4a4dc4;
+  }
+  .tag-pill.grade { background: #e7f5ea; color: #1a7f37; }
+
+  /* ── Course actions ── */
+  .course-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+  .btn-course-action {
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.35rem 0.75rem;
+    border-radius: 7px;
+    border: 1px solid #dee2e6;
+    background: #fff;
+    color: #374151;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: background .15s;
+  }
+  .btn-course-action:hover { background: #f8f9fa; color: #374151; }
+
+  /* ── Enrolled avatars ── */
+  .enrolled-avatars { display: flex; }
+  .student-avatar-sm {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: #5b6af8;
+    border: 2px solid #fff;
+    margin-left: -6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .enrolled-avatars .student-avatar-sm:first-child { margin-left: 0; }
+
+  /* ── Empty state ── */
+  .empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #6c757d;
+  }
+  .empty-state i { font-size: 3rem; margin-bottom: 1rem; color: #d1d5db; }
+  .empty-state h5 { font-weight: 700; color: #374151; margin-bottom: 0.5rem; }
+</style>
+{% endblock %}
+
+{% block messages_block %}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <!-- Flash messages -->
+  {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show" role="alert">
+      {{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  {% endfor %}
+
+  <div class="courses-layout">
+
+    <!-- ── Sidebar Filters ── -->
+    <aside class="courses-sidebar">
+      <h6>Filters</h6>
+      <form method="get" id="filterForm">
+        {% if search %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
+        {% if tab != 'active' %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
+
+        <!-- Status -->
+        <div class="filter-group">
+          <label>Status</label>
+          <select name="tab" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="active" {% if tab == 'active' %}selected{% endif %}>Active ({{ active_count }})</option>
+            <option value="archived" {% if tab == 'archived' %}selected{% endif %}>Archived ({{ archived_count }})</option>
+          </select>
+        </div>
+
+        <!-- Enrolled Students -->
+        <div class="filter-group">
+          <label>Enrolled Students</label>
+          <select name="child" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">All Enrolled Students</option>
+            {% for c in children %}
+              <option value="{{ c.pk }}" {% if child_filter == c.pk|stringformat:'s' %}selected{% endif %}>{{ c.first_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Subjects -->
+        <div class="filter-group">
+          <label>Subjects</label>
+          <select name="subject" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">All Subjects</option>
+            {% for s in subjects %}
+              <option value="{{ s.pk }}" {% if subject_filter == s.pk|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Grade Years -->
+        <div class="filter-group">
+          <label>Grade Years</label>
+          <select name="grade" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">All Grade Years</option>
+            {% for key, label in grade_year_choices %}
+              <option value="{{ key }}" {% if grade_filter == key %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Reset -->
+        {% if child_filter or subject_filter or grade_filter or search %}
+          <a href="{% url 'courses:course_list' %}{% if tab != 'active' %}?tab={{ tab }}{% endif %}" class="filter-clear">
+            <i class="bi bi-x-circle"></i> Reset Filters
+          </a>
+        {% endif %}
+      </form>
+    </aside>
+
+    <!-- ── Main content ── -->
+    <div class="courses-main">
+
+      <!-- Top bar -->
+      <div class="courses-topbar">
+        <div class="search-wrap">
+          <i class="bi bi-search search-icon"></i>
+          <form method="get">
+            {% if tab != 'active' %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
+            <input type="text" name="q" value="{{ search }}"
+                   class="form-control form-control-sm"
+                   placeholder="Search Courses"
+                   onchange="this.form.submit()">
+          </form>
+        </div>
+        <div class="view-toggle btn-group btn-group-sm">
+          <button class="btn btn-outline-secondary" title="Grid view"><i class="bi bi-grid-3x3-gap"></i></button>
+          <button class="btn btn-outline-secondary active" title="List view"><i class="bi bi-list-ul"></i></button>
+        </div>
+        <a href="{% url 'courses:course_new' %}" class="btn-new-course">
+          <i class="bi bi-plus-lg"></i> New Course
+        </a>
+        <a href="{% url 'courses:archived_courses' %}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-clock-history"></i> Archived Records
+        </a>
+      </div>
+
+      <!-- Tabs -->
+      <div class="courses-tabs">
+        <a href="?{% if search %}q={{ search }}&{% endif %}tab=active"
+           class="{% if tab == 'active' %}active{% endif %}">
+          Active ({{ active_count }})
+        </a>
+        <a href="?{% if search %}q={{ search }}&{% endif %}tab=archived"
+           class="{% if tab == 'archived' %}active{% endif %}">
+          Archived ({{ archived_count }})
+        </a>
+      </div>
+
+      <!-- Count -->
+      <p class="courses-count">{{ courses|length }} of {{ courses|length }} Courses</p>
+
+      <!-- Course list -->
+      {% if courses %}
+        {% for course in courses %}
+          {% with active_enrollments=course.enrollments.all %}
+          <div class="course-row">
+
+            <!-- Color swatch with initial -->
+            <div class="course-swatch" style="background: {{ course.color }};">
+              {{ course.name|slice:":1"|upper }}
+            </div>
+
+            <!-- Info -->
+            <div class="course-info">
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <a href="{% url 'courses:course_detail' course_id=course.pk %}" class="course-name">
+                  {{ course.name }}
+                </a>
+                {% if course.grading_style != 'not_graded' %}
+                  <span class="tag-pill">{{ course.get_grading_style_display }}</span>
+                {% endif %}
+              </div>
+              <p class="course-meta mb-1">
+                {{ course.duration_weeks }} weeks &bull; {{ course.frequency_days }} days/week
+              </p>
+              <div class="course-tags">
+                {% for subj in course.subjects.all %}
+                  <span class="tag-pill">{{ subj.name }}</span>
+                {% endfor %}
+                {% for gy in course.get_grade_year_labels %}
+                  <span class="tag-pill grade">{{ gy }}</span>
+                {% endfor %}
+              </div>
+            </div>
+
+            <!-- Enrolled student avatars -->
+            {% with active_list=course.enrollments.all %}
+              {% if active_list %}
+                <div class="enrolled-avatars me-1">
+                  {% for enr in active_list %}
+                    {% if enr.status == 'active' %}
+                      <div class="student-avatar-sm" title="{{ enr.child.first_name }}">
+                        {{ enr.child.first_name|slice:":1"|upper }}
+                      </div>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              {% endif %}
+            {% endwith %}
+
+            <!-- Actions -->
+            <div class="course-actions">
+              <a href="{% url 'courses:course_edit' course_id=course.pk %}" class="btn-course-action">
+                <i class="bi bi-pencil"></i> Edit
+              </a>
+              <div class="dropdown">
+                <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="dropdown" aria-label="More options">
+                  <i class="bi bi-three-dots"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                  <li>
+                    <a class="dropdown-item" href="{% url 'courses:course_detail' course_id=course.pk %}">
+                      <i class="bi bi-eye me-2 text-secondary"></i>View Details
+                    </a>
+                  </li>
+                  <li>
+                    <a class="dropdown-item" href="{% url 'courses:course_enroll' course_id=course.pk %}">
+                      <i class="bi bi-person-plus me-2 text-secondary"></i>Enroll Student
+                    </a>
+                  </li>
+                  <li>
+                    <a class="dropdown-item" href="{% url 'courses:course_export' course_id=course.pk %}">
+                      <i class="bi bi-download me-2 text-secondary"></i>Export CSV
+                    </a>
+                  </li>
+                  <li>
+                    <a class="dropdown-item" href="{% url 'courses:archived_courses' %}">
+                      <i class="bi bi-clock-history me-2 text-secondary"></i>Archived Records
+                    </a>
+                  </li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li>
+                    <form method="post" action="{% url 'courses:course_archive' course_id=course.pk %}">
+                      {% csrf_token %}
+                      <button type="submit" class="dropdown-item {% if course.is_archived %}text-success{% else %}text-warning{% endif %}">
+                        <i class="bi bi-{% if course.is_archived %}arrow-counterclockwise{% else %}archive{% endif %} me-2"></i>
+                        {% if course.is_archived %}Unarchive{% else %}Archive{% endif %}
+                      </button>
+                    </form>
+                  </li>
+                  <li>
+                    <form
+                      method="post"
+                      action="{% url 'courses:course_delete' course_id=course.pk %}"
+                      onsubmit="return confirm('Hard delete this course? Full assignment history will be archived and the live course will be removed.');"
+                    >
+                      {% csrf_token %}
+                      <button type="submit" class="dropdown-item text-danger">
+                        <i class="bi bi-trash me-2"></i>Hard Delete
+                      </button>
+                    </form>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+          </div>
+          {% endwith %}
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          <i class="bi bi-book"></i>
+          {% if search %}
+            <h5>No courses match "{{ search }}"</h5>
+            <p>Try a different search term or <a href="{% url 'courses:course_list' %}">clear the search</a>.</p>
+          {% elif tab == 'archived' %}
+            <h5>No archived courses</h5>
+            <p>Courses you archive will appear here.</p>
+          {% else %}
+            <h5>No courses yet</h5>
+            <p>Create your first course to get started.</p>
+            <a href="{% url 'courses:course_new' %}" class="btn btn-primary mt-2">
+              <i class="bi bi-plus-lg me-1"></i>New Course
+            </a>
+          {% endif %}
+        </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}

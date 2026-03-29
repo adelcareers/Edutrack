@@ -1,0 +1,1016 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% if is_readonly %}{{ child_name }}'s Calendar — EduTrack{% else %}My Calendar — EduTrack{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* ── Header toolbar ─────────────────────── */
+  .cal-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    padding: 0.5rem 0 1rem;
+  }
+  .cal-nav-group { display: flex; align-items: center; gap: 0.25rem; }
+  .cal-nav-btn {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 0.3rem 0.7rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: #374151;
+    text-decoration: none;
+    line-height: 1.4;
+  }
+  .cal-nav-btn:hover { background: #f1f5f9; color: #111; }
+  .cal-nav-btn.today-btn { font-weight: 600; }
+  .cal-date-range {
+    font-size: 0.92rem;
+    font-weight: 500;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .cal-date-range i { opacity: 0.5; }
+  .cal-toolbar-right { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .cal-action-btn {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: #374151;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    cursor: pointer;
+  }
+  .cal-action-btn:hover { background: #f1f5f9; color: #111; }
+
+  /* ── Calendar grid ─────────────────────── */
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.75rem;
+    min-height: 60vh;
+  }
+  @media (max-width: 1199px) { .calendar-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 767px)  { .calendar-grid { grid-template-columns: 1fr; } }
+
+  /* ── Day column ─────────────────────────── */
+  .day-column {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    min-height: 320px;
+    overflow: hidden;
+  }
+  .day-header {
+    padding: 0.55rem 0.75rem 0.45rem;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .day-header-left { display: flex; align-items: center; gap: 0.4rem; }
+  .day-name { font-weight: 700; font-size: 0.82rem; color: #374151; }
+  .day-date { font-size: 0.75rem; color: #94a3b8; }
+  .today-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #3b82f6; display: inline-block; flex-shrink: 0;
+  }
+  .day-add-btn {
+    background: none; border: none; padding: 0 0.1rem;
+    color: #94a3b8; font-size: 1.1rem; cursor: pointer;
+    line-height: 1; border-radius: 4px;
+  }
+  .day-add-btn:hover { color: #3b82f6; background: #eff6ff; }
+
+  .day-body { padding: 0.5rem 0.6rem; }
+  .empty-day { color: #cbd5e1; font-size: 0.75rem; text-align: center; padding-top: 1.75rem; }
+
+  /* ── Vacation card ─────────────────────── */
+  .vacation-card {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-left: 4px solid #f59e0b;
+    border-radius: 6px;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+    margin-bottom: 0.4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: #92400e;
+  }
+  .vacation-card .vac-name { font-weight: 600; }
+  .vacation-card .vac-child { opacity: 0.7; font-size: 0.72rem; }
+
+  /* ── Lesson cards (unchanged visuals) ───── */
+  .lesson-card {
+    --subject-colour: #6c757d;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 0.45rem;
+    font-size: 0.82rem;
+    overflow: hidden;
+    background: #fff;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    transition: box-shadow 0.15s;
+  }
+  .lesson-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.12); }
+
+  .assignment-card {
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #6b7280;
+    border-radius: 8px;
+    margin-bottom: 0.45rem;
+    font-size: 0.8rem;
+    background: #fff;
+    cursor: pointer;
+    padding: 0.4rem 0.6rem;
+  }
+  .assignment-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.12); }
+  .assignment-card.assignment-done { border-left-color: #16a34a; }
+  .assignment-card.assignment-incomplete { border-left-color: #d97706; }
+  .assignment-card.assignment-overdue { border-left-color: #dc2626; }
+  .assignment-title { font-weight: 600; color: #1f2937; }
+  .assignment-meta { color: #6b7280; font-size: 0.72rem; }
+  .lesson-card .card-header {
+    background-color: var(--subject-colour);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.28rem 0.7rem;
+    border-bottom: none;
+  }
+  .lesson-card .card-body {
+    padding: 0.35rem 0.7rem 0.3rem;
+    color: #1e293b;
+    line-height: 1.35;
+  }
+  .lesson-card .card-footer {
+    padding: 0.2rem 0.7rem 0.3rem;
+    background: transparent;
+    border-top: none;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 1.4rem;
+  }
+
+  /* ── Mastery buttons in modal ─────────── */
+  .mastery-btn[data-mastery="green"]              { color: #16A34A; border: 1px solid #16A34A; background: transparent; }
+  .mastery-btn[data-mastery="green"].mastery-active { background: #16A34A; color: #fff; }
+  .mastery-btn[data-mastery="amber"]              { color: #D97706; border: 1px solid #D97706; background: transparent; }
+  .mastery-btn[data-mastery="amber"].mastery-active { background: #D97706; color: #fff; }
+  .mastery-btn[data-mastery="red"]                { color: #DC2626; border: 1px solid #DC2626; background: transparent; }
+  .mastery-btn[data-mastery="red"].mastery-active  { background: #DC2626; color: #fff; }
+
+  .lesson-modal-shell .modal-dialog {
+    max-width: 860px;
+  }
+  .lesson-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.75rem;
+    padding: 0.95rem 1.2rem;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f8fbff;
+  }
+  .lesson-head-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 0.5rem;
+  }
+  .lesson-status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border-radius: 999px;
+    padding: 0.3rem 0.72rem;
+    font-size: 0.84rem;
+    font-weight: 700;
+  }
+  .lesson-status-chip.is-clickable {
+    cursor: pointer;
+  }
+  .lesson-status-chip.status-success { background: #dcfce7; color: #166534; }
+  .lesson-status-chip.status-danger { background: #fee2e2; color: #b91c1c; }
+  .lesson-status-chip.status-secondary { background: #e5e7eb; color: #374151; }
+  .lesson-status-chip.status-dark { background: #e2e8f0; color: #1f2937; }
+  .lesson-head-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+    margin-left: auto;
+    flex: 1 1 auto;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+  .lesson-head-actions .btn {
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 0.82rem;
+    padding: 0.36rem 0.8rem;
+  }
+  .action-complete {
+    color: #166534;
+    border-color: #86efac;
+    background: #f0fdf4;
+  }
+  .action-reschedule {
+    color: #92400e;
+    border-color: #fde68a;
+    background: #fffbeb;
+  }
+  .action-edit {
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+    background: #eff6ff;
+  }
+  .action-delete {
+    color: #b91c1c;
+    border-color: #fecaca;
+    background: #fef2f2;
+  }
+  .lesson-link-panel {
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    background: #eff6ff;
+    padding: 0.7rem 0.8rem;
+    margin-bottom: 0.9rem;
+  }
+  .lesson-link-label {
+    font-size: 0.73rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #1d4ed8;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+  .lesson-link-main {
+    color: #1e3a8a;
+    font-weight: 800;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .lesson-title-link {
+    color: #3b82f6;
+    text-decoration: underline;
+    font-weight: 700;
+  }
+  .receipt-status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.55rem;
+    margin-bottom: 0.35rem;
+  }
+  .meta-info-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 0.65rem 0.8rem;
+    background: #fff;
+    margin-bottom: 0.9rem;
+  }
+  .lesson-meta-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 0.65rem 0.8rem;
+    background: #fff;
+  }
+  .lesson-student {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+  }
+  .lesson-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #1e3a8a;
+    background: #dbeafe;
+    overflow: hidden;
+  }
+  .lesson-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .mastery-pills {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 0.6rem;
+    width: 100%;
+  }
+  .mastery-panel {
+    border: 1px solid #dbeafe;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%);
+    padding: 0.75rem;
+    margin-bottom: 0.9rem;
+  }
+  .mastery-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    margin-bottom: 0.4rem;
+  }
+  .mastery-title {
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: #1f2937;
+  }
+  .mastery-subtitle {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-bottom: 0.55rem;
+  }
+  .mastery-btn {
+    position: relative;
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.35rem;
+    font-weight: 700;
+    min-height: 46px;
+  }
+  .mastery-short {
+    font-size: 0.72rem;
+    font-weight: 600;
+    opacity: 0.9;
+  }
+  .mastery-hint-icon {
+    position: absolute;
+    top: 0.3rem;
+    right: 0.4rem;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.66rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .mastery-btn i {
+    margin-right: 0.25rem;
+  }
+  .receipt-panel {
+    border: 1px solid #c7d2fe;
+    background: #f8faff;
+    border-radius: 10px;
+    padding: 0.7rem;
+  }
+  .receipt-panel .form-control[readonly] {
+    background: #f8fafc;
+    color: #334155;
+  }
+  .reschedule-picker-panel {
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background: #fff;
+    padding: 0.7rem;
+    margin-bottom: 0.9rem;
+  }
+  .reschedule-picker-panel[hidden] {
+    display: none !important;
+  }
+  .reschedule-picker-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.55rem;
+  }
+  .reschedule-picker-months {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem;
+  }
+  .picker-month {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.5rem;
+    background: #f8fafc;
+  }
+  .picker-month-title {
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.88rem;
+    margin-bottom: 0.4rem;
+  }
+  .picker-weekdays,
+  .picker-days {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 0.2rem;
+  }
+  .picker-weekday {
+    text-align: center;
+    font-size: 0.72rem;
+    color: #64748b;
+    font-weight: 600;
+  }
+  .picker-day {
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    min-height: 30px;
+    font-size: 0.82rem;
+  }
+  .picker-day.is-disabled {
+    color: #94a3b8;
+    cursor: not-allowed;
+  }
+  .picker-day.is-selected {
+    background: #4f46e5;
+    color: #fff;
+  }
+  .picker-day.is-today {
+    outline: 1px solid #93c5fd;
+  }
+  .reschedule-picker-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.6rem;
+  }
+  @media (max-width: 767px) {
+    .lesson-modal-head {
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
+    .lesson-head-actions {
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      width: auto;
+      margin-left: auto;
+    }
+    }
+    .mastery-pills {
+      grid-template-columns: 1fr;
+    }
+    .reschedule-picker-months {
+      grid-template-columns: 1fr;
+    }
+  }
+  .lesson-tabs {
+    display: flex;
+    gap: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    margin-top: 1rem;
+  }
+  .lesson-tab-btn {
+    border: none;
+    background: transparent;
+    padding: 0.45rem 0;
+    color: #6b7280;
+    font-weight: 600;
+    font-size: 0.86rem;
+    border-bottom: 2px solid transparent;
+  }
+  .lesson-tab-btn.active {
+    color: #4f46e5;
+    border-bottom-color: #4f46e5;
+  }
+  .lesson-tab-pane {
+    display: none;
+    padding-top: 0.8rem;
+  }
+  .lesson-tab-pane.active {
+    display: block;
+  }
+  .comment-journal {
+    max-height: 220px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.55rem;
+    background: #fafafa;
+  }
+  .comment-entry {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.45rem 0.55rem;
+    background: #fff;
+  }
+  .comment-meta {
+    color: #6b7280;
+    font-size: 0.75rem;
+    margin-bottom: 0.15rem;
+  }
+
+  /* ── Filter badge ──────────────────────── */
+  .filter-badge {
+    background: #3b82f6; color: #fff; border-radius: 999px;
+    font-size: 0.68rem; padding: 0.05rem 0.38rem; margin-left: 0.2rem;
+  }
+  .lesson-card.filter-hidden { display: none !important; }
+
+  /* Saturday column subtle tint */
+  .day-column.saturday { background: #fafdf7; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ── Toolbar ───────────────────────────────────────── -->
+<div class="cal-toolbar">
+  <div class="cal-nav-group">
+    <a class="cal-nav-btn"
+       href="{% if is_readonly %}{% url 'tracker:parent_calendar_week' child_id prev_year prev_week %}{% else %}{% url 'tracker:calendar_week' prev_year prev_week %}{% endif %}"
+       aria-label="Previous week">&#8249;</a>
+    <a class="cal-nav-btn today-btn"
+       href="{% if is_readonly %}{% url 'tracker:parent_calendar_week' child_id today_year today_week %}{% else %}{% url 'tracker:calendar_week' today_year today_week %}{% endif %}">Today</a>
+    <a class="cal-nav-btn"
+       href="{% if is_readonly %}{% url 'tracker:parent_calendar_week' child_id next_year next_week %}{% else %}{% url 'tracker:calendar_week' next_year next_week %}{% endif %}"
+       aria-label="Next week">&#8250;</a>
+  </div>
+
+  <div class="cal-date-range">
+    <i class="bi bi-calendar3"></i>
+    {{ week_display }}
+  </div>
+
+  {% if is_readonly and siblings and siblings|length > 1 %}
+  <!-- Child switcher dropdown — only shown when parent has multiple children -->
+  <div class="dropdown">
+    <button class="cal-action-btn dropdown-toggle" data-bs-toggle="dropdown">
+      <i class="bi bi-person"></i> {{ child_name }}
+    </button>
+    <ul class="dropdown-menu shadow-sm" style="font-size:0.85rem;">
+      {% for sibling in siblings %}
+      <li>
+        <a class="dropdown-item {% if sibling.pk == child_id %}fw-bold{% endif %}"
+           href="{% url 'tracker:parent_calendar' child_id=sibling.pk %}">
+          {{ sibling.first_name }}
+          {% if sibling.pk == child_id %}<i class="bi bi-check2 ms-1 text-primary"></i>{% endif %}
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% elif is_readonly %}
+  <span class="cal-date-range" style="color:#6b7280;">
+    <i class="bi bi-person"></i> {{ child_name }}
+  </span>
+  {% endif %}
+
+  <div class="cal-toolbar-right">
+    <!-- Filters -->
+    <div class="dropdown">
+      <button class="cal-action-btn dropdown-toggle" data-bs-toggle="dropdown" id="filter-btn">
+        <i class="bi bi-funnel"></i> Filters
+        <span id="active-filter-badge" class="filter-badge" style="display:none;">0</span>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="font-size:0.85rem; min-width:180px;">
+        <li>
+          <label class="dropdown-item d-flex align-items-center gap-2" style="cursor:pointer;">
+            <input type="checkbox" id="filter-complete" checked> Show Completed
+          </label>
+        </li>
+        <li>
+          <label class="dropdown-item d-flex align-items-center gap-2" style="cursor:pointer;">
+            <input type="checkbox" id="filter-skipped" checked> Show Skipped
+          </label>
+        </li>
+        <li>
+          <label class="dropdown-item d-flex align-items-center gap-2" style="cursor:pointer;">
+            <input type="checkbox" id="filter-pending" checked> Show Pending
+          </label>
+        </li>
+      </ul>
+    </div>
+
+    {% if is_readonly %}
+      <!-- Parent: manage vacations + export links for this child -->
+      <a href="{% url 'scheduler:manage_vacations' child_id=child_id %}" class="cal-action-btn">
+        <i class="bi bi-sun"></i> Manage Vacations
+      </a>
+      <a href="{% url 'tracker:parent_export_ical' child_id=child_id %}" class="cal-action-btn">
+        <i class="bi bi-box-arrow-up"></i> Export
+      </a>
+    {% else %}
+      {% if child and user.profile.role == 'parent' %}
+      <a href="{% url 'scheduler:manage_vacations' child_id=child.pk %}" class="cal-action-btn">
+        <i class="bi bi-sun"></i> Manage Vacations
+      </a>
+      {% endif %}
+      <a href="{% url 'tracker:export_ical' %}" class="cal-action-btn">
+        <i class="bi bi-box-arrow-up"></i> Export
+      </a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── Calendar grid ────────────────────────────────── -->
+<div class="calendar-grid">
+  {% for name, day in days.items %}
+  <div class="day-column {% if day.date|date:"l"|lower == 'saturday' %}saturday{% endif %}">
+    <div class="day-header">
+      <div class="day-header-left">
+        <span class="day-name">{{ day.date|date:"l" }}</span>
+        {% if day.date == today %}<span class="today-dot"></span>{% endif %}
+        <span class="day-date">{{ day.date|date:"M d" }}</span>
+      </div>
+            {% if not is_readonly and user.profile.role == 'parent' %}
+      <button class="day-add-btn"
+              data-date="{{ day.date|date:'Y-m-d' }}"
+              title="Add vacation on {{ day.date|date:'M d' }}"
+              aria-label="Add vacation on {{ day.date|date:'l, M d' }}">+</button>
+      {% endif %}
+    </div>
+
+    <div class="day-body">
+      {# Vacation banners for this day #}
+      {% for vac in day.vacations %}
+      <div class="vacation-card">
+        <span>☀️</span>
+        <div>
+          <div class="vac-name">{{ vac.name }}</div>
+          <div class="vac-child">{{ child.first_name }}</div>
+        </div>
+      </div>
+      {% endfor %}
+
+      {# Lesson cards for this day #}
+      {% if day.assignments %}
+      <p class="small text-uppercase text-muted fw-semibold mb-2">Assignments (manual course plan)</p>
+      {% endif %}
+      {% for assignment in day.assignments %}
+      <div
+        class="assignment-card assignment-{{ assignment.effective_status }}"
+        data-assignment-id="{{ assignment.pk }}"
+        data-assignment-status="{{ assignment.effective_status }}"
+        role="button"
+        tabindex="0"
+        aria-haspopup="dialog"
+      >
+        <div class="assignment-title">{{ assignment.plan_item.template.name }}</div>
+        <div class="assignment-meta">
+          {{ assignment.enrollment.course.name }}
+          <span class="mx-1">•</span>
+          {{ assignment.plan_item.template.assignment_type.name }}
+        </div>
+        <div class="mt-1">
+          {% if assignment.effective_status == 'done' %}
+          <span class="badge bg-success">Done</span>
+          {% elif assignment.effective_status == 'overdue' %}
+          <span class="badge bg-danger">Overdue</span>
+          {% else %}
+          <span class="badge text-bg-secondary">Incomplete</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+
+      {% if day.lessons %}
+        <p class="small text-uppercase text-muted fw-semibold mb-2 mt-2">Lessons (Oak/custom schedule)</p>
+        {% for sl in day.lessons %}
+        <div class="lesson-card"
+             style="--subject-colour: {{ sl.enrolled_subject.colour_hex }}"
+             data-id="{{ sl.pk }}"
+             data-status="{% if sl.log %}{{ sl.log.status }}{% else %}pending{% endif %}"
+             role="button" tabindex="0" aria-haspopup="dialog">
+          <div class="card-header">{{ sl.enrolled_subject.subject_name }}</div>
+          <div class="card-body">{{ sl.lesson.lesson_title }}</div>
+          <div class="card-footer">
+            {% if sl.log.status == 'complete' %}<span class="badge status-badge bg-success me-1" style="font-size:0.65rem;">Complete</span>{% endif %}
+            {% if sl.log.status == 'skipped' %}<span class="badge status-badge bg-secondary me-1" style="font-size:0.65rem;">Skipped</span>{% endif %}
+            {% if sl.log.mastery == 'green' %}<span class="mastery-dot green" title="Mastery: good"></span>{% endif %}
+            {% if sl.log.mastery == 'amber' %}<span class="mastery-dot amber" title="Mastery: amber"></span>{% endif %}
+            {% if sl.log.mastery == 'red' %}<span class="mastery-dot red" title="Mastery: needs work"></span>{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      {% elif not day.vacations and not day.assignments %}
+        <p class="empty-day">No lessons</p>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div id="assignment-modal" class="modal fade" tabindex="-1" role="dialog"
+     aria-modal="true" aria-labelledby="assignment-modal-title">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#334155; color:#fff; border-bottom:none;">
+        <h5 class="modal-title" id="assignment-modal-title">Assignment</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-1" id="assignment-modal-course"></p>
+        <p class="text-muted small mb-2" id="assignment-modal-due"></p>
+        <p class="small text-muted mb-2">Scheduled from Course Planning timeline.</p>
+        <p class="mb-1 fw-semibold" id="assignment-modal-type"></p>
+        <p class="small text-muted" id="assignment-modal-notes"></p>
+        <div class="mt-3" id="assignment-status-row">
+          <span class="small text-muted">Status:</span>
+          <span id="assignment-modal-status" class="badge ms-1 text-bg-secondary">Incomplete</span>
+        </div>
+        {% if can_edit_assignments %}
+        <div class="d-flex gap-2 mt-3">
+          <button id="assignment-btn-done" class="btn btn-sm btn-success" type="button">
+            Mark Done
+          </button>
+          <button id="assignment-btn-incomplete" class="btn btn-sm btn-outline-secondary" type="button">
+            Mark Incomplete
+          </button>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Lesson Detail Modal ─────────────────────────── -->
+<div id="lesson-modal" class="modal fade lesson-modal-shell" tabindex="-1" role="dialog"
+  aria-modal="true" aria-label="Lesson details">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="lesson-modal-head" id="modal-header">
+        <div id="modal-status-chip" class="lesson-status-chip status-secondary {% if can_edit_lessons %}is-clickable{% endif %}">
+          <i id="modal-status-icon" class="bi bi-dash-circle"></i>
+          <span id="modal-status-label">Incomplete</span>
+        </div>
+        {% if can_edit_lessons %}
+        <div class="lesson-head-actions">
+          <button id="modal-btn-complete" class="btn btn-sm action-complete" type="button">
+            <i class="bi bi-check-circle"></i> Mark Complete
+          </button>
+          <button id="modal-btn-reschedule" class="btn btn-sm action-reschedule" type="button">
+            <i class="bi bi-calendar3"></i> Reschedule
+          </button>
+          <button id="modal-btn-edit" class="btn btn-sm action-edit" type="button">
+            <i class="bi bi-pencil"></i> Edit
+          </button>
+          <button id="modal-btn-delete" class="btn btn-sm action-delete" type="button">
+            <i class="bi bi-trash"></i> Delete
+          </button>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="modal-body">
+        <div class="lesson-link-panel">
+          <a id="modal-lesson-access-link" class="lesson-link-main" href="#" target="_blank" rel="noopener noreferrer">KS, Year, Subject, Unit: Lesson</a>
+        </div>
+
+        <div class="receipt-panel mb-3">
+          <div class="receipt-status-row">
+            <label for="modal-receipt-url" class="small fw-semibold mb-0">Completion Receipt Link</label>
+            <span id="modal-receipt-status" class="badge text-bg-secondary">Link not attached</span>
+          </div>
+          <div class="d-flex gap-2 mt-1 flex-wrap">
+            <input id="modal-receipt-url" type="url" class="form-control form-control-sm"
+                   placeholder="Paste completion receipt link...">
+            <button id="modal-btn-save-receipt" class="btn btn-sm btn-outline-primary" type="button">Save</button>
+            <button id="modal-btn-edit-receipt" class="btn btn-sm btn-outline-secondary" type="button" hidden>Edit</button>
+          </div>
+        </div>
+
+        <div class="mastery-panel" aria-label="Lesson mastery section">
+          <div class="mastery-heading">
+            <div class="mastery-title">How well this lesson was understood?</div>
+          </div>
+          <div class="mastery-pills">
+            <button class="btn btn-sm mastery-btn" data-mastery="green" type="button" title="I fully understood this and could move on." aria-label="Green. Got it. I fully understood this and could move on.">
+              <i class="bi bi-emoji-smile"></i>
+              <span>Green</span>
+              <span class="mastery-short">Got it!</span>
+              <span class="mastery-hint-icon" aria-hidden="true">i</span>
+            </button>
+            <button class="btn btn-sm mastery-btn" data-mastery="amber" type="button" title="I understood some, but need a recap." aria-label="Amber. Getting there. I understood some, but need a recap.">
+              <i class="bi bi-emoji-neutral"></i>
+              <span>Amber</span>
+              <span class="mastery-short">Getting there</span>
+              <span class="mastery-hint-icon" aria-hidden="true">i</span>
+            </button>
+            <button class="btn btn-sm mastery-btn" data-mastery="red" type="button" title="I didn't understand this lesson." aria-label="Red. I need help. I didn't understand this lesson.">
+              <i class="bi bi-emoji-frown"></i>
+              <span>Red</span>
+              <span class="mastery-short">I need help</span>
+              <span class="mastery-hint-icon" aria-hidden="true">i</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="meta-info-panel">
+          <div class="lesson-student">
+            <span class="lesson-avatar" id="modal-student-avatar">S</span>
+            <div>
+              <div class="fw-semibold" id="modal-student-name">Student</div>
+              <div class="text-muted small" id="modal-date">Date</div>
+            </div>
+          </div>
+          <div class="text-muted small" id="modal-weekday">Week 0, Day 0</div>
+        </div>
+
+        <div id="reschedule-picker-panel" class="reschedule-picker-panel" hidden>
+          <div class="reschedule-picker-head">
+            <button id="reschedule-prev" class="btn btn-sm btn-outline-secondary" type="button" aria-label="Previous month">&lsaquo;</button>
+            <div class="small fw-semibold">Pick a new date</div>
+            <button id="reschedule-next" class="btn btn-sm btn-outline-secondary" type="button" aria-label="Next month">&rsaquo;</button>
+          </div>
+          <div class="reschedule-picker-months">
+            <div class="picker-month">
+              <div id="picker-month-1-label" class="picker-month-title"></div>
+              <div class="picker-weekdays">
+                <div class="picker-weekday">Mo</div><div class="picker-weekday">Tu</div><div class="picker-weekday">We</div><div class="picker-weekday">Th</div><div class="picker-weekday">Fr</div><div class="picker-weekday">Sa</div><div class="picker-weekday">Su</div>
+              </div>
+              <div id="picker-month-1-grid" class="picker-days"></div>
+            </div>
+            <div class="picker-month">
+              <div id="picker-month-2-label" class="picker-month-title"></div>
+              <div class="picker-weekdays">
+                <div class="picker-weekday">Mo</div><div class="picker-weekday">Tu</div><div class="picker-weekday">We</div><div class="picker-weekday">Th</div><div class="picker-weekday">Fr</div><div class="picker-weekday">Sa</div><div class="picker-weekday">Su</div>
+              </div>
+              <div id="picker-month-2-grid" class="picker-days"></div>
+            </div>
+          </div>
+          <div class="reschedule-picker-actions">
+            <span id="reschedule-selected-label" class="small text-muted">No date selected</span>
+            <div class="d-flex gap-2">
+              <button id="reschedule-cancel" class="btn btn-sm btn-outline-secondary" type="button">Cancel</button>
+              <button id="reschedule-save" class="btn btn-sm btn-primary" type="button">Save</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="lesson-tabs" role="tablist">
+          <button class="lesson-tab-btn active" data-tab="notes" type="button">Notes</button>
+          <button class="lesson-tab-btn" data-tab="submissions" type="button">Submissions (<span id="modal-submissions-count-tab">0</span>)</button>
+          <button class="lesson-tab-btn" data-tab="comments" type="button">Comments (<span id="modal-comments-count-tab">0</span>)</button>
+        </div>
+
+        <div id="modal-upload-alert-wrap"></div>
+
+        <div class="lesson-tab-pane active" data-pane="notes">
+          <label for="modal-notes" class="small text-muted mb-1 d-block">My Notes</label>
+          <textarea id="modal-notes" class="form-control form-control-sm" rows="3"
+                    maxlength="1000" placeholder="Add a note about this lesson…"></textarea>
+          <div class="d-flex justify-content-between mt-1">
+            <span class="small text-muted">Optional</span>
+            <span class="small text-muted"><span id="notes-char-count">0</span>/1000</span>
+          </div>
+          <button id="modal-btn-save-notes" class="btn btn-sm btn-outline-secondary mt-2" type="button">Save Notes</button>
+        </div>
+
+        <div class="lesson-tab-pane" data-pane="submissions">
+          <div class="small text-muted mb-2">Upload and manage submissions</div>
+          <div class="d-flex gap-2 align-items-center flex-wrap mb-2">
+            <input type="file" id="modal-evidence-file" accept="image/*,.pdf,.doc,.docx"
+                   class="form-control form-control-sm" style="max-width:260px">
+            <button id="modal-btn-upload" class="btn btn-sm btn-outline-info" type="button">Upload</button>
+            <span class="small text-muted">Total: <span id="modal-evidence-count">0</span></span>
+          </div>
+          <ul id="modal-evidence-list" class="list-unstyled mt-1 mb-0 small"></ul>
+        </div>
+
+        <div class="lesson-tab-pane" data-pane="comments">
+          <div id="modal-comments-list" class="comment-journal mb-2"></div>
+          <textarea id="modal-comment-input" class="form-control form-control-sm" rows="2"
+                    maxlength="2000" placeholder="Add a comment..."></textarea>
+          <div class="d-flex justify-content-end mt-2">
+            <button id="modal-btn-add-comment" class="btn btn-sm btn-outline-primary" type="button">Add Comment</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Quick-add Vacation Modal ─────────────────────── -->
+{% if not is_readonly %}
+<div id="vacation-modal" class="modal fade" tabindex="-1" aria-labelledby="vac-modal-title" aria-modal="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#f59e0b; color:#fff; border-bottom:none;">
+        <h6 class="modal-title fw-bold" id="vac-modal-title">☀️ Add Vacation</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="vacation-form" method="post" action="" novalidate>
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold" for="vac-modal-name">Vacation name</label>
+            <input type="text" class="form-control" id="vac-modal-name" name="name"
+                   maxlength="100" placeholder="e.g. Half term" required
+                   autocomplete="off">
+          </div>
+          <div class="row g-2">
+            <div class="col">
+              <label class="form-label small fw-semibold" for="vac-modal-start">Start date</label>
+              <input type="date" class="form-control" id="vac-modal-start" name="start_date" required>
+            </div>
+            <div class="col">
+              <label class="form-label small fw-semibold" for="vac-modal-end">End date</label>
+              <input type="date" class="form-control" id="vac-modal-end" name="end_date" required>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary btn-sm"
+                  data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-warning btn-sm fw-semibold">Add Vacation</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/calendar.js' %}"></script>
+<script>
+(function () {
+  // ── Vacation quick-add modal ─────────────
+  {% if not is_readonly %}
+  {% if child %}
+  var addVacUrl = "{% url 'scheduler:add_vacation' child_id=child.pk %}";
+  {% else %}
+  var addVacUrl = null;
+  {% endif %}
+  var vacModal = new bootstrap.Modal(document.getElementById('vacation-modal'));
+  document.getElementById('vacation-form').action = addVacUrl || '#';
+
+  document.querySelectorAll('.day-add-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var date = btn.dataset.date;
+      document.getElementById('vac-modal-start').value = date;
+      document.getElementById('vac-modal-end').value   = date;
+      document.getElementById('vac-modal-name').value  = '';
+      vacModal.show();
+    });
+  });
+
+  document.getElementById('vac-modal-start').addEventListener('change', function () {
+    var endEl = document.getElementById('vac-modal-end');
+    endEl.min = this.value;
+    if (endEl.value < this.value) endEl.value = this.value;
+  });
+  {% endif %}
+
+  // ── Filters ──────────────────────────────
+  var filterComplete = document.getElementById('filter-complete');
+  var filterSkipped  = document.getElementById('filter-skipped');
+  var filterPending  = document.getElementById('filter-pending');
+  var badge = document.getElementById('active-filter-badge');
+
+  function applyFilters() {
+    var hiddenCount = 0;
+    document.querySelectorAll('.lesson-card').forEach(function (card) {
+      var status = card.dataset.status || 'pending';
+      var visible = (
+        (status === 'complete' && filterComplete.checked) ||
+        (status === 'skipped'  && filterSkipped.checked)  ||
+        (status === 'pending'  && filterPending.checked)
+      );
+      card.classList.toggle('filter-hidden', !visible);
+      if (!visible) hiddenCount++;
+    });
+    badge.textContent = hiddenCount;
+    badge.style.display = hiddenCount > 0 ? 'inline' : 'none';
+  }
+
+  [filterComplete, filterSkipped, filterPending].forEach(function (el) {
+    el.addEventListener('change', applyFilters);
+  });
+  applyFilters();
+})();
+</script>
+{% endblock %}
+

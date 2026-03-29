@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Complete Course — EduTrack{% endblock %}
+{% block nav_courses %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  body { background: #f8f9fb; }
+  .back-link {
+    color: #6c757d; font-size: 0.9rem; text-decoration: none;
+    display: inline-flex; align-items: center; gap: 4px; margin-bottom: 1.25rem;
+  }
+  .back-link:hover { color: #4f46e5; }
+  .form-card {
+    background: #fff; border: 1px solid #e9ecef;
+    border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.05);
+  }
+  .form-card-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #e9ecef;
+  }
+  .form-card-header h5 { margin: 0; font-weight: 700; }
+  .form-card-body { padding: 1.5rem; }
+  .summary-row {
+    background: #f8f9fb; border: 1px solid #e9ecef;
+    border-radius: 10px; padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .summary-row .label { font-size: 0.78rem; font-weight: 700; color: #6c757d; text-transform: uppercase; letter-spacing: 0.05em; }
+  .summary-row .value { font-size: 0.95rem; font-weight: 600; color: #1a1a2e; }
+</style>
+{% endblock %}
+
+{% block messages_block %}{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 520px;">
+
+  <a href="{% url 'courses:course_detail' course_id=enrollment.course.pk %}" class="back-link">
+    <i class="bi bi-chevron-left"></i> {{ enrollment.course.name }}
+  </a>
+
+  <!-- Flash messages -->
+  {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show" role="alert">
+      {{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  {% endfor %}
+
+  <div class="form-card">
+    <div class="form-card-header">
+      <h5>Complete Course</h5>
+    </div>
+    <div class="form-card-body">
+
+      <!-- Summary -->
+      <div class="summary-row">
+        <div class="row g-3">
+          <div class="col-6">
+            <div class="label">Student</div>
+            <div class="value">{{ enrollment.child.first_name }}</div>
+          </div>
+          <div class="col-6">
+            <div class="label">Course</div>
+            <div class="value">{{ enrollment.course.name }}</div>
+          </div>
+          <div class="col-6">
+            <div class="label">Started</div>
+            <div class="value">{{ enrollment.start_date|date:"M d, Y" }}</div>
+          </div>
+          <div class="col-6">
+            <div class="label">Days</div>
+            <div class="value">{{ enrollment.get_days_display }}</div>
+          </div>
+        </div>
+      </div>
+
+      <p style="font-size: 0.88rem; color: #6c757d;" class="mb-3">
+        Record when this course was completed. This will mark the enrollment as complete and log it in your history.
+      </p>
+
+      <form method="post">
+        {% csrf_token %}
+
+        <!-- School Year -->
+        <div class="mb-3">
+          <label for="{{ form.completed_school_year.id_for_label }}" class="form-label fw-semibold" style="font-size:0.9rem;">
+            School Year
+          </label>
+          {% if form.completed_school_year.errors %}
+            <div class="invalid-feedback d-block">{{ form.completed_school_year.errors.0 }}</div>
+          {% endif %}
+          {{ form.completed_school_year }}
+          <div class="form-text">The academic year in which this course was completed.</div>
+        </div>
+
+        <!-- Calendar Year -->
+        <div class="mb-4">
+          <label for="{{ form.completed_calendar_year.id_for_label }}" class="form-label fw-semibold" style="font-size:0.9rem;">
+            Calendar Year
+          </label>
+          {% if form.completed_calendar_year.errors %}
+            <div class="invalid-feedback d-block">{{ form.completed_calendar_year.errors.0 }}</div>
+          {% endif %}
+          {{ form.completed_calendar_year }}
+          <div class="form-text">The calendar year (e.g. 2025) this course finished in.</div>
+        </div>
+
+        <!-- Actions -->
+        <div class="d-flex gap-2 justify-content-end">
+          <a href="{% url 'courses:course_detail' course_id=enrollment.course.pk %}" class="btn btn-outline-secondary">
+            Cancel
+          </a>
+          <button type="submit" class="btn btn-success">
+            <i class="bi bi-check-circle me-1"></i>Mark Complete
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

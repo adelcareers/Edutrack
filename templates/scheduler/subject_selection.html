@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Select Subjects for {{ child.first_name }} — EduTrack{% endblock %}
+
+{% block nav_students %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+.scheduling-grid th, .scheduling-grid td { vertical-align: middle; padding: 0.6rem 0.75rem; }
+.scheduling-grid td:first-child { padding-left: 1rem; }
+.scheduling-grid td:last-child  { padding-right: 1rem; }
+.swatch-cell   { width: 2.2rem; text-align: center; }
+.num-col       { width: 7rem; text-align: right; }
+.ks-badge      { font-size: 0.65rem; font-weight: 600; padding: 0.15rem 0.45rem;
+                 border-radius: 999px; margin-left: 0.3rem; vertical-align: middle;
+                 background: #EEF2FF; color: #3730A3; }
+.subject-row.subject-selected td { background: #F0FDF4; }
+.sort-btn.active { font-weight: 600; }
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { text-decoration: underline; }
+th.sortable .sort-icon { font-size: 0.7rem; margin-left: 0.25rem; opacity: 0.6; }
+th.sortable.sorted-asc .sort-icon::after  { content: '▲'; }
+th.sortable.sorted-desc .sort-icon::after { content: '▼'; }
+th.sortable:not(.sorted-asc):not(.sorted-desc) .sort-icon::after { content: '⇅'; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width:860px;">
+
+  <a href="{% url 'scheduler:child_list' %}" class="text-decoration-none text-muted small d-inline-flex align-items-center gap-1 mb-3">
+    <i class="bi bi-arrow-left"></i> All students
+  </a>
+
+  <div class="mb-4">
+    <h2 class="fw-bold mb-1">Select subjects for {{ child.first_name }}</h2>
+    <p class="text-muted mb-0">
+      Tick each subject you want to include. You'll set lessons per week and teaching days on the next step.
+    </p>
+  </div>
+
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags }} alert-dismissible fade show" role="alert">
+      {{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="post" novalidate id="subject-form">
+    {% csrf_token %}
+
+    {% if subjects %}
+      <div class="card shadow-sm mb-4">
+        <table class="table scheduling-grid mb-0" id="subjects-table" aria-label="Subject selection">
+          <thead>
+            <tr style="background:#1e293b; color:#fff;">
+              <th style="width:2.5rem;"></th>
+              <th class="swatch-cell"></th>
+              <th class="sortable" data-col="name">Subject<span class="sort-icon"></span></th>
+              <th class="sortable num-col" data-col="units" style="text-align:right;">Units<span class="sort-icon"></span></th>
+              <th class="sortable num-col sorted-desc" data-col="lessons" style="text-align:right;">Lessons<span class="sort-icon"></span></th>
+            </tr>
+          </thead>
+          <tbody id="subjects-tbody">
+            {% for subject in subjects %}
+            <tr class="subject-row"
+                data-name="{{ subject.subject_name|lower }}"
+                data-units="{{ subject.total_units }}"
+                data-lessons="{{ subject.total_lessons }}">
+
+              <td class="text-center">
+                <input
+                  class="form-check-input subject-checkbox"
+                  type="checkbox"
+                  name="subjects"
+                  value="{{ subject.subject_name }}"
+                  id="subj-{{ subject.subject_name|slugify }}"
+                  aria-label="Select {{ subject.subject_name }}"
+                >
+              </td>
+
+              <td class="swatch-cell">
+                <span class="subject-colour-swatch"
+                      style="background:{{ subject.preview_colour }};"
+                      aria-hidden="true"></span>
+              </td>
+
+              <td>
+                <label class="fw-semibold mb-0" for="subj-{{ subject.subject_name|slugify }}">
+                  {{ subject.subject_name }}
+                  {% if subject.is_custom %}
+                    <span class="badge bg-secondary ms-1" style="font-size:.65rem;">Custom</span>
+                  {% endif %}
+                </label>
+              </td>
+
+              <td class="text-end text-muted">{{ subject.total_units }}</td>
+              <td class="text-end">
+                <span class="badge bg-dark bg-opacity-75" style="font-size:0.72rem; padding:0.2rem 0.5rem; border-radius:999px;">
+                  {{ subject.total_lessons }} lessons
+                </span>
+              </td>
+
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="alert alert-warning">
+        No curriculum data found for <strong>{{ child.school_year }}</strong>.
+        Please contact support.
+      </div>
+    {% endif %}
+
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <a href="{% url 'scheduler:custom_subject' child_id=child.pk %}"
+         class="btn btn-outline-secondary">
+        <i class="bi bi-plus-circle me-1"></i>Add custom subject
+      </a>
+      <div class="d-flex gap-2">
+        <a href="{% url 'scheduler:child_list' %}" class="btn btn-outline-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary px-4">
+          Next: choose days <i class="bi bi-arrow-right ms-1"></i>
+        </button>
+      </div>
+    </div>
+
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  // Highlight selected rows
+  document.querySelectorAll('.subject-checkbox').forEach(function (cb) {
+    function sync() { cb.closest('tr').classList.toggle('subject-selected', cb.checked); }
+    cb.addEventListener('change', sync);
+    sync();
+  });
+
+  // Client-side column sorting
+  var tbody  = document.getElementById('subjects-tbody');
+  var headers = document.querySelectorAll('#subjects-table th.sortable');
+
+  headers.forEach(function (th) {
+    th.addEventListener('click', function () {
+      var col = th.dataset.col;
+      var isDesc = th.classList.contains('sorted-desc');
+
+      // Reset all headers
+      headers.forEach(function (h) {
+        h.classList.remove('sorted-asc', 'sorted-desc');
+      });
+
+      // Toggle direction
+      var dir = isDesc ? 'asc' : 'desc';
+      th.classList.add('sorted-' + dir);
+
+      var rows = Array.from(tbody.querySelectorAll('tr'));
+      rows.sort(function (a, b) {
+        var av, bv;
+        if (col === 'name') {
+          av = a.dataset.name;
+          bv = b.dataset.name;
+          return dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+        } else {
+          av = parseInt(a.dataset[col], 10);
+          bv = parseInt(b.dataset[col], 10);
+          return dir === 'asc' ? av - bv : bv - av;
+        }
+      });
+      rows.forEach(function (r) { tbody.appendChild(r); });
+    });
+  });
+});
+</script>
+{% endblock %}

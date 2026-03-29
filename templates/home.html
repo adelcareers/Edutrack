@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}EduTrack — Home Education, Evidenced{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+  <div class="col-md-8 text-center">
+    <h1 class="display-4 fw-bold" style="color: var(--dark);">
+      <i class="bi bi-journal-bookmark-fill me-2" style="color: var(--primary);"></i>EduTrack
+    </h1>
+    <p class="lead mt-3 mb-4">Home Education, Evidenced.</p>
+    <p class="text-muted">
+      The platform for home educators to plan, track, and report on their children's learning journey.
+    </p>
+    <div class="mt-4">
+      <a href="/accounts/register/" class="btn btn-primary btn-lg me-2">Get Started</a>
+      <a href="/accounts/login/" class="btn btn-outline-secondary btn-lg">Log In</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,336 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}EduTrack{% endblock %}</title>
+
+  <!-- Bootstrap 5.3 CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+        integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
+        crossorigin="anonymous">
+
+  <!-- Bootstrap Icons 1.11 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+  <!-- Project custom styles -->
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}">
+
+  <style>
+    /* ── App-shell navbar ── */
+    .app-navbar {
+      background: #fff;
+      border-bottom: 1px solid #e9ecef;
+      padding: 0 1.5rem;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 1030;
+    }
+    .app-navbar .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: #1a1a2e;
+      flex-shrink: 0;
+    }
+    .app-navbar .brand-icon {
+      width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* left nav */
+    .app-nav-links {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      list-style: none;
+      margin: 0; padding: 0;
+      flex: 1;
+      justify-content: flex-start;
+    }
+    .app-nav-links .nav-link {
+      color: #555;
+      font-size: 0.875rem;
+      font-weight: 500;
+      padding: 0.45rem 0.75rem;
+      border-radius: 6px;
+      display: flex; align-items: center; gap: 5px;
+      white-space: nowrap;
+      text-decoration: none;
+      transition: background .15s, color .15s;
+    }
+    .app-nav-links .nav-link:hover { background: #f3f4f6; color: #1a1a2e; }
+    .app-nav-links .nav-link.active { color: #4f46e5; font-weight: 600; border-bottom: 2px solid #4f46e5; border-radius: 0; }
+
+    /* right side actions */
+    .app-nav-right {
+      display: flex; align-items: center; gap: 0.5rem;
+      flex-shrink: 0;
+    }
+    .btn-upgrade {
+      background: #fff;
+      border: 1px solid #d1d5db;
+      color: #374151;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.35rem 0.8rem;
+      border-radius: 7px;
+      white-space: nowrap;
+    }
+    .btn-upgrade:hover { background: #f9fafb; }
+    .btn-create {
+      background: #4f46e5;
+      border: none;
+      color: #fff;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.35rem 0.9rem;
+      border-radius: 7px;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .btn-create:hover { background: #4338ca; color: #fff; }
+
+    /* user avatar button */
+    .user-avatar-btn {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      background: #4f46e5;
+      border: none;
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.85rem;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .user-avatar-btn:focus { outline: 2px solid #818cf8; outline-offset: 2px; }
+
+    /* ── Sub-nav (context tabs) ── */
+    .app-subnav {
+      background: #fff;
+      border-bottom: 1px solid #e9ecef;
+      padding: 0 1.5rem;
+    }
+    .app-subnav .nav-link {
+      color: #6c757d;
+      font-weight: 500;
+      font-size: 0.875rem;
+      padding: 0.65rem 1rem;
+      border: none;
+      border-bottom: 2px solid transparent;
+      border-radius: 0;
+      margin-bottom: -1px;
+      display: flex; align-items: center; gap: 5px;
+      text-decoration: none;
+      transition: color .15s;
+    }
+    .app-subnav .nav-link:hover:not(.active) { color: #4f46e5; background: none; }
+    .app-subnav .nav-link.active { color: #4f46e5; border-bottom-color: #4f46e5; }
+
+    /* page body background */
+    body { background: #f8f9fb; }
+  </style>
+
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+  <!-- ── Primary navbar ── -->
+  <nav class="app-navbar">
+
+    <!-- Brand -->
+    <a href="{% url 'home' %}" class="brand me-4">
+      <span class="brand-icon">
+        <svg width="36" height="36" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="32" cy="32" r="31" fill="none" stroke="#1a1a2e" stroke-width="2.5"/>
+          <!-- trunk -->
+          <rect x="29" y="40" width="6" height="12" rx="2" fill="#1a1a2e"/>
+          <!-- ground mound -->
+          <ellipse cx="32" cy="52" rx="11" ry="4" fill="#1a1a2e"/>
+          <!-- canopy -->
+          <circle cx="32" cy="26" r="13" fill="#1a1a2e"/>
+          <circle cx="21" cy="30" r="9"  fill="#1a1a2e"/>
+          <circle cx="43" cy="30" r="9"  fill="#1a1a2e"/>
+          <circle cx="26" cy="19" r="9"  fill="#1a1a2e"/>
+          <circle cx="38" cy="19" r="9"  fill="#1a1a2e"/>
+          <circle cx="32" cy="15" r="8"  fill="#1a1a2e"/>
+        </svg>
+      </span>
+      EduTrack
+    </a>
+
+    <!-- Centre links (authenticated only) -->
+    {% if user.is_authenticated %}
+      {% with role=user.profile.role %}
+      <ul class="app-nav-links">
+        <li>
+          <a class="nav-link {% block nav_home %}{% endblock %}" href="{% url 'home' %}">
+            <i class="bi bi-house"></i>Home
+          </a>
+        </li>
+        {% if role == 'parent' or role == 'student' %}
+        <li>
+          <a class="nav-link {% block nav_calendar %}{% endblock %}"
+             href="{% if role == 'parent' %}{% url 'tracker:parent_calendar_home' %}{% else %}{% url 'tracker:calendar' %}{% endif %}">
+            <i class="bi bi-calendar3"></i>Calendar
+          </a>
+        </li>
+        {% endif %}
+        {% if role == 'parent' %}
+        <li>
+          <a class="nav-link {% block nav_plan %}{% endblock %}" href="{% url 'planning:plan_sessions' %}">
+            <i class="bi bi-layout-text-sidebar-reverse"></i>Plan
+          </a>
+        </li>
+        <li>
+          <a class="nav-link {% block nav_courses %}{% endblock %}" href="{% url 'courses:course_list' %}">
+            <i class="bi bi-book"></i>Courses
+          </a>
+        </li>
+        <li>
+          <a class="nav-link {% block nav_students %}{% endblock %}" href="{% url 'scheduler:child_list' %}">
+            <i class="bi bi-people"></i>Students
+          </a>
+        </li>
+        <li>
+          <a class="nav-link {% block nav_gradebooks %}{% endblock %}" href="{% url 'reports:gradebook_list' %}">
+            <i class="bi bi-bar-chart-line"></i>Gradebooks
+          </a>
+        </li>
+        <li>
+          <a class="nav-link {% block nav_settings %}{% endblock %}" href="{% url 'accounts:settings' %}">
+            <i class="bi bi-gear"></i>Settings
+          </a>
+        </li>
+        {% endif %}
+        {% if role == 'student' %}
+        <li>
+          <a class="nav-link" href="{% url 'reports:gradebook_list' %}">
+            <i class="bi bi-bar-chart-line"></i>Gradebooks
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+      {% endwith %}
+    {% else %}
+      <div class="flex-grow-1"></div>
+    {% endif %}
+
+    <!-- Right side actions -->
+    <div class="app-nav-right">
+      {% if user.is_authenticated %}
+        {% with role=user.profile.role %}
+        {% endwith %}
+
+        <!-- Create -->
+        {% with role=user.profile.role %}
+        {% if role == 'parent' %}
+        <div class="dropdown">
+          <button class="btn btn-create dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-plus"></i>Create
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+            <li>
+              <a class="dropdown-item" href="{% url 'scheduler:child_new' %}">
+                <i class="bi bi-person-plus me-2 text-secondary"></i>New Student
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'courses:course_new' %}">
+                <i class="bi bi-book-half me-2 text-secondary"></i>New Course
+              </a>
+            </li>
+          </ul>
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <!-- User avatar + dropdown -->
+        <div class="dropdown">
+          <button class="user-avatar-btn dropdown-toggle" style="border: none; background: #4f46e5;"
+                  data-bs-toggle="dropdown" aria-expanded="false"
+                  aria-label="User menu">
+            {{ user.first_name|default:user.username|slice:":1"|upper }}
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="min-width: 180px;">
+            <li class="px-3 py-2 border-bottom">
+              <div class="fw-semibold" style="font-size: 0.9rem;">{{ user.get_full_name|default:user.username }}</div>
+              <div class="text-muted" style="font-size: 0.78rem;">
+                {% with role=user.profile.role %}
+                  {{ role|capfirst }}
+                {% endwith %}
+              </div>
+            </li>
+            <li>
+              <a class="dropdown-item" href="#">
+                <i class="bi bi-person me-2 text-secondary"></i>Account
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'accounts:settings' %}">
+                <i class="bi bi-gear me-2 text-secondary"></i>Settings
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="#">
+                <i class="bi bi-question-circle me-2 text-secondary"></i>Help
+              </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <form method="post" action="{% url 'accounts:logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="dropdown-item text-danger">
+                  <i class="bi bi-box-arrow-right me-2"></i>Log Out
+                </button>
+              </form>
+            </li>
+          </ul>
+        </div>
+
+      {% else %}
+        <!-- Unauthenticated -->
+        <a href="{% url 'accounts:login' %}" class="btn btn-outline-secondary btn-sm">Login</a>
+        <a href="{% url 'accounts:register' %}" class="btn btn-primary btn-sm ms-1">Register</a>
+      {% endif %}
+    </div>
+  </nav>
+
+  <!-- ── Sub-navigation slot (filled per template) ── -->
+  {% block subnav %}{% endblock %}
+
+  <!-- Django messages (global fallback — templates can also render their own) -->
+  {% block messages_block %}
+  {% if messages %}
+    <div class="container mt-2">
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+  {% endblock %}
+
+  <!-- Main content -->
+  <main class="py-4">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Bootstrap 5.3 JS bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+          integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+          crossorigin="anonymous"></script>
+
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

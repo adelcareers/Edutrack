@@ -1,0 +1,1416 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Home | EduTrack{% endblock %}
+{% block nav_home %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  :root {
+    --card-bg: #ffffff;
+    --line: #e5e7eb;
+    --muted: #6b7280;
+    --text: #111827;
+    --brand: #4f46e5;
+    --brand-soft: #e0e7ff;
+  }
+
+  .home-grid {
+    display: grid;
+    grid-template-columns: 320px minmax(360px, 1fr) minmax(380px, 1fr);
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .panel {
+    background: var(--card-bg);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+  }
+
+  .panel-head {
+    padding: 1rem 1.1rem 0.7rem;
+    border-bottom: 1px solid var(--line);
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .filters-body {
+    padding: 1rem 1.1rem;
+  }
+
+  .filter-label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: #374151;
+  }
+
+  .filter-block {
+    margin-bottom: 0.9rem;
+  }
+
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0.4rem 0 0.8rem;
+    font-size: 0.95rem;
+    color: #374151;
+  }
+
+  .list-panel {
+    min-height: 72vh;
+  }
+
+  .list-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+    padding: 1rem 1.1rem 0.8rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .tab-strip {
+    display: inline-flex;
+    border: 1px solid #d1d5db;
+    border-radius: 999px;
+    overflow: hidden;
+    background: #f9fafb;
+  }
+
+  .tab-link {
+    padding: 0.34rem 0.85rem;
+    text-decoration: none;
+    color: #374151;
+    font-size: 0.84rem;
+    font-weight: 700;
+    border-right: 1px solid #e5e7eb;
+  }
+
+  .tab-link:last-child {
+    border-right: none;
+  }
+
+  .tab-link.active {
+    background: #111827;
+    color: #fff;
+  }
+
+  .list-title {
+    margin: 0;
+    font-size: 1.85rem;
+    line-height: 1;
+    color: #1f2937;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .list-count {
+    font-size: 0.9rem;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  .assignment-list {
+    padding: 0.8rem;
+    max-height: calc(100vh - 170px);
+    overflow: auto;
+  }
+
+  .assignment-card {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 0.85rem 0.95rem;
+    margin-bottom: 0.7rem;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .assignment-card:hover {
+    border-color: #c7d2fe;
+    box-shadow: 0 5px 20px rgba(99, 102, 241, 0.08);
+  }
+
+  .assignment-card.is-active {
+    border-color: var(--brand);
+    box-shadow: inset 3px 0 0 var(--brand);
+    background: #fbfcff;
+  }
+
+  .assignment-name {
+    font-size: 1.04rem;
+    font-weight: 700;
+    color: #1f2937;
+  }
+
+  .assignment-link {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .assignment-link:hover {
+    text-decoration: underline;
+  }
+
+  .assignment-meta {
+    margin-top: 0.2rem;
+    font-size: 0.9rem;
+    color: #4b5563;
+  }
+
+  .pill-row {
+    margin-top: 0.55rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .pill {
+    padding: 0.25rem 0.72rem;
+    border-radius: 999px;
+    font-size: 0.79rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .pill-grade {
+    background: #4338ca;
+    color: #fff;
+  }
+
+  .pill-type {
+    color: #0f172a;
+    background: #dbeafe;
+  }
+
+  .pill-status-done {
+    color: #166534;
+    background: #dcfce7;
+  }
+
+  .pill-status-complete {
+    color: #166534;
+    background: #dcfce7;
+  }
+
+  .pill-status-overdue {
+    color: #b91c1c;
+    background: #fee2e2;
+  }
+
+  .pill-status-incomplete {
+    color: #334155;
+    background: #e2e8f0;
+  }
+
+  .pill-status-needs_grading {
+    color: #92400e;
+    background: #fef3c7;
+  }
+
+  .detail-panel {
+    min-height: 72vh;
+  }
+
+  .detail-empty {
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9ca3af;
+    font-size: 1.05rem;
+    font-style: italic;
+    text-align: center;
+    padding: 0 1rem;
+  }
+
+  .detail-body {
+    padding: 1.1rem 1.2rem 1.3rem;
+  }
+
+  .detail-title {
+    font-size: 2rem;
+    line-height: 1;
+    font-weight: 800;
+    color: #1f2937;
+    margin-bottom: 0.9rem;
+  }
+
+  .detail-line {
+    margin-bottom: 0.65rem;
+    font-size: 0.95rem;
+    color: #374151;
+  }
+
+  .detail-label {
+    color: #6b7280;
+    font-weight: 600;
+    margin-right: 0.25rem;
+  }
+
+  .detail-note {
+    margin-top: 1rem;
+    border-top: 1px solid var(--line);
+    padding-top: 0.9rem;
+    white-space: pre-wrap;
+    color: #334155;
+  }
+
+  .detail-actions {
+    display: flex;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.95rem;
+  }
+
+  .detail-section {
+    margin-top: 1rem;
+    border-top: 1px solid var(--line);
+    padding-top: 0.85rem;
+  }
+
+  .detail-section h6 {
+    margin-bottom: 0.55rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #374151;
+  }
+
+  .detail-description {
+    color: #374151;
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+
+  .detail-description a {
+    color: #4f46e5;
+    text-decoration: underline;
+  }
+
+  .detail-list {
+    margin: 0;
+    padding-left: 1rem;
+    color: #374151;
+    font-size: 0.9rem;
+  }
+
+  .comment-list {
+    max-height: 200px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .comment-item {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 0.55rem 0.65rem;
+    background: #fafafa;
+  }
+
+  .comment-meta {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-bottom: 0.2rem;
+  }
+
+  .grade-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.55rem;
+  }
+
+  .grade-grid .full {
+    grid-column: 1 / -1;
+  }
+
+  .muted-small {
+    font-size: 0.82rem;
+    color: #6b7280;
+  }
+
+  .lesson-detail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 999px;
+    padding: 0.25rem 0.72rem;
+    font-weight: 700;
+    font-size: 0.78rem;
+  }
+
+  .status-chip.incomplete {
+    color: #334155;
+    background: #e2e8f0;
+  }
+
+  .status-chip.overdue {
+    color: #b91c1c;
+    background: #fee2e2;
+  }
+
+  .status-chip.complete {
+    color: #166534;
+    background: #dcfce7;
+  }
+
+  .lesson-mini-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+  }
+
+  .lesson-notes-box {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 0.65rem;
+    background: #fafafa;
+    white-space: pre-wrap;
+    font-size: 0.9rem;
+    color: #374151;
+  }
+
+  .lesson-modal-shell .modal-dialog {
+    max-width: 760px;
+  }
+
+  .lesson-modal-head {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 1rem;
+    background: #f8fbff;
+  }
+  .lesson-head-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .lesson-status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 999px;
+    padding: 0.3rem 0.78rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+
+  .lesson-status-chip.status-secondary { background: #e2e8f0; color: #334155; }
+  .lesson-status-chip.status-success { background: #dcfce7; color: #166534; }
+  .lesson-status-chip.status-danger { background: #fee2e2; color: #b91c1c; }
+  .lesson-status-chip.status-dark { background: #e5e7eb; color: #111827; }
+  .lesson-status-chip.is-clickable { cursor: pointer; }
+
+  .lesson-head-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+    margin-left: auto;
+    flex: 1 1 auto;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+
+  .lesson-head-actions .btn {
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 0.82rem;
+    padding: 0.36rem 0.8rem;
+  }
+
+  .action-complete {
+    color: #166534;
+    border-color: #86efac;
+    background: #f0fdf4;
+  }
+
+  .action-reschedule {
+    color: #92400e;
+    border-color: #fde68a;
+    background: #fffbeb;
+  }
+
+  .action-edit {
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+    background: #eff6ff;
+  }
+
+  .action-delete {
+    color: #b91c1c;
+    border-color: #fecaca;
+    background: #fef2f2;
+  }
+
+  .lesson-link-panel {
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    background: #eff6ff;
+    padding: 0.7rem 0.8rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .lesson-link-label {
+    font-size: 0.73rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #1d4ed8;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+
+  .lesson-link-main {
+    color: #1e3a8a;
+    font-weight: 800;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .receipt-status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.55rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .lesson-title-link {
+    color: #0f172a;
+    text-decoration: none;
+  }
+
+  .lesson-title-link:hover {
+    text-decoration: underline;
+  }
+
+  .meta-info-panel {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 0.6rem 0.75rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .lesson-student {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+  }
+
+  .lesson-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    background: #dbeafe;
+    color: #1e3a8a;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+  }
+
+  .lesson-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 999px;
+  }
+
+  .mastery-pills {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 0.6rem;
+    width: 100%;
+  }
+
+  .mastery-panel {
+    border: 1px solid #dbeafe;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%);
+    padding: 0.75rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .mastery-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .mastery-title {
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: #1f2937;
+  }
+
+  .mastery-subtitle {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-bottom: 0.55rem;
+  }
+
+  .mastery-btn {
+    position: relative;
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.35rem;
+    font-weight: 700;
+    min-height: 46px;
+  }
+
+  .mastery-btn i {
+    margin-right: 0.2rem;
+  }
+
+  .mastery-btn[data-mastery="green"] {
+    color: #16a34a;
+    border: 1px solid #16a34a;
+    background: transparent;
+  }
+
+  .mastery-btn[data-mastery="amber"] {
+    color: #d97706;
+    border: 1px solid #d97706;
+    background: transparent;
+  }
+
+  .mastery-btn[data-mastery="red"] {
+    color: #dc2626;
+    border: 1px solid #dc2626;
+    background: transparent;
+  }
+
+  .mastery-btn[data-mastery="green"].mastery-active {
+    background: #16a34a;
+    color: #fff;
+  }
+
+  .mastery-btn[data-mastery="amber"].mastery-active {
+    background: #d97706;
+    color: #fff;
+  }
+
+  .mastery-btn[data-mastery="red"].mastery-active {
+    background: #dc2626;
+    color: #fff;
+  }
+
+  .mastery-short {
+    font-size: 0.72rem;
+    font-weight: 600;
+    opacity: 0.9;
+  }
+
+  .mastery-hint-icon {
+    position: absolute;
+    top: 0.3rem;
+    right: 0.4rem;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.66rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .mastery-active {
+    border-color: #111827;
+    background: #111827;
+    color: #fff;
+  }
+
+  .reschedule-picker-panel {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 0.75rem;
+    margin-bottom: 0.9rem;
+    background: #fbfdff;
+  }
+
+  .reschedule-picker-head,
+  .reschedule-picker-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .reschedule-picker-months {
+    margin-top: 0.7rem;
+    display: grid;
+    gap: 0.6rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .picker-month {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.45rem;
+  }
+
+  .picker-month-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+  }
+
+  .picker-weekdays,
+  .picker-days {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 0.2rem;
+  }
+
+  .picker-weekday {
+    text-align: center;
+    color: #6b7280;
+    font-size: 0.68rem;
+  }
+
+  .picker-day {
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    font-size: 0.72rem;
+    min-height: 28px;
+  }
+
+  .picker-day.is-selected {
+    border-color: #111827;
+    background: #111827;
+    color: #fff;
+  }
+
+  .picker-day.is-disabled {
+    color: #cbd5e1;
+    pointer-events: none;
+  }
+
+  .lesson-tabs {
+    margin-top: 0.9rem;
+    display: flex;
+    gap: 0.4rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .lesson-tab-btn {
+    border: none;
+    border-radius: 8px 8px 0 0;
+    background: #f3f4f6;
+    color: #374151;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+
+  .lesson-tab-btn.active {
+    background: #111827;
+    color: #fff;
+  }
+
+  .lesson-tab-pane {
+    display: none;
+    padding-top: 0.8rem;
+  }
+
+  .lesson-tab-pane.active {
+    display: block;
+  }
+
+  .comment-journal {
+    max-height: 180px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  .comment-entry {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.5rem 0.6rem;
+    background: #fafafa;
+    font-size: 0.85rem;
+  }
+
+  .comment-entry .comment-meta {
+    font-size: 0.72rem;
+    color: #6b7280;
+    margin-bottom: 0.15rem;
+  }
+
+  @media (max-width: 1199px) {
+    .home-grid {
+      grid-template-columns: 280px minmax(320px, 1fr);
+    }
+    .detail-panel {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .home-grid {
+      grid-template-columns: 1fr;
+    }
+    .list-panel,
+    .detail-panel {
+      min-height: auto;
+    }
+    .assignment-list {
+      max-height: none;
+    }
+    .lesson-modal-head {
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
+    .lesson-head-actions {
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      width: auto;
+      margin-left: auto;
+    }
+    .mastery-pills {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-lg-4 py-4">
+  <div class="home-grid">
+    <aside class="panel">
+      <div class="panel-head">Filters</div>
+      <div class="filters-body">
+        <form method="get" id="assignmentFilterForm">
+          <input type="hidden" name="tab" value="{{ active_tab }}">
+          {% if role == 'parent' or role == 'teacher' %}
+          <div class="filter-block">
+            <label class="filter-label" for="studentFilter">Students</label>
+            <select id="studentFilter" name="student" class="form-select">
+              <option value="">All Students</option>
+              {% for student in student_options %}
+              <option value="{{ student.id }}" {% if selected_student_id == student.id %}selected{% endif %}>{{ student.first_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+
+          <div class="filter-block">
+            <label class="filter-label" for="courseFilter">Courses</label>
+            <select id="courseFilter" name="course" class="form-select">
+              <option value="">All Courses</option>
+              {% for course in course_options %}
+              <option value="{{ course.id }}" {% if selected_course_id == course.id %}selected{% endif %}>{{ course.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="filter-block">
+            <label class="filter-label" for="subjectFilter">Subjects</label>
+            <select id="subjectFilter" name="subject" class="form-select">
+              <option value="">All Subjects</option>
+              {% for subject in subject_options %}
+              <option value="{{ subject.id }}" {% if selected_subject_id == subject.id %}selected{% endif %}>{{ subject.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          {% if active_tab == 'assignments' %}
+          <div class="filter-block">
+            <label class="filter-label" for="typeFilter">Assignment Type</label>
+            <select id="typeFilter" name="assignment_type" class="form-select">
+              <option value="">All Types</option>
+              {% for assignment_type in type_options %}
+              <option value="{{ assignment_type.id }}" {% if selected_type_id == assignment_type.id %}selected{% endif %}>{{ assignment_type.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+
+          <div class="filter-block">
+            <label class="filter-label" for="statusFilter">Status</label>
+            <select id="statusFilter" name="status" class="form-select">
+              <option value="" {% if not selected_status %}selected{% endif %}>All Statuses</option>
+              <option value="incomplete" {% if selected_status == 'incomplete' %}selected{% endif %}>Incomplete</option>
+              <option value="overdue" {% if selected_status == 'overdue' %}selected{% endif %}>Overdue</option>
+              {% if active_tab == 'assignments' %}
+              <option value="needs_grading" {% if selected_status == 'needs_grading' %}selected{% endif %}>Needs Grading</option>
+              <option value="done" {% if selected_status == 'done' %}selected{% endif %}>Completed</option>
+              {% else %}
+              <option value="complete" {% if selected_status == 'complete' %}selected{% endif %}>Completed</option>
+              {% endif %}
+            </select>
+          </div>
+
+          <label class="checkbox-row">
+            <input type="checkbox" name="hide_completed" value="1" {% if hide_completed %}checked{% endif %}>
+            Hide Completed
+          </label>
+
+          <div class="d-grid gap-2 mt-3">
+            <button type="submit" class="btn btn-primary">Apply Filters</button>
+            <a href="{% url 'tracker:home_assignments' %}?tab={{ active_tab }}" class="btn btn-light border">Reset Filters</a>
+          </div>
+        </form>
+      </div>
+    </aside>
+
+    <section class="panel list-panel">
+      <div class="list-head">
+        <div>
+          <h2 class="list-title">{% if active_tab == 'lessons' %}Lessons{% else %}Assignments{% endif %}</h2>
+          <div class="tab-strip mt-2">
+            <a href="{{ lesson_tab_url }}" class="tab-link {% if active_tab == 'lessons' %}active{% endif %}">Lessons</a>
+            <a href="{{ assignment_tab_url }}" class="tab-link {% if active_tab == 'assignments' %}active{% endif %}">Assignments</a>
+          </div>
+        </div>
+        <span class="list-count">{{ filtered_count }} of {{ total_count }}</span>
+      </div>
+      <div class="assignment-list">
+        {% if active_tab == 'lessons' %}
+        {% for lesson in lessons %}
+        <a href="{{ lesson.select_url }}" class="assignment-card {% if selected_lesson and selected_lesson.id == lesson.id %}is-active{% endif %}">
+          <div class="assignment-name">{{ lesson.lesson.lesson_title }}</div>
+          <div class="assignment-meta">{{ lesson.scheduled_date|date:"D, M j, Y" }}{% if lesson.enrolled_subject %} · {{ lesson.enrolled_subject.subject_name }}{% endif %}</div>
+          <div class="pill-row">
+            <span class="pill pill-grade">{{ lesson.child.school_year }}</span>
+            <span class="pill pill-type">{{ lesson.child.first_name }}</span>
+            <span class="pill pill-status-{{ lesson.effective_status }}">{{ lesson.effective_status_label }}</span>
+          </div>
+        </a>
+        {% empty %}
+        <div class="text-muted p-3">No lessons match your current filters.</div>
+        {% endfor %}
+        {% else %}
+        {% for assignment in assignments %}
+        <a href="{{ assignment.select_url }}" class="assignment-card {% if selected_assignment and selected_assignment.id == assignment.id %}is-active{% endif %}">
+          <div class="assignment-name"><span class="assignment-link">{{ assignment.plan_item.template.name }}</span></div>
+          <div class="assignment-meta">{{ assignment.due_text }}</div>
+          <div class="pill-row">
+            <span class="pill pill-grade">{{ assignment.enrollment.child.school_year }}</span>
+            <span class="pill pill-type" style="background: {{ assignment.plan_item.template.assignment_type.color }}33;">{{ assignment.plan_item.template.assignment_type.name }}</span>
+            <span class="pill pill-status-{{ assignment.effective_status }}">{{ assignment.effective_status_label }}</span>
+          </div>
+        </a>
+        {% empty %}
+        <div class="text-muted p-3">No assignments match your current filters.</div>
+        {% endfor %}
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="panel detail-panel">
+      {% if active_tab == 'lessons' %}
+      {% if selected_lesson %}
+      <div class="panel-head">Lesson Details</div>
+      <div class="detail-body">
+        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+          <h3 class="detail-title">{{ selected_lesson.lesson.lesson_title }}</h3>
+          <span class="status-chip {{ selected_lesson.effective_status }}">{{ selected_lesson.status_label|default:selected_lesson.effective_status_label }}</span>
+        </div>
+
+        <div class="lesson-mini-grid">
+          <div class="detail-line"><span class="detail-label">Date:</span>{{ selected_lesson.scheduled_date|date:"D, M j, Y" }}</div>
+          <div class="detail-line"><span class="detail-label">Student:</span>{{ selected_lesson.child.first_name }}</div>
+          <div class="detail-line"><span class="detail-label">Course:</span>{{ selected_lesson.enrolled_subject.course.name|default:"-" }}</div>
+          <div class="detail-line"><span class="detail-label">Subject:</span>{{ selected_lesson.enrolled_subject.subject_name|default:"-" }}</div>
+          <div class="detail-line"><span class="detail-label">Mastery:</span>{{ selected_lesson.mastery|title }}</div>
+        </div>
+
+        {% if can_edit_lessons %}
+        <div class="detail-section">
+          <h6>Actions</h6>
+          <div class="lesson-detail-actions">
+            <button type="button" class="btn btn-sm btn-outline-success js-lesson-status" data-scheduled-id="{{ selected_lesson.id }}" data-status="complete">Mark Complete</button>
+            <button type="button" class="btn btn-sm btn-outline-danger js-lesson-status" data-scheduled-id="{{ selected_lesson.id }}" data-status="overdue">Mark Overdue</button>
+            <button type="button" class="btn btn-sm btn-outline-primary js-open-full-lesson" data-scheduled-id="{{ selected_lesson.id }}">Open Full Lesson</button>
+          </div>
+          <div class="lesson-detail-actions">
+            <button type="button" class="btn btn-sm btn-outline-success js-lesson-mastery" data-scheduled-id="{{ selected_lesson.id }}" data-mastery="green">Green</button>
+            <button type="button" class="btn btn-sm btn-outline-warning js-lesson-mastery" data-scheduled-id="{{ selected_lesson.id }}" data-mastery="amber">Amber</button>
+            <button type="button" class="btn btn-sm btn-outline-danger js-lesson-mastery" data-scheduled-id="{{ selected_lesson.id }}" data-mastery="red">Red</button>
+          </div>
+          <div class="mt-2">
+            <label class="filter-label" for="lessonNotesInput">Notes</label>
+            <textarea id="lessonNotesInput" class="form-control form-control-sm mb-2" rows="3" maxlength="1000">{{ selected_lesson.student_notes|default:'' }}</textarea>
+            <button type="button" class="btn btn-sm btn-outline-secondary js-save-lesson-notes" data-scheduled-id="{{ selected_lesson.id }}">Save Notes</button>
+          </div>
+          <div class="mt-3">
+            <label class="filter-label" for="lessonRescheduleInput">Reschedule</label>
+            <div class="d-flex gap-2">
+              <input id="lessonRescheduleInput" type="date" class="form-control form-control-sm" min="{{ today|date:'Y-m-d' }}">
+              <button type="button" class="btn btn-sm btn-outline-dark js-reschedule-lesson" data-scheduled-id="{{ selected_lesson.id }}">Move</button>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="detail-section">
+          <h6>Receipt</h6>
+          {% if selected_lesson_receipt_url %}
+          <a href="{{ selected_lesson_receipt_url }}" target="_blank" rel="noopener noreferrer">Open completion receipt</a>
+          {% else %}
+          <div class="muted-small">No completion receipt saved.</div>
+          {% endif %}
+        </div>
+
+        <div class="detail-section">
+          <h6>Recent Comments</h6>
+          <div class="comment-list">
+            {% for comment in selected_lesson_comments %}
+            <div class="comment-item">
+              <div class="comment-meta">{{ comment.author.username }} · {{ comment.created_at|date:"M d, Y H:i" }}</div>
+              <div>{{ comment.body }}</div>
+            </div>
+            {% empty %}
+            <div class="muted-small">No comments yet.</div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h6>Recent Submissions</h6>
+          {% if selected_lesson_evidence_files %}
+          <ul class="detail-list">
+            {% for evidence in selected_lesson_evidence_files %}
+            <li>
+              <a href="{{ evidence.file.url }}" target="_blank" rel="noopener noreferrer">{{ evidence.original_name|default:evidence.file.name }}</a>
+              <span class="muted-small"> · {{ evidence.created_at|date:"M d, Y H:i" }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <div class="muted-small">No submissions yet.</div>
+          {% endif %}
+        </div>
+      </div>
+      {% else %}
+      <div class="detail-empty">Select a lesson to see details</div>
+      {% endif %}
+      {% else %}
+      {% if selected_assignment %}
+      <div class="panel-head">Assignment Details</div>
+      <div class="detail-body">
+        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+          <h3 class="detail-title">{{ selected_assignment.plan_item.template.name }}</h3>
+          {% if selected_status_label %}
+          <span class="pill pill-status-{{ selected_assignment.effective_status }}">{{ selected_status_label }}</span>
+          {% endif %}
+        </div>
+
+        <div class="detail-line"><span class="detail-label">Course:</span>{{ selected_assignment.enrollment.course.name }}</div>
+        <div class="detail-line"><span class="detail-label">Student:</span>{{ selected_assignment.enrollment.child.first_name }}</div>
+        <div class="detail-line"><span class="detail-label">Type:</span>{{ selected_assignment.plan_item.template.assignment_type.name }}</div>
+        <div class="detail-line"><span class="detail-label">Due date:</span>{{ selected_assignment.due_date|date:"D, M j, Y" }}</div>
+        <div class="detail-line"><span class="detail-label">Status:</span>{{ selected_status_label }}</div>
+
+        <div class="detail-actions">
+          <form method="post" action="{% url 'tracker:home_assignment_status' assignment_id=selected_assignment.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next_url }}">
+            <input type="hidden" name="status" value="done">
+            <button type="submit" class="btn btn-sm btn-outline-success">Mark Complete</button>
+          </form>
+          <form method="post" action="{% url 'tracker:home_assignment_status' assignment_id=selected_assignment.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next_url }}">
+            <input type="hidden" name="status" value="incomplete">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Mark Incomplete</button>
+          </form>
+          <a href="{{ selected_assignment.edit_url }}" target="_blank" class="btn btn-sm btn-outline-dark">Edit Assignment</a>
+        </div>
+
+        <div class="detail-section">
+          <h6>Description</h6>
+          <div class="detail-description">
+            {% if selected_assignment.plan_item.template.description %}
+              {{ selected_assignment.plan_item.template.description|safe }}
+            {% else %}
+              <span class="muted-small">No description provided.</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h6>Attachments</h6>
+          {% if selected_attachments %}
+          <ul class="detail-list">
+            {% for attachment in selected_attachments %}
+            <li>
+              <a href="{{ attachment.file.url }}" target="_blank">{{ attachment.original_name|default:attachment.file.name }}</a>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <div class="muted-small">No attachments for this assignment.</div>
+          {% endif %}
+        </div>
+
+        <div class="detail-section">
+          <h6>Comments</h6>
+          <div class="comment-list mb-2">
+            {% for comment in selected_comments %}
+            <div class="comment-item">
+              <div class="comment-meta">{{ comment.author.username }} · {{ comment.created_at|date:"M d, Y H:i" }}</div>
+              <div>{{ comment.body }}</div>
+            </div>
+            {% empty %}
+            <div class="muted-small">No comments yet.</div>
+            {% endfor %}
+          </div>
+          <form method="post" action="{% url 'tracker:home_assignment_comment_create' assignment_id=selected_assignment.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next_url }}">
+            <textarea class="form-control form-control-sm mb-2" name="comment" rows="2" placeholder="Add a comment..."></textarea>
+            <button type="submit" class="btn btn-sm btn-primary">Post Comment</button>
+          </form>
+        </div>
+
+        <div class="detail-section">
+          <h6>Submissions</h6>
+          {% if can_submit %}
+          <form method="post" enctype="multipart/form-data" action="{% url 'tracker:home_assignment_submission_upload' assignment_id=selected_assignment.id %}" class="mb-2">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next_url }}">
+            <input class="form-control form-control-sm mb-2" type="file" name="submission" accept=".pdf,.png,.jpg,.jpeg,.webp,.gif">
+            <button type="submit" class="btn btn-sm btn-outline-primary">Upload File</button>
+          </form>
+          {% endif %}
+          {% if selected_submissions %}
+          <ul class="detail-list">
+            {% for submission in selected_submissions %}
+            <li>
+              <a href="{{ submission.file.url }}" target="_blank">{{ submission.original_name|default:submission.file.name }}</a>
+              <span class="muted-small"> · {{ submission.uploaded_by.username }} · {{ submission.created_at|date:"M d, Y H:i" }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <div class="muted-small">No submissions yet.</div>
+          {% endif %}
+        </div>
+
+        <div class="detail-section">
+          <h6>Teacher Feedback</h6>
+          {% if selected_assignment.grading_notes %}
+          <div class="detail-description">{{ selected_assignment.grading_notes }}</div>
+          {% else %}
+          <div class="muted-small">No feedback yet.</div>
+          {% endif %}
+        </div>
+
+        {% if can_grade %}
+        <div class="detail-section">
+          <h6>Grading</h6>
+          <form method="post" action="{% url 'tracker:home_assignment_grade' assignment_id=selected_assignment.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next_url }}">
+            <div class="grade-grid">
+              <input class="form-control form-control-sm" type="number" step="0.01" min="0" name="score" placeholder="Points Earned" value="{{ selected_assignment.score|default:'' }}">
+              <input class="form-control form-control-sm" type="number" step="0.01" min="0" name="points_available" placeholder="Points Available" value="{{ selected_assignment.points_available|default:'' }}">
+              <input class="form-control form-control-sm" type="number" step="0.01" min="0" max="100" name="score_percent" placeholder="Percent" value="{{ selected_assignment.score_percent|default:'' }}">
+              <select class="form-select form-select-sm" name="status">
+                <option value="pending" {% if selected_assignment.status == 'pending' %}selected{% endif %}>Pending</option>
+                <option value="complete" {% if selected_assignment.status == 'complete' %}selected{% endif %}>Complete</option>
+                <option value="overdue" {% if selected_assignment.status == 'overdue' %}selected{% endif %}>Overdue</option>
+              </select>
+              <input class="form-control form-control-sm full" type="date" name="due_date" value="{{ selected_assignment.due_date|date:'Y-m-d' }}">
+              <textarea class="form-control form-control-sm full" name="grading_notes" rows="3" placeholder="Teacher feedback...">{{ selected_assignment.grading_notes|default:'' }}</textarea>
+            </div>
+            <button type="submit" class="btn btn-sm btn-success mt-2">Save Grade</button>
+          </form>
+        </div>
+        {% endif %}
+
+        {% if selected_assignment.plan_item.notes %}
+        <div class="detail-note">
+          <strong>Notes</strong><br>
+          {{ selected_assignment.plan_item.notes }}
+        </div>
+        {% endif %}
+      </div>
+      {% else %}
+      <div class="detail-empty">Select an assignment to see details</div>
+      {% endif %}
+      {% endif %}
+    </section>
+  </div>
+</div>
+
+<div id="lesson-modal" class="modal fade lesson-modal-shell" tabindex="-1" role="dialog"
+  aria-modal="true" aria-label="Lesson details">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="lesson-modal-head" id="modal-header">
+        <div id="modal-status-chip" class="lesson-status-chip status-secondary {% if can_edit_lessons %}is-clickable{% endif %}">
+          <i id="modal-status-icon" class="bi bi-dash-circle"></i>
+          <span id="modal-status-label">Incomplete</span>
+        </div>
+        {% if can_edit_lessons %}
+        <div class="lesson-head-actions">
+          <button id="modal-btn-complete" class="btn btn-sm action-complete" type="button">Mark Complete</button>
+          <button id="modal-btn-reschedule" class="btn btn-sm action-reschedule" type="button">Reschedule</button>
+          <button id="modal-btn-edit" class="btn btn-sm action-edit" type="button">Edit</button>
+          <button id="modal-btn-delete" class="btn btn-sm action-delete" type="button">Delete</button>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="modal-body">
+        <div class="lesson-link-panel">
+          <a id="modal-lesson-access-link" class="lesson-link-main" href="#" target="_blank" rel="noopener noreferrer">KS, Year, Subject, Unit: Lesson</a>
+        </div>
+
+        <div class="receipt-panel mb-3">
+          <div class="receipt-status-row">
+            <label for="modal-receipt-url" class="small fw-semibold mb-0">Completion Receipt Link</label>
+            <span id="modal-receipt-status" class="badge text-bg-secondary">Link not attached</span>
+          </div>
+          <div class="d-flex gap-2 mt-1 flex-wrap">
+            <input id="modal-receipt-url" type="url" class="form-control form-control-sm" placeholder="Paste completion receipt link...">
+            <button id="modal-btn-save-receipt" class="btn btn-sm btn-outline-primary" type="button">Save</button>
+            <button id="modal-btn-edit-receipt" class="btn btn-sm btn-outline-secondary" type="button" hidden>Edit</button>
+          </div>
+        </div>
+
+        <div class="mastery-panel" aria-label="Lesson mastery section">
+          <div class="mastery-heading">
+            <div class="mastery-title">How well this lesson was understood?</div>
+          </div>
+          <div class="mastery-pills">
+            <button class="btn btn-sm mastery-btn" data-mastery="green" type="button" title="I fully understood this and could move on." aria-label="Green. Got it. I fully understood this and could move on.">
+              <i class="bi bi-emoji-smile"></i>
+              <span>Green</span>
+              <span class="mastery-short">Got it!</span>
+              <span class="mastery-hint-icon" aria-hidden="true">i</span>
+            </button>
+            <button class="btn btn-sm mastery-btn" data-mastery="amber" type="button" title="I understood some, but need a recap." aria-label="Amber. Getting there. I understood some, but need a recap.">
+              <i class="bi bi-emoji-neutral"></i>
+              <span>Amber</span>
+              <span class="mastery-short">Getting there</span>
+              <span class="mastery-hint-icon" aria-hidden="true">i</span>
+            </button>
+            <button class="btn btn-sm mastery-btn" data-mastery="red" type="button" title="I didn't understand this lesson." aria-label="Red. I need help. I didn't understand this lesson.">
+              <i class="bi bi-emoji-frown"></i>
+              <span>Red</span>
+              <span class="mastery-short">I need help</span>
+              <span class="mastery-hint-icon" aria-hidden="true">i</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="meta-info-panel">
+          <div class="lesson-student">
+            <span class="lesson-avatar" id="modal-student-avatar">S</span>
+            <div>
+              <div class="fw-semibold" id="modal-student-name">Student</div>
+              <div class="text-muted small" id="modal-date">Date</div>
+            </div>
+          </div>
+          <div class="text-muted small" id="modal-weekday">Week 0, Day 0</div>
+        </div>
+
+        <div id="reschedule-picker-panel" class="reschedule-picker-panel" hidden>
+          <div class="reschedule-picker-head">
+            <button id="reschedule-prev" class="btn btn-sm btn-outline-secondary" type="button" aria-label="Previous month">&lsaquo;</button>
+            <div class="small fw-semibold">Pick a new date</div>
+            <button id="reschedule-next" class="btn btn-sm btn-outline-secondary" type="button" aria-label="Next month">&rsaquo;</button>
+          </div>
+          <div class="reschedule-picker-months">
+            <div class="picker-month">
+              <div id="picker-month-1-label" class="picker-month-title"></div>
+              <div class="picker-weekdays">
+                <div class="picker-weekday">Mo</div><div class="picker-weekday">Tu</div><div class="picker-weekday">We</div><div class="picker-weekday">Th</div><div class="picker-weekday">Fr</div><div class="picker-weekday">Sa</div><div class="picker-weekday">Su</div>
+              </div>
+              <div id="picker-month-1-grid" class="picker-days"></div>
+            </div>
+            <div class="picker-month">
+              <div id="picker-month-2-label" class="picker-month-title"></div>
+              <div class="picker-weekdays">
+                <div class="picker-weekday">Mo</div><div class="picker-weekday">Tu</div><div class="picker-weekday">We</div><div class="picker-weekday">Th</div><div class="picker-weekday">Fr</div><div class="picker-weekday">Sa</div><div class="picker-weekday">Su</div>
+              </div>
+              <div id="picker-month-2-grid" class="picker-days"></div>
+            </div>
+          </div>
+          <div class="reschedule-picker-actions mt-2">
+            <span id="reschedule-selected-label" class="small text-muted">No date selected</span>
+            <div class="d-flex gap-2">
+              <button id="reschedule-cancel" class="btn btn-sm btn-outline-secondary" type="button">Cancel</button>
+              <button id="reschedule-save" class="btn btn-sm btn-primary" type="button">Save</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="lesson-tabs" role="tablist">
+          <button class="lesson-tab-btn active" data-tab="notes" type="button">Notes</button>
+          <button class="lesson-tab-btn" data-tab="submissions" type="button">Submissions (<span id="modal-submissions-count-tab">0</span>)</button>
+          <button class="lesson-tab-btn" data-tab="comments" type="button">Comments (<span id="modal-comments-count-tab">0</span>)</button>
+        </div>
+
+        <div id="modal-upload-alert-wrap"></div>
+
+        <div class="lesson-tab-pane active" data-pane="notes">
+          <label for="modal-notes" class="small text-muted mb-1 d-block">My Notes</label>
+          <textarea id="modal-notes" class="form-control form-control-sm" rows="3" maxlength="1000" placeholder="Add a note about this lesson..."></textarea>
+          <div class="d-flex justify-content-between mt-1">
+            <span class="small text-muted">Optional</span>
+            <span class="small text-muted"><span id="notes-char-count">0</span>/1000</span>
+          </div>
+          <button id="modal-btn-save-notes" class="btn btn-sm btn-outline-secondary mt-2" type="button">Save Notes</button>
+        </div>
+
+        <div class="lesson-tab-pane" data-pane="submissions">
+          <div class="small text-muted mb-2">Upload and manage submissions</div>
+          <div class="d-flex gap-2 align-items-center flex-wrap mb-2">
+            <input type="file" id="modal-evidence-file" accept="image/*,.pdf,.doc,.docx" class="form-control form-control-sm" style="max-width:260px">
+            <button id="modal-btn-upload" class="btn btn-sm btn-outline-info" type="button">Upload</button>
+            <span class="small text-muted">Total: <span id="modal-evidence-count">0</span></span>
+          </div>
+          <ul id="modal-evidence-list" class="list-unstyled mt-1 mb-0 small"></ul>
+        </div>
+
+        <div class="lesson-tab-pane" data-pane="comments">
+          <div id="modal-comments-list" class="comment-journal mb-2"></div>
+          <textarea id="modal-comment-input" class="form-control form-control-sm" rows="2" maxlength="2000" placeholder="Add a comment..."></textarea>
+          <div class="d-flex justify-content-end mt-2">
+            <button id="modal-btn-add-comment" class="btn btn-sm btn-outline-primary" type="button">Add Comment</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/calendar.js' %}"></script>
+<script>
+(function () {
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+  }
+
+  async function postForm(url, payload) {
+    const body = new URLSearchParams(payload || {});
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': getCookie('csrftoken'),
+        'X-Requested-With': 'XMLHttpRequest',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      credentials: 'same-origin',
+      body,
+    });
+    const data = await response.json().catch(function () { return {}; });
+    if (!response.ok) {
+      throw new Error(data.error || `HTTP ${response.status}`);
+    }
+    return data;
+  }
+
+  document.querySelectorAll('.js-lesson-status').forEach(function (button) {
+    button.addEventListener('click', async function () {
+      try {
+        await postForm(`/lessons/${button.dataset.scheduledId}/update/`, {
+          status: button.dataset.status,
+        });
+        window.location.reload();
+      } catch (error) {
+        alert(error.message || 'Unable to update lesson status.');
+      }
+    });
+  });
+
+  document.querySelectorAll('.js-lesson-mastery').forEach(function (button) {
+    button.addEventListener('click', async function () {
+      try {
+        await postForm(`/lessons/${button.dataset.scheduledId}/mastery/`, {
+          mastery: button.dataset.mastery,
+        });
+        window.location.reload();
+      } catch (error) {
+        alert(error.message || 'Unable to update mastery.');
+      }
+    });
+  });
+
+  document.querySelectorAll('.js-save-lesson-notes').forEach(function (button) {
+    button.addEventListener('click', async function () {
+      const notesInput = document.getElementById('lessonNotesInput');
+      try {
+        await postForm(`/lessons/${button.dataset.scheduledId}/notes/`, {
+          notes: notesInput ? notesInput.value : '',
+        });
+        window.location.reload();
+      } catch (error) {
+        alert(error.message || 'Unable to save notes.');
+      }
+    });
+  });
+
+  document.querySelectorAll('.js-reschedule-lesson').forEach(function (button) {
+    button.addEventListener('click', async function () {
+      const dateInput = document.getElementById('lessonRescheduleInput');
+      if (!dateInput || !dateInput.value) {
+        alert('Choose a date first.');
+        return;
+      }
+      try {
+        await postForm(`/lessons/${button.dataset.scheduledId}/reschedule/`, {
+          new_date: dateInput.value,
+        });
+        window.location.reload();
+      } catch (error) {
+        alert(error.message || 'Unable to reschedule lesson.');
+      }
+    });
+  });
+
+  document.querySelectorAll('.js-open-full-lesson').forEach(function (button) {
+    button.addEventListener('click', function () {
+      if (typeof window.edutrackOpenLessonModal === 'function') {
+        window.edutrackOpenLessonModal(button.dataset.scheduledId);
+      }
+    });
+  });
+})();
+</script>
+{% endblock %}

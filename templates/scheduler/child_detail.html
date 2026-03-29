@@ -1,0 +1,636 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ child.first_name }} — EduTrack{% endblock %}
+{% block nav_students %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  body { background: #f8f9fb; }
+
+  /* ── Back link ── */
+  .back-link {
+    color: #6c757d;
+    font-size: 0.9rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 1.25rem;
+  }
+  .back-link:hover { color: #0d6efd; }
+
+  /* ── Cards ── */
+  .detail-card {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.05);
+    margin-bottom: 1.25rem;
+  }
+  .detail-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem 0.5rem;
+  }
+  .detail-card-header h5 {
+    font-weight: 700;
+    margin: 0;
+    font-size: 1.05rem;
+  }
+  .detail-card-body { padding: 0.75rem 1.25rem 1.25rem; }
+
+  /* ── Avatar ── */
+  .avatar-wrap {
+    position: relative;
+    width: 88px;
+    height: 88px;
+    flex-shrink: 0;
+  }
+  .avatar-circle {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    background: #5b6af8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #fff;
+  }
+  .avatar-circle img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .avatar-edit-label {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 28px;
+    height: 28px;
+    background: #fff;
+    border: 1.5px solid #dee2e6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,.15);
+    transition: background .15s;
+  }
+  .avatar-edit-label:hover { background: #f0f4ff; }
+
+  /* ── Login section ── */
+  .login-section-header {
+    background: #f0f1fe;
+    border-radius: 10px 10px 0 0;
+    padding: 0.85rem 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    border-bottom: 1px solid #e3e4fb;
+  }
+  .login-section-header h5 {
+    margin: 0;
+    font-weight: 700;
+    color: #4a4dc4;
+    font-size: 1rem;
+  }
+  .login-section-body { padding: 1.25rem; }
+
+  /* ── Courses section ── */
+  .courses-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+  }
+  .courses-header h5 {
+    font-weight: 700;
+    margin: 0;
+    font-size: 1.05rem;
+  }
+  .courses-tabs {
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 1rem;
+  }
+  .courses-tabs .nav-link {
+    color: #6c757d;
+    font-size: 0.9rem;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    padding: 0.45rem 0.9rem;
+    margin-bottom: -1px;
+  }
+  .courses-tabs .nav-link.active {
+    color: #0d6efd;
+    border-bottom-color: #0d6efd;
+    font-weight: 600;
+  }
+  .enroll-btn {
+    background: #edf0fe;
+    color: #4a4dc4;
+    border: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 0.45rem 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    text-decoration: none;
+    transition: background .15s;
+  }
+  .enroll-btn:hover { background: #dce0fd; color: #3a3db4; }
+
+  .enroll-course-item {
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    padding: 0.7rem 0.85rem;
+  }
+  .enroll-course-item.disabled {
+    background: #f8f9fb;
+    opacity: 0.75;
+  }
+</style>
+{% endblock %}
+
+{% block messages_block %}{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 860px;">
+
+  <!-- Back link -->
+  <a href="{% url 'scheduler:child_list' %}" class="back-link">
+    <i class="bi bi-chevron-left"></i> All students
+  </a>
+
+  <!-- Flash messages -->
+  {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show" role="alert">
+      {{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  {% endfor %}
+
+  <!-- ── Student Information card ── -->
+  <div class="detail-card">
+    <div class="detail-card-header">
+      <h5>Student Information</h5>
+      <div class="dropdown">
+        <button class="btn btn-link p-0 text-muted" data-bs-toggle="dropdown" aria-label="Options">
+          <i class="bi bi-three-dots-vertical fs-5"></i>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+          <li>
+            <a class="dropdown-item" href="{% url 'scheduler:subject_selection' child_id=child.pk %}">
+              <i class="bi bi-book me-2 text-secondary"></i>Manage Subjects
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item" href="{% url 'scheduler:generate_schedule' child_id=child.pk %}">
+              <i class="bi bi-lightning me-2 text-secondary"></i>Generate Schedule
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item" href="{% url 'scheduler:schedule_edit' child_id=child.pk %}">
+              <i class="bi bi-calendar3-week me-2 text-secondary"></i>Edit Schedule
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item" href="{% url 'tracker:parent_calendar' child_id=child.pk %}">
+              <i class="bi bi-calendar3 me-2 text-secondary"></i>View Calendar
+            </a>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <button class="dropdown-item text-danger"
+                    data-bs-toggle="modal"
+                    data-bs-target="#deleteStudentModal">
+              <i class="bi bi-trash me-2"></i>Delete Student
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="detail-card-body">
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="save_student" value="1">
+
+        <div class="d-flex gap-4 align-items-start flex-wrap">
+
+          <!-- Avatar -->
+          <div class="avatar-wrap">
+            <div class="avatar-circle" id="avatarCircle">
+              {% if child.photo %}
+                <img src="{{ child.photo.url }}" alt="{{ child.first_name }}" id="avatarImg">
+              {% else %}
+                <span id="avatarInitial">{{ child.first_name|first|upper }}</span>
+                <img src="" alt="" id="avatarImg" style="display:none;">
+              {% endif %}
+            </div>
+            <label class="avatar-edit-label" for="id_photo_detail" title="Change photo">
+              <i class="bi bi-pencil-fill" style="font-size: 0.7rem; color: #555;"></i>
+            </label>
+            <input type="file" id="id_photo_detail" name="photo" accept="image/*" class="d-none">
+          </div>
+
+          <!-- Fields -->
+          <div class="flex-grow-1 row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" style="font-size: 0.9rem;">
+                Student Name <span class="text-muted fw-normal">(Required)</span>
+              </label>
+              <input type="text" name="first_name" class="form-control{% if info_errors.first_name %} is-invalid{% endif %}"
+                     value="{{ child.first_name }}" required>
+              {% if info_errors.first_name %}
+                <div class="invalid-feedback">{{ info_errors.first_name }}</div>
+              {% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" style="font-size: 0.9rem;">School Year</label>
+              <select name="school_year" class="form-select{% if info_errors.school_year %} is-invalid{% endif %}">
+                <option value="">— Select year —</option>
+                {% for yr in school_years %}
+                  <option value="{{ yr }}" {% if yr == child.school_year %}selected{% endif %}>{{ yr }}</option>
+                {% endfor %}
+              </select>
+              {% if info_errors.school_year %}
+                <div class="invalid-feedback">{{ info_errors.school_year }}</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="text-end mt-3">
+          <button type="submit" class="btn btn-primary px-4">Save Student</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Create Student Account Login ── -->
+  <div class="detail-card overflow-hidden">
+    <div class="login-section-header" data-bs-toggle="collapse" data-bs-target="#loginSection" aria-expanded="{% if login_section_open %}true{% else %}false{% endif %}">
+      <h5><i class="bi bi-person-lock me-2"></i>Create Student Account Login</h5>
+      <i class="bi bi-chevron-up" id="loginChevron"></i>
+    </div>
+    <div class="collapse {% if login_section_open %}show{% endif %}" id="loginSection">
+      <div class="login-section-body">
+        {% if child.student_user %}
+          <div class="d-flex align-items-center gap-3 py-2 mb-3">
+            <div class="rounded-circle d-flex align-items-center justify-content-center"
+                 style="width:44px;height:44px;background:#edf0fe;">
+              <i class="bi bi-person-check text-primary fs-5"></i>
+            </div>
+            <div>
+              <div class="fw-semibold">{{ child.first_name }} has a student login</div>
+              <div class="text-muted small">Username: <strong>{{ child.student_user.username }}</strong></div>
+            </div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <form method="post" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="update_login_username" value="1">
+                <label class="form-label fw-semibold" style="font-size: 0.9rem;">Change Username</label>
+                <div class="input-group">
+                  <input
+                    type="text"
+                    name="new_username"
+                    class="form-control{% if login_manage_errors.new_username %} is-invalid{% endif %}"
+                    value="{{ login_manage_data.new_username|default:child.student_user.username }}"
+                    placeholder="Student username"
+                  >
+                  <button type="submit" class="btn btn-outline-primary">Update</button>
+                  {% if login_manage_errors.new_username %}
+                    <div class="invalid-feedback d-block">{{ login_manage_errors.new_username }}</div>
+                  {% endif %}
+                </div>
+              </form>
+            </div>
+
+            <div class="col-md-6">
+              <form method="post" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="reset_login_password" value="1">
+                <label class="form-label fw-semibold" style="font-size: 0.9rem;">Reset Password</label>
+                <div class="row g-2">
+                  <div class="col-12">
+                    <input
+                      type="password"
+                      name="new_password1"
+                      class="form-control{% if login_manage_errors.new_password1 %} is-invalid{% endif %}"
+                      placeholder="New password"
+                    >
+                    {% if login_manage_errors.new_password1 %}
+                      <div class="invalid-feedback">{{ login_manage_errors.new_password1 }}</div>
+                    {% endif %}
+                  </div>
+                  <div class="col-12">
+                    <div class="input-group">
+                      <input
+                        type="password"
+                        name="new_password2"
+                        class="form-control{% if login_manage_errors.new_password2 %} is-invalid{% endif %}"
+                        placeholder="Confirm new password"
+                      >
+                      <button type="submit" class="btn btn-outline-primary">Reset</button>
+                    </div>
+                    {% if login_manage_errors.new_password2 %}
+                      <div class="invalid-feedback d-block">{{ login_manage_errors.new_password2 }}</div>
+                    {% endif %}
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        {% else %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="create_login" value="1">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold" style="font-size: 0.9rem;">
+                  Email <span class="text-muted fw-normal">(Required)</span>
+                </label>
+                <input type="text" name="username"
+                       class="form-control{% if login_form.errors.username %} is-invalid{% endif %}"
+                       placeholder="e.g. student@example.com"
+                       value="{{ login_form.username.value|default:'' }}">
+                {% if login_form.errors.username %}
+                  <div class="invalid-feedback">{{ login_form.errors.username|join:", " }}</div>
+                {% endif %}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold" style="font-size: 0.9rem;">
+                  Password <span class="text-muted fw-normal">(Required)</span>
+                  <span class="text-muted" data-bs-toggle="tooltip"
+                        title="Choose a password the student will use to sign in.">
+                    <i class="bi bi-question-circle-fill" style="font-size: 0.8rem;"></i>
+                  </span>
+                </label>
+                <input type="password" name="password1"
+                       class="form-control{% if login_form.errors.password1 %} is-invalid{% endif %}"
+                       placeholder="••••••••">
+                {% if login_form.errors.password1 %}
+                  <div class="invalid-feedback">{{ login_form.errors.password1|join:", " }}</div>
+                {% endif %}
+              </div>
+
+            </div>
+            <div class="text-end mt-3">
+              <button type="submit" class="btn btn-primary px-4">Create Student Login</button>
+            </div>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Courses ── -->
+  <div class="detail-card">
+    <div class="detail-card-body">
+      <div class="courses-header">
+        <h5>Courses</h5>
+        <div class="d-flex align-items-center gap-2">
+          <button type="button" class="enroll-btn" data-bs-toggle="modal" data-bs-target="#enrollCourseModal">
+            <i class="bi bi-person-plus"></i> Enroll in Course
+          </button>
+          <div class="dropdown">
+            <button class="btn btn-link p-0 text-muted" data-bs-toggle="dropdown" aria-label="Courses options">
+              <i class="bi bi-three-dots-vertical fs-5"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+              <li>
+                <a class="dropdown-item" href="{% url 'scheduler:generate_schedule' child_id=child.pk %}">
+                  <i class="bi bi-lightning me-2 text-secondary"></i>Generate Schedule
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="{% url 'scheduler:schedule_edit' child_id=child.pk %}">
+                  <i class="bi bi-calendar3-week me-2 text-secondary"></i>Edit Schedule
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="{% url 'tracker:parent_calendar' child_id=child.pk %}">
+                  <i class="bi bi-calendar3 me-2 text-secondary"></i>View Calendar
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <ul class="nav courses-tabs">
+        <li class="nav-item">
+          <a class="nav-link active" href="#">
+            Current ({{ active_course_enrollments|length }})
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#">
+            Completed ({{ completed_course_enrollments|length }})
+          </a>
+        </li>
+      </ul>
+
+      <!-- Total Days -->
+      <p class="fw-semibold mb-3" style="font-size: 0.9rem;">
+        Total Days Attended: {{ total_days_attended }}
+        <span class="text-muted ms-1" data-bs-toggle="tooltip"
+              title="Count of lessons marked as complete.">
+          <i class="bi bi-question-circle-fill" style="font-size: 0.8rem;"></i>
+        </span>
+      </p>
+
+      <!-- Course list or empty state -->
+      {% if active_course_enrollments %}
+        <div class="list-group list-group-flush">
+          {% for enrollment in active_course_enrollments %}
+            <div class="list-group-item d-flex align-items-center gap-3 px-0 py-2">
+              <span class="rounded-circle d-inline-block flex-shrink-0"
+                    style="width:12px;height:12px;background:{{ enrollment.course.color }};"></span>
+              <div class="flex-grow-1">
+                <div class="fw-semibold small">{{ enrollment.course.name }}</div>
+                <div class="text-muted" style="font-size: 0.75rem;">
+                  Started {{ enrollment.start_date }} · {{ enrollment.get_days_display }}
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-center text-muted py-4" style="font-size: 0.9rem; font-style: italic;">
+          {{ child.first_name }} is not enrolled in any courses
+        </p>
+      {% endif %}
+
+      {% if completed_course_enrollments %}
+        <div class="mt-3 pt-3 border-top">
+          <div class="text-muted small mb-2">Completed Courses</div>
+          {% for enrollment in completed_course_enrollments %}
+            <div class="d-flex align-items-center justify-content-between py-1">
+              <span class="small">{{ enrollment.course.name }}</span>
+              <span class="text-muted" style="font-size: 0.75rem;">{{ enrollment.completed_school_year|default:'Completed' }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Enroll in Course modal ── -->
+<div class="modal fade" id="enrollCourseModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="enroll_courses" value="1">
+        <div class="modal-header">
+          <h5 class="modal-title fw-semibold">
+            <i class="bi bi-journal-plus me-2"></i>Enroll {{ child.first_name }} in Courses
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          {% if available_courses %}
+            <p class="text-muted small mb-3">Select one or more courses.</p>
+            <div class="d-flex flex-column gap-2">
+              {% for course in available_courses %}
+                <label class="enroll-course-item d-flex align-items-center justify-content-between {% if course.is_current_enrolled %}disabled{% endif %}">
+                  <span class="d-flex align-items-center gap-2">
+                    <input
+                      class="form-check-input course-select"
+                      type="checkbox"
+                      name="course_ids"
+                      value="{{ course.id }}"
+                      {% if course.is_current_enrolled %}checked disabled{% endif %}
+                    >
+                    <span>{{ course.name }}</span>
+                  </span>
+                  {% if course.is_current_enrolled %}
+                    <span class="badge text-bg-secondary">Already Enrolled</span>
+                  {% endif %}
+                </label>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="text-muted mb-0">
+              No courses found. Create courses first from the Courses page.
+            </p>
+          {% endif %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="enrollCoursesSubmit" {% if not available_courses %}disabled{% endif %}>
+            Enroll Selected
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ── Delete Student modal ── -->
+<div class="modal fade" id="deleteStudentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold text-danger">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i>Delete Student
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body pt-1">
+        <p class="text-muted mb-3">
+          This will permanently delete <strong>{{ child.first_name }}</strong> and all their data.
+          Type their name below to confirm.
+        </p>
+        <form method="post" action="{% url 'scheduler:delete_child' child_id=child.pk %}">
+          {% csrf_token %}
+          <div class="mb-3">
+            <input type="text" name="confirm_name" id="deleteConfirmInput"
+                   class="form-control" placeholder="{{ child.first_name }}"
+                   autocomplete="off">
+          </div>
+          <div class="d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" id="deleteConfirmBtn" class="btn btn-danger" disabled>
+              Yes, Delete Student
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // ── Avatar live preview ──
+  document.getElementById('id_photo_detail').addEventListener('change', function () {
+    const file = this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const img = document.getElementById('avatarImg');
+      const initial = document.getElementById('avatarInitial');
+      img.src = e.target.result;
+      img.style.display = 'block';
+      if (initial) initial.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // ── Login section chevron toggle ──
+  const loginSection = document.getElementById('loginSection');
+  const loginChevron = document.getElementById('loginChevron');
+  if (loginSection) {
+    loginSection.addEventListener('show.bs.collapse', () => {
+      loginChevron.className = 'bi bi-chevron-up';
+    });
+    loginSection.addEventListener('hide.bs.collapse', () => {
+      loginChevron.className = 'bi bi-chevron-down';
+    });
+  }
+
+  // ── Delete confirmation unlock ──
+  const deleteInput = document.getElementById('deleteConfirmInput');
+  const deleteBtn = document.getElementById('deleteConfirmBtn');
+  if (deleteInput && deleteBtn) {
+    deleteInput.addEventListener('input', function () {
+      deleteBtn.disabled = this.value.trim() !== '{{ child.first_name }}';
+    });
+  }
+
+  // ── Bootstrap tooltips ──
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+    new bootstrap.Tooltip(el);
+  });
+
+  // ── Enroll modal submit guard ──
+  const enrollSubmit = document.getElementById('enrollCoursesSubmit');
+  const enrollChecks = document.querySelectorAll('.course-select:not(:disabled)');
+  function refreshEnrollSubmitState() {
+    if (!enrollSubmit) return;
+    if (!enrollChecks.length) return;
+    enrollSubmit.disabled = !Array.from(enrollChecks).some((cb) => cb.checked);
+  }
+  enrollChecks.forEach((cb) => cb.addEventListener('change', refreshEnrollSubmitState));
+  refreshEnrollSubmitState();
+</script>
+{% endblock %}

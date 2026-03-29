@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}Gradebooks | EduTrack{% endblock %}
+{% block nav_gradebooks %}active{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Your Gradebooks</h1>
+    <div class="btn-group" role="group" aria-label="Gradebook tabs">
+      <a href="{% url 'reports:gradebook_list' %}?tab=current"
+         class="btn btn-sm {% if tab == 'current' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+        Current
+      </a>
+      <a href="{% url 'reports:gradebook_list' %}?tab=completed"
+         class="btn btn-sm {% if tab == 'completed' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+        Completed
+      </a>
+    </div>
+  </div>
+
+  {% if children_rows %}
+    {% for row in children_rows %}
+      <div class="card mb-3 shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <strong>{{ row.child.first_name }}</strong>
+          <div class="d-flex align-items-center gap-2">
+            <span class="text-muted small">{{ row.enrollments|length }} course{{ row.enrollments|length|pluralize }}</span>
+            {% if can_export %}
+            <a
+              href="{% url 'reports:gradebook_transcript' row.child.id %}"
+              class="btn btn-sm btn-outline-dark"
+            >
+              Generate Transcript
+            </a>
+            {% endif %}
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0 align-middle">
+            <thead>
+              <tr>
+                <th>Course</th>
+                <th>Final %</th>
+                <th>Letter</th>
+                <th>Progress</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in row.enrollments %}
+              <tr>
+                <td>{{ item.enrollment.course.name }}</td>
+                <td>{{ item.summary.final_percent }}%</td>
+                <td>{{ item.summary.letter_grade|default:'-' }}</td>
+                <td>
+                  {{ item.summary.graded_assignments_count }} / {{ item.summary.total_assignments_count }} graded
+                </td>
+                <td class="text-end">
+                  <a href="{% url 'reports:gradebook_detail' item.enrollment.id %}" class="btn btn-sm btn-outline-secondary">
+                    Open
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="card shadow-sm">
+      <div class="card-body text-muted">No {{ tab }} gradebooks yet.</div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
