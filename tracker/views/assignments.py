@@ -18,6 +18,7 @@ from planning.models import (
 )
 from reports.services_gradebook import recalculate_enrollment_grade
 from scheduler.models import Child
+
 from .lessons import (
     _can_access_student_assignment,
     _effective_lesson_status,
