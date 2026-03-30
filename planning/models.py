@@ -220,6 +220,15 @@ class StudentAssignment(models.Model):
     grading_notes = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # Bridge to PlanItem (new unified planning model)
+    new_plan_item = models.ForeignKey(
+        "PlanItem",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="student_assignments_new",
+    )
+
     class Meta:
         ordering = ["due_date", "status"]
 
@@ -314,6 +323,14 @@ class ActivityProgress(models.Model):
         on_delete=models.CASCADE,
         related_name="activity_progress_items",
     )
+    # Bridge for new unified PlanItem model (nullable during migration)
+    new_plan_item = models.ForeignKey(
+        "PlanItem",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="activity_progress_new",
+    )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     notes = models.TextField(blank=True, default="")
     completed_at = models.DateTimeField(null=True, blank=True)
@@ -326,6 +343,7 @@ class ActivityProgress(models.Model):
 
     def __str__(self):
         return f"{self.enrollment.child.first_name} - {self.plan_item}"
+    
 
 
 class ActivityProgressAttachment(models.Model):

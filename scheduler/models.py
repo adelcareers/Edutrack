@@ -106,6 +106,21 @@ class ScheduledLesson(models.Model):
     enrolled_subject = models.ForeignKey(EnrolledSubject, on_delete=models.CASCADE)
     scheduled_date = models.DateField(db_index=True)
     order_on_day = models.IntegerField(default=0)
+    # Bridge to the new PlanItem / CourseSubjectConfig models (added in Phase 1)
+    plan_item = models.ForeignKey(
+        "planning.PlanItem",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="scheduled_lessons",
+    )
+    course_subject = models.ForeignKey(
+        "courses.CourseSubjectConfig",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="scheduled_lessons",
+    )
 
     class Meta:
         ordering = ["scheduled_date", "order_on_day"]
