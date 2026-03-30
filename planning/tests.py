@@ -4,18 +4,29 @@ from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import UserProfile
-from courses.models import Course, GlobalAssignmentType
+from courses.models import (
+    AssignmentType,
+    Course,
+    CourseEnrollment,
+    CourseSubjectConfig,
+    GlobalAssignmentType,
+)
 from curriculum.models import Lesson
 from planning.models import (
     ActivityProgress,
     ActivityProgressAttachment,
+    ActivityPlanDetail,
     AssignmentPlanItem,
+    AssignmentPlanDetail,
     CourseAssignmentTemplate,
+    PlanItem,
     StudentAssignment,
 )
 from scheduler.models import Child, EnrolledSubject, ScheduledLesson
+from planning import services as planning_services
 
 
 class StudentAssignmentSelectionTests(TestCase):
@@ -412,6 +423,80 @@ class StudentAssignmentSelectionTests(TestCase):
             [AssignmentPlanItem.objects.get(template=lesson_template)],
         )
 
+    def test_plan_course_renders_new_only_plan_items_without_duplicates(self):
+        response = self.client.get(
+            reverse("planning:plan_course", args=[self.course.pk])
+        )
+        assignment_type = response.context["assignment_types"].first()
+
+        legacy_template = CourseAssignmentTemplate.objects.create(
+            course=self.course,
+            assignment_type=assignment_type,
+            item_kind="assignment",
+            name="Legacy Worksheet",
+        )
+        legacy_plan_item = AssignmentPlanItem.objects.create(
+            course=self.course,
+            template=legacy_template,
+            week_number=1,
+            day_number=1,
+            due_in_days=0,
+            order=0,
+        )
+
+        bridged_plan_item = PlanItem.objects.create(
+            course=self.course,
+            item_type=PlanItem.ITEM_TYPE_ASSIGNMENT,
+            week_number=1,
+            day_number=1,
+            name="Legacy Worksheet",
+            order=0,
+        )
+        from planning.models import AssignmentPlanDetail
+        AssignmentPlanDetail.objects.create(
+            plan_item=bridged_plan_item,
+            assignment_type=assignment_type,
+            due_offset_days=0,
+            is_graded=False,
+        )
+        StudentAssignment.objects.create(
+            enrollment=self.enrollment_one,
+            plan_item=legacy_plan_item,
+            due_date=self.enrollment_one.start_date,
+            status="pending",
+            new_plan_item=bridged_plan_item,
+        )
+
+        new_only_plan_item = PlanItem.objects.create(
+            course=self.course,
+            item_type=PlanItem.ITEM_TYPE_ACTIVITY,
+            week_number=1,
+            day_number=2,
+            name="New Outdoor Activity",
+            order=0,
+        )
+        from planning.models import ActivityPlanDetail
+        ActivityPlanDetail.objects.create(
+            plan_item=new_only_plan_item,
+            due_offset_days=0,
+        )
+
+        response = self.client.get(
+            reverse("planning:plan_course", args=[self.course.pk]),
+            {"workflow": "activities", "scope": "all"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "New Outdoor Activity")
+        self.assertEqual(len(response.context["plan_items"]), 1)
+
+        response = self.client.get(
+            reverse("planning:plan_course", args=[self.course.pk]),
+            {"workflow": "assignments", "scope": "all"},
+        )
+        self.assertEqual(len(response.context["plan_items"]), 1)
+        self.assertContains(response, "Legacy Worksheet")
+
     def test_lesson_provenance_labels_render_for_oak_imported_and_manual(self):
         imported_subject = EnrolledSubject.objects.create(
             child=self.child_one,
@@ -558,6 +643,172 @@ class StudentAssignmentSelectionTests(TestCase):
         )
 
 
+class PlanItemServiceTests(TestCase):
+    def setUp(self):
+        self.parent = User.objects.create_user(username="plan-item-parent", password="x")
+        UserProfile.objects.create(user=self.parent, role="parent")
+
+        self.course = Course.objects.create(parent=self.parent, name="Test Course")
+
+        self.child = Child.objects.create(
+            parent=self.parent,
+            first_name="Alice",
+            birth_month=1,
+            birth_year=2015,
+            school_year="1",
+            academic_year_start=timezone.now().date(),
+        )
+
+        self.enrollment = CourseEnrollment.objects.create(
+            course=self.course,
+            child=self.child,
+            start_date=timezone.now().date(),
+            days_of_week=[0, 1, 2, 3, 4],
+        )
+
+        self.enrolled_subject = EnrolledSubject.objects.create(
+            child=self.child,
+            subject_name="Maths",
+            key_stage="KS1",
+            lessons_per_week=3,
+            colour_hex="#ffffff",
+            days_of_week=[0, 2, 4],
+        )
+
+        self.assignment_type = AssignmentType.objects.create(
+            course=self.course,
+            name="Homework",
+            color="#000000",
+            is_hidden=False,
+        )
+
+        self.lesson = Lesson.objects.create(
+            subject_name="Maths",
+            year=self.child.school_year,
+            unit_slug="u1",
+            lesson_number=1,
+            lesson_title="Add",
+        )
+
+        self.course_subject = CourseSubjectConfig.objects.create(
+            course=self.course,
+            subject_name="Maths",
+            key_stage="KS1",
+            year=self.child.school_year,
+            lessons_per_week=3,
+            days_of_week=[0, 2, 4],
+            colour_hex="#abcdef",
+            source="oak",
+        )
+
+    def test_create_and_update_assignment_plan_item(self):
+        plan_item = planning_services.create_plan_item(
+            course=self.course,
+            item_type=PlanItem.ITEM_TYPE_ASSIGNMENT,
+            week_number=2,
+            day_number=3,
+            name="Test Assignment",
+            assignment_type=self.assignment_type,
+            is_graded=True,
+            due_offset_days=2,
+        )
+
+        self.assertIsNotNone(plan_item.pk)
+        self.assertEqual(plan_item.item_type, PlanItem.ITEM_TYPE_ASSIGNMENT)
+        self.assertEqual(plan_item.assignment_detail.assignment_type, self.assignment_type)
+        self.assertTrue(plan_item.assignment_detail.is_graded)
+
+        planning_services.update_plan_item(
+            plan_item,
+            name="Updated",
+            is_graded=False,
+            due_offset_days=5,
+        )
+        plan_item.refresh_from_db()
+        self.assertEqual(plan_item.name, "Updated")
+        self.assertEqual(plan_item.assignment_detail.due_offset_days, 5)
+        self.assertFalse(plan_item.assignment_detail.is_graded)
+
+    def test_create_and_materialize_lesson_plan_item(self):
+        plan_item = planning_services.create_plan_item(
+            course=self.course,
+            item_type=PlanItem.ITEM_TYPE_LESSON,
+            week_number=1,
+            day_number=1,
+            name="Lesson Plan",
+            course_subject=self.course_subject,
+            curriculum_lesson=self.lesson,
+        )
+
+        results = planning_services.materialize_plan_item(plan_item)
+        scheduled = [row for row in results if isinstance(row, ScheduledLesson)]
+        self.assertEqual(len(scheduled), 1)
+        self.assertEqual(scheduled[0].plan_item_id, plan_item.id)
+
+    def test_compute_enrollment_calendar_date(self):
+        actual = planning_services.compute_enrollment_calendar_date(
+            self.enrollment, 3, 2, due_offset_days=1
+        )
+        expected = self.enrollment.start_date + datetime.timedelta(
+            days=(3 - 1) * 7 + (2 - 1) + 1
+        )
+        self.assertEqual(actual, expected)
+
+    def test_materialize_assignment_plan_item_creates_student_assignment_once(self):
+        plan_item = planning_services.create_plan_item(
+            course=self.course,
+            item_type=PlanItem.ITEM_TYPE_ASSIGNMENT,
+            week_number=2,
+            day_number=2,
+            name="Assignment Bridge",
+            assignment_type=self.assignment_type,
+            is_graded=True,
+            due_offset_days=3,
+        )
+
+        first = planning_services.materialize_plan_item_for_enrollment(
+            plan_item, self.enrollment
+        )
+        second = planning_services.materialize_plan_item_for_enrollment(
+            plan_item, self.enrollment
+        )
+
+        self.assertEqual(len(first), 1)
+        self.assertEqual(len(second), 1)
+        self.assertEqual(StudentAssignment.objects.count(), 1)
+        assignment = StudentAssignment.objects.get()
+        self.assertEqual(assignment.new_plan_item_id, plan_item.id)
+        self.assertEqual(
+            assignment.due_date,
+            planning_services.compute_enrollment_calendar_date(
+                self.enrollment, 2, 2, due_offset_days=3
+            ),
+        )
+
+    def test_materialize_activity_plan_item_creates_activity_progress_once(self):
+        plan_item = planning_services.create_plan_item(
+            course=self.course,
+            item_type=PlanItem.ITEM_TYPE_ACTIVITY,
+            week_number=1,
+            day_number=3,
+            name="Nature walk",
+            due_offset_days=1,
+        )
+
+        first = planning_services.materialize_plan_item_for_enrollment(
+            plan_item, self.enrollment
+        )
+        second = planning_services.materialize_plan_item_for_enrollment(
+            plan_item, self.enrollment
+        )
+
+        self.assertEqual(len(first), 1)
+        self.assertEqual(len(second), 1)
+        self.assertEqual(ActivityProgress.objects.count(), 1)
+        progress = ActivityProgress.objects.get()
+        self.assertEqual(progress.new_plan_item_id, plan_item.id)
+
+
 class PlanningTeacherAccessTests(TestCase):
     def setUp(self):
         self.teacher = User.objects.create_user(username="plan-teacher", password="pw")
@@ -580,3 +831,154 @@ class PlanningTeacherAccessTests(TestCase):
             reverse("planning:plan_course", args=[self.course.pk])
         )
         self.assertEqual(response.status_code, 200)
+
+
+class GeneratePlanGridTests(TestCase):
+    """Unit tests for planning.services.generate_plan_grid and create_subject_configs_from_selection."""
+
+    def setUp(self):
+        from accounts.models import UserProfile
+        self.parent = User.objects.create_user(username="grid-parent", password="pw")
+        UserProfile.objects.create(user=self.parent, role="parent")
+
+        self.course = Course.objects.create(
+            parent=self.parent,
+            name="Year 3 Course",
+            duration_weeks=4,
+            frequency_days=5,
+        )
+
+        # Create curriculum lessons for Maths Year 3
+        def make_lesson(unit_slug, num, title):
+            return Lesson.objects.create(
+                key_stage="KS2",
+                subject_name="Maths",
+                year="3",
+                programme_slug="maths-year-3",
+                unit_slug=unit_slug,
+                unit_title=unit_slug.replace("-", " ").title(),
+                lesson_number=num,
+                lesson_title=title,
+                lesson_url=f"https://oak.example.com/maths-y3/{unit_slug}-{num}",
+            )
+
+        self.lesson_m1 = make_lesson("addition", 1, "Addition 1")
+        self.lesson_m2 = make_lesson("addition", 2, "Addition 2")
+        self.lesson_m3 = make_lesson("subtraction", 1, "Subtraction 1")
+
+        self.create_configs = planning_services.create_subject_configs_from_selection
+        self.generate_grid = planning_services.generate_plan_grid
+
+    def test_create_subject_configs_creates_rows(self):
+        configs = self.create_configs(
+            self.course,
+            [
+                {
+                    "subject_name": "Maths",
+                    "year": "3",
+                    "lessons_per_week": 3,
+                    "days_of_week": [0, 1, 2],
+                    "source": "oak",
+                }
+            ],
+        )
+        self.assertEqual(len(configs), 1)
+        self.assertEqual(CourseSubjectConfig.objects.filter(course=self.course).count(), 1)
+        cfg = configs[0]
+        self.assertEqual(cfg.subject_name, "Maths")
+        self.assertEqual(cfg.lessons_per_week, 3)
+
+    def test_create_subject_configs_upserts_existing(self):
+        # Create once
+        self.create_configs(
+            self.course,
+            [{"subject_name": "Maths", "year": "3", "lessons_per_week": 3, "days_of_week": []}],
+        )
+        # Update lessons_per_week
+        self.create_configs(
+            self.course,
+            [{"subject_name": "Maths", "year": "3", "lessons_per_week": 5, "days_of_week": []}],
+        )
+        self.assertEqual(CourseSubjectConfig.objects.filter(course=self.course).count(), 1)
+        self.assertEqual(
+            CourseSubjectConfig.objects.get(course=self.course, subject_name="Maths").lessons_per_week,
+            5,
+        )
+
+    def test_generate_plan_grid_creates_plan_items(self):
+        from planning.models import LessonPlanDetail
+
+        sc = CourseSubjectConfig.objects.create(
+            course=self.course,
+            subject_name="Maths",
+            year="3",
+            lessons_per_week=1,
+            days_of_week=[0],  # Monday only → day_number 1
+        )
+        count = self.generate_grid(self.course, [sc])
+        # 3 lessons available, 1/week over 4 weeks = 3 (queue exhausted at 3)
+        self.assertEqual(count, 3)
+        self.assertEqual(PlanItem.objects.filter(course=self.course).count(), 3)
+        self.assertEqual(LessonPlanDetail.objects.filter(plan_item__course=self.course).count(), 3)
+
+    def test_generate_plan_grid_respects_days_of_week(self):
+        sc = CourseSubjectConfig.objects.create(
+            course=self.course,
+            subject_name="Maths",
+            year="3",
+            lessons_per_week=2,
+            days_of_week=[0, 2],  # Mon=day1, Wed=day3
+        )
+        self.generate_grid(self.course, [sc])
+        items = list(PlanItem.objects.filter(course=self.course).order_by("week_number", "day_number"))
+        day_numbers_used = {item.day_number for item in items}
+        # All items should only land on day_number 1 (Mon) or day_number 3 (Wed)
+        self.assertTrue(day_numbers_used.issubset({1, 3}))
+
+    def test_generate_plan_grid_empty_when_no_lessons(self):
+        sc = CourseSubjectConfig.objects.create(
+            course=self.course,
+            subject_name="English",  # no lessons in DB for this
+            year="3",
+            lessons_per_week=3,
+            days_of_week=[],
+        )
+        count = self.generate_grid(self.course, [sc])
+        self.assertEqual(count, 0)
+
+    def test_generate_plan_grid_returns_zero_for_no_configs(self):
+        count = self.generate_grid(self.course, [])
+        self.assertEqual(count, 0)
+
+    def test_generate_plan_grid_rerun_does_not_duplicate_existing_lessons(self):
+        sc = CourseSubjectConfig.objects.create(
+            course=self.course,
+            subject_name="Maths",
+            year="3",
+            lessons_per_week=1,
+            days_of_week=[0],
+        )
+        first_count = self.generate_grid(self.course, [sc])
+        second_count = self.generate_grid(self.course, [sc])
+
+        self.assertEqual(first_count, 3)
+        self.assertEqual(second_count, 0)
+        self.assertEqual(PlanItem.objects.filter(course=self.course).count(), 3)
+
+    def test_plan_items_linked_to_correct_lesson_detail(self):
+        from planning.models import LessonPlanDetail
+
+        sc = CourseSubjectConfig.objects.create(
+            course=self.course,
+            subject_name="Maths",
+            year="3",
+            lessons_per_week=1,
+            days_of_week=[0],
+        )
+        self.generate_grid(self.course, [sc])
+        details = LessonPlanDetail.objects.filter(
+            plan_item__course=self.course
+        ).select_related("curriculum_lesson").order_by("plan_item__week_number")
+        lesson_titles = [d.curriculum_lesson.lesson_title for d in details]
+        # Should be in curriculum order: Addition 1, Addition 2, Subtraction 1
+        self.assertEqual(lesson_titles, ["Addition 1", "Addition 2", "Subtraction 1"])

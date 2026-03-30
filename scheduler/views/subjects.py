@@ -11,6 +11,7 @@ from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 
 from accounts.decorators import role_required
+from courses.models import CourseSubjectConfig
 from curriculum.models import Lesson
 from scheduler.models import Child, CustomSubjectGroup, EnrolledSubject
 
@@ -111,6 +112,45 @@ def _subject_curriculum_stats(subject, child):
     }
 
 
+def _active_course_enrollments_for_child(child):
+    return list(
+        child.course_enrollments.select_related("course")
+        .filter(status="active")
+        .order_by("-enrolled_at", "-id")
+    )
+
+
+def _sync_course_subject_configs(child, enrolled_subjects):
+    active_enrollments = _active_course_enrollments_for_child(child)
+    if not active_enrollments:
+        return
+
+    for enrollment in active_enrollments:
+        course = enrollment.course
+        fallback_days = list(course.default_days or []) or list(range(max(course.frequency_days, 1)))
+        valid_days = set(range(max(course.frequency_days, 1)))
+
+        for subject in enrolled_subjects:
+            days = sorted({day for day in (subject.days_of_week or fallback_days) if day in valid_days})
+            if not days:
+                days = fallback_days
+            CourseSubjectConfig.objects.update_or_create(
+                course=course,
+                subject_name=subject.subject_name,
+                defaults={
+                    "key_stage": subject.key_stage,
+                    "year": child.school_year,
+                    "lessons_per_week": max(1, min(10, subject.lessons_per_week or 3)),
+                    "days_of_week": days,
+                    "colour_hex": subject.colour_hex,
+                    "source": "csv" if (subject.source_year or subject.source_subject_name) else "oak",
+                    "source_subject_name": subject.source_subject_name or subject.subject_name,
+                    "source_year": subject.source_year,
+                    "is_active": True,
+                },
+            )
+
+
 @role_required("parent")
 def subject_selection_view(request, child_id):
     """Step 1 of 2: parent picks subjects; lessons-per-week is set on the next page.
@@ -181,6 +221,10 @@ def subject_selection_view(request, child_id):
             )
 
         EnrolledSubject.objects.bulk_create(to_create)
+        _sync_course_subject_configs(
+            child,
+            list(child.enrolled_subjects.filter(is_active=True)),
+        )
         return redirect("scheduler:schedule_days", child_id=child.pk)
 
     subjects = sorted(
@@ -240,6 +284,11 @@ def schedule_days_view(request, child_id):
 
             subject.save(update_fields=["days_of_week", "lessons_per_week"])
 
+        _sync_course_subject_configs(child, enrolled_subjects)
+
+        active_enrollments = _active_course_enrollments_for_child(child)
+        if active_enrollments:
+            return redirect("planning:oak_wizard", course_id=active_enrollments[0].course_id)
         return redirect("scheduler:generate_schedule", child_id=child.pk)
 
     day_choices = [(0, "Mon"), (1, "Tue"), (2, "Wed"), (3, "Thu"), (4, "Fri")]

@@ -422,7 +422,7 @@
               <div class="plan-item-title">{{ item.template.name }}</div>
               <div class="plan-item-meta">
                 <span class="pill">Week {{ item.week_number }} / Day {{ item.day_number }}</span>
-                {% with status=plan_status_map|get_item:item.id %}
+                {% with status=plan_status_map|get_item:item.display_id %}
                   {% if status %}
                     <span class="status-pill {{ status }}">{{ status }}</span>
                   {% endif %}
@@ -430,9 +430,13 @@
                 {% if item.template.assignment_type %}
                   <span class="pill" style="background: {{ item.template.assignment_type.color }}22; color: #374151;">{{ item.template.assignment_type.name }}</span>
                 {% endif %}
-                {% if item.template.item_kind == 'lesson' and item.lesson_child and item.lesson_enrolled_subject %}
-                  <span class="pill">{{ item.lesson_child.first_name }} • {{ item.lesson_enrolled_subject.subject_name }}</span>
-                  {% with provenance=lesson_provenance_map|get_item:item.id %}
+                {% if item.template.item_kind == 'lesson' %}
+                  {% if item.lesson_enrolled_subject %}
+                    <span class="pill">
+                      {% if item.lesson_child %}{{ item.lesson_child.first_name }} • {% endif %}{{ item.lesson_enrolled_subject.subject_name }}
+                    </span>
+                  {% endif %}
+                  {% with provenance=lesson_provenance_map|get_item:item.display_id %}
                     {% if provenance %}
                       <span class="pill source-{{ provenance|get_item:'css' }}">{{ provenance|get_item:'label' }}</span>
                     {% endif %}
@@ -447,16 +451,18 @@
               {% endif %}
             </div>
             <div class="item-actions">
-              <a href="?week={{ selected_week }}&day={{ selected_day }}&workflow={{ workflow }}&scope={{ scope }}&edit={{ item.id }}&create=1" title="Edit"><i class="bi bi-pencil"></i></a>
-              <form method="post">
-                {% csrf_token %}
-                <input type="hidden" name="delete_id" value="{{ item.id }}">
-                <input type="hidden" name="workflow" value="{{ workflow }}">
-                <input type="hidden" name="scope" value="{{ scope }}">
-                <input type="hidden" name="week_number" value="{{ selected_week }}">
-                <input type="hidden" name="day_number" value="{{ selected_day }}">
-                <button type="submit" title="Delete"><i class="bi bi-trash"></i></button>
-              </form>
+              {% if item.legacy_id %}
+                <a href="?week={{ selected_week }}&day={{ selected_day }}&workflow={{ workflow }}&scope={{ scope }}&edit={{ item.legacy_id }}&create=1" title="Edit"><i class="bi bi-pencil"></i></a>
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="delete_id" value="{{ item.legacy_id }}">
+                  <input type="hidden" name="workflow" value="{{ workflow }}">
+                  <input type="hidden" name="scope" value="{{ scope }}">
+                  <input type="hidden" name="week_number" value="{{ selected_week }}">
+                  <input type="hidden" name="day_number" value="{{ selected_day }}">
+                  <button type="submit" title="Delete"><i class="bi bi-trash"></i></button>
+                </form>
+              {% endif %}
             </div>
           </div>
           {% if item.notes %}

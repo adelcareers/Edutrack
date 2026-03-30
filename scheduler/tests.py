@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from accounts.models import UserProfile
-from courses.models import Course, CourseEnrollment
+from courses.models import Course, CourseEnrollment, CourseSubjectConfig
 from curriculum.models import Lesson
 from scheduler.models import Child, EnrolledSubject, ScheduledLesson
 from tracker.models import LessonLog
@@ -845,6 +845,88 @@ class ImportedSubjectSchedulingTests(TestCase):
         self.assertEqual(summary["query_subject"], "Maths")
         self.assertEqual(summary["query_year"], "Year 6")
         self.assertEqual(summary["total_lessons"], 3)
+
+
+class PlanningLedSubjectFlowTests(TestCase):
+    def setUp(self):
+        self.parent = _make_parent(username="planning_flow_parent")
+        self.child = _make_child(self.parent, first_name="Mia")
+        self.client.force_login(self.parent)
+
+        self.course = Course.objects.create(
+            parent=self.parent,
+            name="Planning Course",
+            duration_weeks=12,
+            frequency_days=5,
+            default_days=[0, 1, 2, 3, 4],
+        )
+        self.enrollment = CourseEnrollment.objects.create(
+            course=self.course,
+            child=self.child,
+            start_date=datetime.date(2025, 9, 1),
+            days_of_week=[0, 1, 2, 3, 4],
+            status="active",
+        )
+
+        for lesson_number in range(1, 3):
+            Lesson.objects.create(
+                key_stage="KS2",
+                subject_name="Maths",
+                programme_slug="maths-year-5",
+                year=self.child.school_year,
+                unit_slug="number",
+                unit_title="Number",
+                lesson_number=lesson_number,
+                lesson_title=f"Maths {lesson_number}",
+                lesson_url=f"https://example.com/maths/{lesson_number}",
+                is_custom=False,
+            )
+
+    def test_subject_selection_syncs_course_subject_config(self):
+        response = self.client.post(
+            reverse("scheduler:subject_selection", kwargs={"child_id": self.child.pk}),
+            {"subjects": ["Maths"]},
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("scheduler:schedule_days", kwargs={"child_id": self.child.pk}),
+            fetch_redirect_response=False,
+        )
+        self.assertTrue(
+            CourseSubjectConfig.objects.filter(
+                course=self.course,
+                subject_name="Maths",
+                is_active=True,
+            ).exists()
+        )
+
+    def test_schedule_days_redirects_into_planning_wizard_and_syncs_days(self):
+        enrolled_subject = EnrolledSubject.objects.create(
+            child=self.child,
+            subject_name="Maths",
+            key_stage="KS2",
+            lessons_per_week=3,
+            colour_hex="#E63946",
+            days_of_week=[0, 1, 2, 3, 4],
+        )
+
+        response = self.client.post(
+            reverse("scheduler:schedule_days", kwargs={"child_id": self.child.pk}),
+            {
+                f"lpw_{enrolled_subject.pk}": "2",
+                f"days_{enrolled_subject.pk}": ["0", "2"],
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("planning:oak_wizard", kwargs={"course_id": self.course.pk}),
+            fetch_redirect_response=False,
+        )
+        config = CourseSubjectConfig.objects.get(course=self.course, subject_name="Maths")
+        self.assertEqual(config.lessons_per_week, 2)
+        self.assertEqual(config.days_of_week, [0, 2])
 
 
 class GenerateScheduleConfirmationGuardTests(TestCase):
