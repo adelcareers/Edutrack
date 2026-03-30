@@ -101,8 +101,8 @@ def _archive_course_snapshot(course, remark="course deleted"):
         StudentAssignment.objects.filter(enrollment__course=course)
         .select_related(
             "enrollment__child",
-            "plan_item__template",
-            "plan_item__template__assignment_type",
+            "new_plan_item",
+            "new_plan_item__assignment_detail__assignment_type",
         )
         .order_by("due_date", "id")
     )
@@ -110,18 +110,25 @@ def _archive_course_snapshot(course, remark="course deleted"):
     assignment_history = []
     today = timezone.localdate()
     for assignment in student_assignments:
-        plan_item = assignment.plan_item
-        template = plan_item.template
-        assignment_type = template.assignment_type
-        attachments = [
-            {
-                "id": a.id,
-                "original_name": a.original_name,
-                "file": str(a.file),
-                "created_at": a.created_at.isoformat() if a.created_at else None,
-            }
-            for a in plan_item.attachments.all().order_by("id")
-        ]
+        plan_item = assignment.new_plan_item
+        if plan_item is None:
+            continue
+
+        assignment_detail = plan_item.assignment_detail
+        assignment_type = assignment_detail.assignment_type if assignment_detail else None
+
+        # Note: Attachments still use old plan_item FK during transition
+        attachments_query = []
+        if assignment.plan_item:
+            attachments_query = [
+                {
+                    "id": a.id,
+                    "original_name": a.original_name,
+                    "file": str(a.file),
+                    "created_at": a.created_at.isoformat() if a.created_at else None,
+                }
+                for a in assignment.plan_item.attachments.all().order_by("id")
+            ]
 
         assignment_history.append(
             {
@@ -144,14 +151,14 @@ def _archive_course_snapshot(course, remark="course deleted"):
                 ),
                 "week_number": plan_item.week_number,
                 "day_number": plan_item.day_number,
-                "due_in_days": plan_item.due_in_days,
+                "due_in_days": 0,
                 "plan_notes": plan_item.notes,
-                "template_name": template.name,
-                "template_description": template.description,
-                "is_graded": template.is_graded,
-                "assignment_type": assignment_type.name,
-                "assignment_type_id": assignment_type.id,
-                "attachments": attachments,
+                "template_name": plan_item.name,
+                "template_description": plan_item.description,
+                "is_graded": assignment_detail.is_graded if assignment_detail else False,
+                "assignment_type": assignment_type.name if assignment_type else "",
+                "assignment_type_id": assignment_type.id if assignment_type else None,
+                "attachments": attachments_query,
             }
         )
 

@@ -114,8 +114,6 @@ def home_assignments_view(request):
         .select_related(
             "enrollment__child",
             "enrollment__course",
-            "plan_item__template",
-            "plan_item__template__assignment_type",
             "new_plan_item",
             "new_plan_item__assignment_detail__assignment_type",
         )
@@ -140,7 +138,7 @@ def home_assignments_view(request):
             enrollment__status="active",
         )
     activity_base_qs = activity_base_qs.select_related(
-        "enrollment__child", "enrollment__course", "new_plan_item", "plan_item__template"
+        "enrollment__child", "enrollment__course", "new_plan_item"
     ).order_by("created_at")
     activity_total_count = activity_base_qs.count()
 
@@ -174,8 +172,7 @@ def home_assignments_view(request):
 
     if selected_type_id:
         scoped_qs = scoped_qs.filter(
-            Q(plan_item__template__assignment_type_id=selected_type_id)
-            | Q(new_plan_item__assignment_detail__assignment_type_id=selected_type_id)
+            new_plan_item__assignment_detail__assignment_type_id=selected_type_id
         )
 
     scoped_qs = scoped_qs.distinct()
@@ -605,8 +602,8 @@ def assignment_detail_view(request, assignment_id):
         StudentAssignment.objects.select_related(
             "enrollment__child",
             "enrollment__course",
-            "plan_item__template",
-            "plan_item__template__assignment_type",
+            "new_plan_item",
+            "new_plan_item__assignment_detail__assignment_type",
         ),
         pk=assignment_id,
     )
@@ -620,17 +617,27 @@ def assignment_detail_view(request, assignment_id):
 
     role = getattr(getattr(request.user, "profile", None), "role", None)
     effective_status = _effective_assignment_status(assignment, viewer_role=role)
+
+    assignment_name = ""
+    assignment_type_name = ""
+    notes = ""
+    if assignment.new_plan_item:
+        assignment_name = assignment.new_plan_item.name
+        notes = assignment.new_plan_item.notes
+        if assignment.new_plan_item.assignment_detail:
+            assignment_type_name = assignment.new_plan_item.assignment_detail.assignment_type.name
+
     return JsonResponse(
         {
             "id": assignment.pk,
             "course_name": assignment.enrollment.course.name,
             "child_name": assignment.enrollment.child.first_name,
-            "assignment_name": assignment.plan_item.template.name,
-            "assignment_type": assignment.plan_item.template.assignment_type.name,
+            "assignment_name": assignment_name,
+            "assignment_type": assignment_type_name,
             "due_date": assignment.due_date.strftime("%d %b %Y"),
             "effective_status": effective_status,
             "status_text": effective_status.replace("_", " ").title(),
-            "notes": assignment.plan_item.notes,
+            "notes": notes,
         }
     )
 

@@ -34,6 +34,7 @@ from tracker.models import LessonLog
 
 from .forms import ReportForm
 from .services import generate_pdf
+from tracker.views.utils import _hydrate_assignment_display
 
 
 def _user_role(user):
@@ -316,15 +317,16 @@ def gradebook_detail_view(request, enrollment_id):
 
     assignments = list(
         enrollment.assignments.select_related(
-            "plan_item__template__assignment_type"
+            "new_plan_item__assignment_detail__assignment_type"
         ).order_by("due_date", "id")
     )
-    plan_item_ids = [assignment.plan_item_id for assignment in assignments]
     assignment_ids = [assignment.id for assignment in assignments]
 
+    # Note: AssignmentAttachment still uses old plan_item FK during transition
+    old_plan_item_ids = [assignment.plan_item_id for assignment in assignments]
     attachments_by_plan_item = defaultdict(list)
     for attachment in AssignmentAttachment.objects.filter(
-        plan_item_id__in=plan_item_ids
+        plan_item_id__in=old_plan_item_ids
     ).order_by("created_at"):
         attachments_by_plan_item[attachment.plan_item_id].append(attachment)
 
@@ -346,6 +348,9 @@ def gradebook_detail_view(request, enrollment_id):
 
     today = timezone.localdate()
     for assignment in assignments:
+        # Hydrate display fields for template rendering
+        _hydrate_assignment_display(assignment)
+
         if assignment.status == "complete":
             assignment.display_status = "complete"
         elif assignment.status == "needs_grading":
@@ -355,9 +360,11 @@ def gradebook_detail_view(request, enrollment_id):
         else:
             assignment.display_status = "pending"
         assignment.effective_percent = get_assignment_percent(assignment)
+        # Build edit URL using new_plan_item for unified model
+        plan_item_for_url = assignment.new_plan_item_id if assignment.new_plan_item_id else assignment.plan_item_id
         assignment.edit_url = (
             f"{reverse('planning:plan_course', args=[enrollment.course.id])}"
-            f"?edit={assignment.plan_item_id}"
+            f"?edit={plan_item_for_url}"
         )
         assignment.attachments_for_modal = attachments_by_plan_item.get(
             assignment.plan_item_id, []
@@ -406,14 +413,15 @@ def gradebook_detail_view(request, enrollment_id):
     elif sort_by == "type":
         assignments.sort(
             key=lambda item: (
-                item.plan_item.template.assignment_type.name.lower(),
+                (item.new_plan_item.assignment_detail.assignment_type.name.lower()
+                 if item.new_plan_item and item.new_plan_item.assignment_detail else ""),
                 item.due_date,
             )
         )
     elif sort_by == "name":
         assignments.sort(
             key=lambda item: (
-                item.plan_item.template.name.lower(),
+                (item.new_plan_item.name.lower() if item.new_plan_item else ""),
                 item.due_date,
             )
         )
@@ -602,14 +610,21 @@ def gradebook_transcript_view(request, child_id):
         )
 
         assignment_qs = enrollment.assignments.select_related(
-            "plan_item__template__assignment_type"
+            "new_plan_item__assignment_detail__assignment_type"
         ).order_by("due_date", "id")
         for assignment in assignment_qs:
+            assignment_name = ""
+            assignment_type_name = ""
+            if assignment.new_plan_item:
+                assignment_name = assignment.new_plan_item.name
+                if assignment.new_plan_item.assignment_detail:
+                    assignment_type_name = assignment.new_plan_item.assignment_detail.assignment_type.name
+
             all_assignment_rows.append(
                 {
                     "course": enrollment.course.name,
-                    "name": assignment.plan_item.template.name,
-                    "type": assignment.plan_item.template.assignment_type.name,
+                    "name": assignment_name,
+                    "type": assignment_type_name,
                     "due_date": assignment.due_date,
                     "status": assignment.status,
                     "score": assignment.score,

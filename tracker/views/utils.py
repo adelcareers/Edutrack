@@ -74,15 +74,11 @@ def _hydrate_assignment_display(assignment):
     if source_plan is not None:
         assignment.display_name = source_plan.name
         assignment.display_description = source_plan.description
+        assignment.display_notes = source_plan.notes
         detail = getattr(source_plan, "assignment_detail", None)
         assignment.display_assignment_type = (
             detail.assignment_type if detail and detail.assignment_type else None
         )
-    else:
-        assignment.display_name = assignment.plan_item.template.name
-        assignment.display_description = assignment.plan_item.template.description
-        assignment.display_assignment_type = assignment.plan_item.template.assignment_type
-    assignment.display_notes = getattr(assignment.plan_item, "notes", "")
     return assignment
 
 
@@ -92,8 +88,4 @@ def _hydrate_activity_display(progress):
         progress.display_name = source_plan.name
         progress.display_description = source_plan.description
         progress.display_date = _grid_calendar_date(progress.enrollment, source_plan)
-    else:
-        progress.display_name = progress.plan_item.template.name
-        progress.display_description = progress.plan_item.template.description
-        progress.display_date = _grid_calendar_date(progress.enrollment, progress.plan_item)
     return progress

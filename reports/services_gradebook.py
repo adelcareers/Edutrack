@@ -30,7 +30,10 @@ def get_effective_points_available(student_assignment):
     if student_assignment.points_available is not None:
         return _to_decimal(student_assignment.points_available)
 
-    assignment_type = student_assignment.plan_item.template.assignment_type
+    if not student_assignment.new_plan_item or not student_assignment.new_plan_item.assignment_detail:
+        return HUNDRED
+
+    assignment_type = student_assignment.new_plan_item.assignment_detail.assignment_type
     if assignment_type.default_points_available is not None:
         return _to_decimal(assignment_type.default_points_available)
 
@@ -93,7 +96,7 @@ def recalculate_enrollment_grade(enrollment):
         return None
 
     assignments = list(
-        enrollment.assignments.select_related("plan_item__template__assignment_type")
+        enrollment.assignments.select_related("new_plan_item__assignment_detail__assignment_type")
     )
 
     total_count = len(assignments)
@@ -120,7 +123,10 @@ def recalculate_enrollment_grade(enrollment):
         if assignment.score is not None or assignment.score_percent is not None:
             graded_count += 1
 
-        assignment_type = assignment.plan_item.template.assignment_type
+        if not assignment.new_plan_item or not assignment.new_plan_item.assignment_detail:
+            continue
+
+        assignment_type = assignment.new_plan_item.assignment_detail.assignment_type
         bucket = by_assignment_type.setdefault(
             assignment_type.id,
             {
@@ -153,12 +159,12 @@ def recalculate_enrollment_grade(enrollment):
                 for bucket in by_assignment_type.values()
                 for pct in bucket["percents"]
             ]
-            final_percent = sum(all_percents, ZERO) / Decimal(len(all_percents))
+            final_percent = (sum(all_percents, ZERO) / Decimal(len(all_percents))) if all_percents else ZERO
     else:
         all_percents = [
             pct for bucket in by_assignment_type.values() for pct in bucket["percents"]
         ]
-        final_percent = sum(all_percents, ZERO) / Decimal(len(all_percents))
+        final_percent = (sum(all_percents, ZERO) / Decimal(len(all_percents))) if all_percents else ZERO
 
     final_percent = _round2(final_percent)
     letter, gpa = map_percent_to_letter_and_gpa(

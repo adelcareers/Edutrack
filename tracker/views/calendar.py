@@ -75,8 +75,6 @@ def _build_calendar_context(
             )
             .select_related(
                 "enrollment__course",
-                "plan_item__template",
-                "plan_item__template__assignment_type",
                 "new_plan_item",
                 "new_plan_item__assignment_detail__assignment_type",
             )
@@ -97,13 +95,13 @@ def _build_calendar_context(
                 enrollment__child=child,
                 enrollment__status="active",
             )
-            .select_related("enrollment", "new_plan_item", "plan_item__template")
+            .select_related("enrollment", "new_plan_item")
         )
         for act in activity_qs:
             _hydrate_activity_display(act)
             act_date = act.display_date or _grid_calendar_date(
                 act.enrollment,
-                act.new_plan_item or act.plan_item,
+                act.new_plan_item,
             )
             if act_date is None:
                 continue

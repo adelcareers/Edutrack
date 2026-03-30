@@ -405,12 +405,12 @@
             role="button"
             tabindex="0"
             data-assignment-id="{{ assignment.id }}"
-            data-assignment-name="{{ assignment.plan_item.template.name|escape }}"
-            data-assignment-type="{{ assignment.plan_item.template.assignment_type.name|escape }}"
+            data-assignment-name="{{ assignment.display_name|escape }}"
+            data-assignment-type="{{ assignment.display_assignment_type.name|default:''|escape }}"
             data-assignment-course="{{ enrollment.course.name|escape }}"
-            data-assignment-description="{{ assignment.plan_item.template.description|default:''|escape }}"
-            data-week-number="{{ assignment.plan_item.week_number }}"
-            data-day-number="{{ assignment.plan_item.day_number }}"
+            data-assignment-description="{{ assignment.display_description|default:''|escape }}"
+            data-week-number="{{ assignment.new_plan_item.week_number|default:'' }}"
+            data-day-number="{{ assignment.new_plan_item.day_number|default:'' }}"
             data-student-name="{{ enrollment.child.first_name|escape }}"
             data-status="{{ assignment.status }}"
             data-score="{{ assignment.score|default:'' }}"
@@ -419,7 +419,7 @@
             data-due-date="{{ assignment.due_date|date:'Y-m-d' }}"
             data-display-status="{{ assignment.display_status }}"
             data-edit-url="{{ assignment.edit_url }}"
-            data-notes="{{ assignment.grading_notes|default:''|escape }}"
+            data-notes="{{ assignment.display_notes|default:''|escape }}"
             data-status-url="{{ assignment.status_action_url }}"
             data-comment-url="{{ assignment.comment_action_url }}"
             data-submission-url="{{ assignment.submission_action_url }}"
@@ -428,13 +428,13 @@
             data-submissions-count="{{ assignment.submissions_count }}"
             data-can-submit="{{ assignment.can_submit|yesno:'true,false' }}"
           >
-            <td class="d-none assignment-description-html">{% if assignment.plan_item.template.description %}{{ assignment.plan_item.template.description|safe }}{% endif %}</td>
+            <td class="d-none assignment-description-html">{% if assignment.display_description %}{{ assignment.display_description|safe }}{% endif %}</td>
             <td>
-              {{ assignment.plan_item.template.name }}
-              <div class="d-none assignment-description-html">{% if assignment.plan_item.template.description %}{{ assignment.plan_item.template.description|safe }}{% endif %}</div>
+              {{ assignment.display_name }}
+              <div class="d-none assignment-description-html">{% if assignment.display_description %}{{ assignment.display_description|safe }}{% endif %}</div>
             </td>
             <td>
-              <span class="badge text-bg-secondary">{{ assignment.plan_item.template.assignment_type.name }}</span>
+              <span class="badge text-bg-secondary">{{ assignment.display_assignment_type.name|default:'' }}</span>
             </td>
             <td>{{ assignment.due_date }}</td>
             <td>

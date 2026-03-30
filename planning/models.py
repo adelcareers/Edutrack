@@ -64,6 +64,7 @@ class PlanItem(models.Model):
     day_number = models.PositiveSmallIntegerField()
     name = models.CharField(max_length=300)
     description = models.TextField(blank=True, default="")
+    notes = models.TextField(blank=True, default="")
     order = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
