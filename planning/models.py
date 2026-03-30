@@ -46,6 +46,90 @@ class CourseAssignmentTemplate(models.Model):
         return f"{self.course.name} - {self.name}"
 
 
+class PlanItem(models.Model):
+    ITEM_TYPE_LESSON = "lesson"
+    ITEM_TYPE_ASSIGNMENT = "assignment"
+    ITEM_TYPE_ACTIVITY = "activity"
+    ITEM_TYPE_CHOICES = [
+        (ITEM_TYPE_LESSON, "Lesson"),
+        (ITEM_TYPE_ASSIGNMENT, "Assignment"),
+        (ITEM_TYPE_ACTIVITY, "Activity"),
+    ]
+
+    course = models.ForeignKey(
+        Course, on_delete=models.CASCADE, related_name="plan_items"
+    )
+    item_type = models.CharField(max_length=20, choices=ITEM_TYPE_CHOICES)
+    week_number = models.PositiveSmallIntegerField()
+    day_number = models.PositiveSmallIntegerField()
+    name = models.CharField(max_length=300)
+    description = models.TextField(blank=True, default="")
+    order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["week_number", "day_number", "order"]
+
+    def __str__(self):
+        return f"{self.course.name} - W{self.week_number} D{self.day_number} [{self.item_type}]"
+
+
+class LessonPlanDetail(models.Model):
+    plan_item = models.OneToOneField(
+        PlanItem, on_delete=models.CASCADE, related_name="lesson_detail"
+    )
+    course_subject = models.ForeignKey(
+        "courses.CourseSubjectConfig",
+        on_delete=models.CASCADE,
+        related_name="lesson_plans",
+    )
+    curriculum_lesson = models.ForeignKey(
+        "curriculum.Lesson",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="plan_details",
+    )
+
+    def __str__(self):
+        return f"Lesson detail for {self.plan_item}"
+
+
+class AssignmentPlanDetail(models.Model):
+    plan_item = models.OneToOneField(
+        PlanItem, on_delete=models.CASCADE, related_name="assignment_detail"
+    )
+    assignment_type = models.ForeignKey(
+        AssignmentType, on_delete=models.CASCADE, related_name="new_plan_details"
+    )
+    is_graded = models.BooleanField(default=False)
+    due_offset_days = models.IntegerField(default=0)
+
+    def __str__(self):
+        return f"Assignment detail for {self.plan_item}"
+
+
+class ActivityPlanDetail(models.Model):
+    plan_item = models.OneToOneField(
+        PlanItem, on_delete=models.CASCADE, related_name="activity_detail"
+    )
+    goal = models.TextField(blank=True, default="")
+    objective = models.TextField(blank=True, default="")
+    course_subject = models.ForeignKey(
+        "courses.CourseSubjectConfig",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="activity_plans",
+    )
+    unit_title = models.CharField(max_length=300, blank=True, default="")
+    due_offset_days = models.IntegerField(default=0)
+
+    def __str__(self):
+        return f"Activity detail for {self.plan_item}"
+
+
 class AssignmentPlanItem(models.Model):
     """A planned assignment slot in a course week/day grid."""
 

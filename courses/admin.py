@@ -8,6 +8,7 @@ from .models import (
     Label,
     Subject,
 )
+from .models import CourseSubjectConfig
 
 
 class AssignmentTypeInline(admin.TabularInline):
@@ -60,3 +61,11 @@ class CourseArchiveAdmin(admin.ModelAdmin):
     list_display = ["course_name", "parent", "remark", "archived_at"]
     search_fields = ["course_name", "parent__username", "remark"]
     raw_id_fields = ["parent"]
+
+
+@admin.register(CourseSubjectConfig)
+class CourseSubjectConfigAdmin(admin.ModelAdmin):
+    list_display = ["course", "subject_name", "year", "lessons_per_week", "is_active"]
+    list_filter = ["is_active", "year"]
+    search_fields = ["subject_name", "course__name"]
+    raw_id_fields = ["course"]

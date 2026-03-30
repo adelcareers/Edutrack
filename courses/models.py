@@ -171,6 +171,34 @@ class Course(models.Model):
     def __str__(self):
         return self.name
 
+
+class CourseSubjectConfig(models.Model):
+    SOURCE_CHOICES = [("oak", "Oak"), ("custom", "Custom"), ("csv", "CSV")]
+
+    course = models.ForeignKey(
+        Course, on_delete=models.CASCADE, related_name="subject_configs"
+    )
+    subject_name = models.CharField(max_length=100)
+    key_stage = models.CharField(max_length=10, blank=True, default="")
+    year = models.CharField(max_length=20, blank=True, default="")
+    lessons_per_week = models.IntegerField(
+        default=3, validators=[MinValueValidator(1), MaxValueValidator(10)]
+    )
+    days_of_week = models.JSONField(default=list)
+    colour_hex = models.CharField(max_length=7, default="#6c757d")
+    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default="oak")
+    source_subject_name = models.CharField(max_length=100, blank=True, default="")
+    source_year = models.CharField(max_length=20, blank=True, default="")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("course", "subject_name")]
+        ordering = ["subject_name"]
+
+    def __str__(self):
+        return f"{self.course.name} - {self.subject_name}"
+
     def get_grade_year_labels(self):
         """Return a list of human-readable grade year strings."""
         if not self.grade_years:
