@@ -189,7 +189,11 @@ class StudentAssignment(models.Model):
         CourseEnrollment, on_delete=models.CASCADE, related_name="assignments"
     )
     plan_item = models.ForeignKey(
-        AssignmentPlanItem, on_delete=models.CASCADE, related_name="student_assignments"
+        AssignmentPlanItem,
+        on_delete=models.CASCADE,
+        related_name="student_assignments",
+        null=True,
+        blank=True,
     )
     due_date = models.DateField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
@@ -323,6 +327,8 @@ class ActivityProgress(models.Model):
         AssignmentPlanItem,
         on_delete=models.CASCADE,
         related_name="activity_progress_items",
+        null=True,
+        blank=True,
     )
     # Bridge for new unified PlanItem model (nullable during migration)
     new_plan_item = models.ForeignKey(

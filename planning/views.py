@@ -23,7 +23,6 @@ from .context_builders import (
     normalize_workflow,
     safe_int,
 )
-from .models import AssignmentPlanItem
 from . import services as planning_services
 from .services import create_subject_configs_from_selection, generate_plan_grid
 
@@ -118,17 +117,10 @@ def plan_course_view(request, course_id):
             request.POST.get("day_number", selected_day), selected_day
         )
         if delete_id:
-            canonical_item = planning_services.PlanItem.objects.filter(
-                pk=delete_id, course=course
-            ).first()
-            if canonical_item is not None:
-                planning_services.delete_plan_item(canonical_item)
-            else:
-                legacy_item = get_object_or_404(
-                    AssignmentPlanItem, pk=delete_id, course=course
-                )
-                canonical_item = planning_services.ensure_plan_item_for_legacy(legacy_item)
-                planning_services.delete_plan_item(canonical_item)
+            canonical_item = get_object_or_404(
+                planning_services.PlanItem, pk=delete_id, course=course
+            )
+            planning_services.delete_plan_item(canonical_item)
         return redirect(
             build_plan_url(request.path, week_number, day_number, post_workflow, post_scope)
         )
@@ -162,18 +154,10 @@ def plan_course_view(request, course_id):
         template_name = request.POST.get("assignment_name", "").strip()
 
         canonical_item = None
-        legacy_bridge_item = None
         if plan_item_id:
             canonical_item = planning_services.PlanItem.objects.filter(
                 pk=plan_item_id, course=course
             ).first()
-            if canonical_item is None:
-                legacy_bridge_item = get_object_or_404(
-                    AssignmentPlanItem, pk=plan_item_id, course=course
-                )
-                canonical_item = planning_services.ensure_plan_item_for_legacy(
-                    legacy_bridge_item
-                )
 
         plan_item, error = planning_services.save_plan_item_from_post(
             course,
@@ -181,7 +165,6 @@ def plan_course_view(request, course_id):
             request.FILES,
             active_enrollments,
             plan_item=canonical_item,
-            legacy_bridge_item=legacy_bridge_item,
         )
 
         if error:
