@@ -36,4 +36,5 @@ urlpatterns = [
     ),
     path("reports/<int:pk>/", views.report_detail_view, name="report_detail"),
     path("reports/share/<uuid:token>/", views.token_report_view, name="shared_report"),
+    path("reports/tracking/", views.tracking_overview_view, name="tracking_overview"),
 ]

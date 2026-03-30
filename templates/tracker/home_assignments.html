@@ -865,12 +865,17 @@
             <label class="filter-label" for="statusFilter">Status</label>
             <select id="statusFilter" name="status" class="form-select">
               <option value="" {% if not selected_status %}selected{% endif %}>All Statuses</option>
+              {% if active_tab == 'activities' %}
+              <option value="pending" {% if selected_status == 'pending' %}selected{% endif %}>Pending</option>
+              <option value="complete" {% if selected_status == 'complete' %}selected{% endif %}>Completed</option>
+              {% elif active_tab == 'assignments' %}
               <option value="incomplete" {% if selected_status == 'incomplete' %}selected{% endif %}>Incomplete</option>
               <option value="overdue" {% if selected_status == 'overdue' %}selected{% endif %}>Overdue</option>
-              {% if active_tab == 'assignments' %}
               <option value="needs_grading" {% if selected_status == 'needs_grading' %}selected{% endif %}>Needs Grading</option>
               <option value="done" {% if selected_status == 'done' %}selected{% endif %}>Completed</option>
               {% else %}
+              <option value="incomplete" {% if selected_status == 'incomplete' %}selected{% endif %}>Incomplete</option>
+              <option value="overdue" {% if selected_status == 'overdue' %}selected{% endif %}>Overdue</option>
               <option value="complete" {% if selected_status == 'complete' %}selected{% endif %}>Completed</option>
               {% endif %}
             </select>
@@ -892,10 +897,11 @@
     <section class="panel list-panel">
       <div class="list-head">
         <div>
-          <h2 class="list-title">{% if active_tab == 'lessons' %}Lessons{% else %}Assignments{% endif %}</h2>
+          <h2 class="list-title">{% if active_tab == 'lessons' %}Lessons{% elif active_tab == 'activities' %}Activities{% else %}Assignments{% endif %}</h2>
           <div class="tab-strip mt-2">
             <a href="{{ lesson_tab_url }}" class="tab-link {% if active_tab == 'lessons' %}active{% endif %}">Lessons</a>
             <a href="{{ assignment_tab_url }}" class="tab-link {% if active_tab == 'assignments' %}active{% endif %}">Assignments</a>
+            <a href="{{ activity_tab_url }}" class="tab-link {% if active_tab == 'activities' %}active{% endif %}">Activities</a>
           </div>
         </div>
         <span class="list-count">{{ filtered_count }} of {{ total_count }}</span>
@@ -914,6 +920,19 @@
         </a>
         {% empty %}
         <div class="text-muted p-3">No lessons match your current filters.</div>
+        {% endfor %}
+        {% elif active_tab == 'activities' %}
+        {% for activity in activities %}
+        <a href="{{ activity.select_url }}" class="assignment-card {% if selected_activity and selected_activity.id == activity.id %}is-active{% endif %}">
+          <div class="assignment-name">{{ activity.new_plan_item.name }}</div>
+          <div class="assignment-meta">{{ activity.enrollment.course.name }} · {{ activity.enrollment.child.first_name }}</div>
+          <div class="pill-row">
+            <span class="pill pill-type">Activity</span>
+            <span class="pill pill-status-{{ activity.effective_status }}">{{ activity.effective_status_label }}</span>
+          </div>
+        </a>
+        {% empty %}
+        <div class="text-muted p-3">No activities match your current filters.</div>
         {% endfor %}
         {% else %}
         {% for assignment in assignments %}
@@ -1020,6 +1039,33 @@
       </div>
       {% else %}
       <div class="detail-empty">Select a lesson to see details</div>
+      {% endif %}
+      {% elif active_tab == 'activities' %}
+      {% if selected_activity %}
+      <div class="panel-head">Activity Details</div>
+      <div class="detail-body">
+        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+          <h3 class="detail-title">{{ selected_activity.new_plan_item.name }}</h3>
+          <span class="pill pill-status-{{ selected_activity.effective_status }}">{{ selected_activity.effective_status_label }}</span>
+        </div>
+        <div class="detail-line"><span class="detail-label">Course:</span>{{ selected_activity.enrollment.course.name }}</div>
+        <div class="detail-line"><span class="detail-label">Student:</span>{{ selected_activity.enrollment.child.first_name }}</div>
+        <div class="detail-line"><span class="detail-label">Status:</span>{{ selected_activity.effective_status_label }}</div>
+        {% if selected_activity.new_plan_item.description %}
+        <div class="detail-section">
+          <h6>Description</h6>
+          <div class="detail-description">{{ selected_activity.new_plan_item.description }}</div>
+        </div>
+        {% endif %}
+        {% if selected_activity.notes %}
+        <div class="detail-note">
+          <strong>Notes</strong><br>
+          {{ selected_activity.notes }}
+        </div>
+        {% endif %}
+      </div>
+      {% else %}
+      <div class="detail-empty">Select an activity to see details</div>
       {% endif %}
       {% else %}
       {% if selected_assignment %}

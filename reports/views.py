@@ -655,3 +655,89 @@ def gradebook_transcript_view(request, child_id):
         return response
 
     return render(request, "reports/gradebook_transcript.html", context)
+
+
+# ── Tracking overview ───────────────────────────────────────────────────────
+
+
+@role_required("parent")
+def tracking_overview_view(request):
+    """MVP tracking dashboard: lesson/assignment/activity completion per course."""
+    from courses.models import Course
+    from planning.models import ActivityProgress, PlanItem
+    from scheduler.models import ScheduledLesson
+
+    courses = list(
+        Course.objects.filter(parent=request.user, is_archived=False)
+        .prefetch_related("enrollments__child", "subject_configs")
+        .order_by("name")
+    )
+
+    course_summaries = []
+    for course in courses:
+        active_enrollments = [e for e in course.enrollments.all() if e.status == "active"]
+
+        # Lessons: ScheduledLesson with LessonLog.status=complete
+        total_lessons = ScheduledLesson.objects.filter(
+            enrolled_subject__course=course
+        ).count()
+        complete_lessons = ScheduledLesson.objects.filter(
+            enrolled_subject__course=course, log__status="complete"
+        ).count()
+
+        # Assignments: StudentAssignment complete vs total
+        total_assignments = StudentAssignment.objects.filter(
+            enrollment__course=course
+        ).count()
+        complete_assignments = StudentAssignment.objects.filter(
+            enrollment__course=course, status__in=["complete", "needs_grading"]
+        ).count()
+
+        # Activities: ActivityProgress complete vs total
+        total_activities = ActivityProgress.objects.filter(
+            enrollment__course=course, new_plan_item__isnull=False
+        ).count()
+        complete_activities = ActivityProgress.objects.filter(
+            enrollment__course=course, new_plan_item__isnull=False, status="complete"
+        ).count()
+
+        # Per-subject breakdown (CourseSubjectConfig)
+        subject_rows = []
+        for sc in course.subject_configs.filter(is_active=True):
+            s_total = PlanItem.objects.filter(
+                course=course,
+                item_type="lesson",
+                lesson_detail__course_subject=sc,
+                is_active=True,
+            ).count()
+            s_complete = ActivityProgress.objects.filter(
+                enrollment__course=course,
+                new_plan_item__course=course,
+                new_plan_item__lesson_detail__course_subject=sc,
+                status="complete",
+            ).count()
+            subject_rows.append({
+                "subject_name": sc.subject_name,
+                "total": s_total,
+                "complete": s_complete,
+                "pct": round(s_complete / s_total * 100) if s_total else 0,
+            })
+
+        course_summaries.append({
+            "course": course,
+            "active_enrollment_count": len(active_enrollments),
+            "total_lessons": total_lessons,
+            "complete_lessons": complete_lessons,
+            "lesson_pct": round(complete_lessons / total_lessons * 100) if total_lessons else 0,
+            "total_assignments": total_assignments,
+            "complete_assignments": complete_assignments,
+            "assignment_pct": round(complete_assignments / total_assignments * 100) if total_assignments else 0,
+            "total_activities": total_activities,
+            "complete_activities": complete_activities,
+            "activity_pct": round(complete_activities / total_activities * 100) if total_activities else 0,
+            "subject_rows": subject_rows,
+        })
+
+    return render(request, "reports/tracking_overview.html", {
+        "course_summaries": course_summaries,
+    })

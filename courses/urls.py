@@ -55,4 +55,15 @@ urlpatterns = [
     # Subject AJAX endpoints
     path("courses/subjects/", views.subject_list_view, name="subject_list"),
     path("courses/subjects/create/", views.subject_create_view, name="subject_create"),
+    # CourseSubjectConfig management
+    path(
+        "courses/subject-config/<int:config_id>/deactivate/",
+        views.subject_config_soft_delete_view,
+        name="subject_config_deactivate",
+    ),
+    path(
+        "courses/subject-config/<int:config_id>/delete/",
+        views.subject_config_hard_delete_view,
+        name="subject_config_delete",
+    ),
 ]

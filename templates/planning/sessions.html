@@ -131,9 +131,14 @@
         <span class="course-pill" style="background-color: {{ course.color }};">{{ course.name }}</span>
         <div class="course-meta">{{ card.weeks_count }} weeks | {{ card.days_per_week }} days per week</div>
       </div>
-      <a class="plan-cta" href="{% url 'planning:plan_course' course_id=course.pk %}">
-        <i class="bi bi-journal-text"></i> Plan Assignments
-      </a>
+      <div class="d-flex gap-2 align-items-center flex-wrap">
+        <a class="plan-cta" href="{% url 'planning:plan_course' course_id=course.pk %}">
+          <i class="bi bi-journal-text"></i> Plan Assignments
+        </a>
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'planning:oak_wizard' course.pk %}" title="Auto-schedule Oak lessons into this course's planning grid">
+          <i class="bi bi-magic"></i> Oak Wizard
+        </a>
+      </div>
     </div>
 
     <div class="week-grid">

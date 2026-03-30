@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from accounts.decorators import role_required
-from planning.models import StudentAssignment
+from planning.models import ActivityProgress, StudentAssignment
 from scheduler.models import ScheduledLesson, Vacation
 
 from .assignments import _effective_assignment_status
@@ -81,6 +81,28 @@ def _build_calendar_context(
             )
             assignments_by_date.setdefault(assignment.due_date, []).append(assignment)
 
+    # Activities: compute calendar date from enrollment.start_date + grid position
+    activities_by_date: dict = {}
+    if child is not None:
+        activity_qs = (
+            ActivityProgress.objects.filter(
+                enrollment__child=child,
+                enrollment__status="active",
+                new_plan_item__isnull=False,
+            )
+            .select_related("enrollment", "new_plan_item")
+        )
+        for act in activity_qs:
+            pi = act.new_plan_item
+            start = act.enrollment.start_date
+            if start is None:
+                continue
+            act_date = start + datetime.timedelta(
+                days=(pi.week_number - 1) * 7 + (pi.day_number - 1)
+            )
+            if start_date <= act_date <= end_date:
+                activities_by_date.setdefault(act_date, []).append(act)
+
     days = {}
     for i in range(6):
         date = start_date + datetime.timedelta(days=i)
@@ -90,6 +112,7 @@ def _build_calendar_context(
             "lessons": lesson_by_date.get(date, []),
             "vacations": vacations_by_date.get(date, []),
             "assignments": assignments_by_date.get(date, []),
+            "activities": activities_by_date.get(date, []),
         }
 
     # Week navigation

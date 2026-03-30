@@ -14,6 +14,7 @@ from accounts.forms import StudentCreationForm
 from accounts.models import UserProfile
 from courses.models import Course, CourseEnrollment
 from curriculum.models import Lesson
+from django.urls import reverse
 from scheduler.models import Child
 
 
@@ -98,11 +99,33 @@ def child_new_view(request):
             if request.FILES.get("photo"):
                 child.photo = request.FILES["photo"]
             child.save()
+
+            # Auto-create a course named after the school year and enrol child
+            course, _ = Course.objects.get_or_create(
+                parent=request.user,
+                name=school_year,
+                defaults={
+                    "color": "#6c757d",
+                    "duration_weeks": 36,
+                    "frequency_days": 5,
+                    "default_days": [0, 1, 2, 3, 4],
+                },
+            )
+            CourseEnrollment.objects.get_or_create(
+                course=course,
+                child=child,
+                defaults={
+                    "start_date": today,
+                    "days_of_week": [0, 1, 2, 3, 4],
+                    "status": "active",
+                },
+            )
+
             messages.success(
                 request,
-                f"{child.first_name} added! Now set up their account and courses.",
+                f"{child.first_name} added! Use the Oak Wizard to schedule lessons.",
             )
-            return redirect("scheduler:child_detail", child_id=child.pk)
+            return redirect(reverse("planning:oak_wizard", args=[course.pk]))
 
     return render(
         request,

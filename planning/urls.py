@@ -12,4 +12,9 @@ urlpatterns = [
         views.initiate_oak_scheduling_view,
         name="oak_schedule",
     ),
+    path(
+        "plan/<int:course_id>/oak-wizard/",
+        views.oak_wizard_view,
+        name="oak_wizard",
+    ),
 ]

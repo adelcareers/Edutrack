@@ -695,6 +695,23 @@
       </div>
       {% endfor %}
 
+      {% if day.activities %}
+      <p class="small text-uppercase text-muted fw-semibold mb-2 mt-2">Activities</p>
+      {% for act in day.activities %}
+      <div class="assignment-card assignment-{{ act.status }}">
+        <div class="assignment-title">{{ act.new_plan_item.name }}</div>
+        <div class="assignment-meta">{{ act.enrollment.course.name }}</div>
+        <div class="mt-1">
+          {% if act.status == 'complete' %}
+          <span class="badge bg-success">Complete</span>
+          {% else %}
+          <span class="badge text-bg-secondary">Pending</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+      {% endif %}
+
       {% if day.lessons %}
         <p class="small text-uppercase text-muted fw-semibold mb-2 mt-2">Lessons (Oak/custom schedule)</p>
         {% for sl in day.lessons %}
@@ -714,7 +731,7 @@
           </div>
         </div>
         {% endfor %}
-      {% elif not day.vacations and not day.assignments %}
+      {% elif not day.vacations and not day.assignments and not day.activities %}
         <p class="empty-day">No lessons</p>
       {% endif %}
     </div>

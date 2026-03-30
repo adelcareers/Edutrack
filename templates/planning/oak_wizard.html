@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Oak Lesson Wizard — {{ course.name }} — EduTrack{% endblock %}
+{% block nav_plan %}active{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 860px;">
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'planning:plan_sessions' %}">Plan</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'planning:plan_course' course.pk %}">{{ course.name }}</a></li>
+      <li class="breadcrumb-item active">Oak Lesson Wizard</li>
+    </ol>
+  </nav>
+
+  <h2 class="fw-bold mb-1">Oak Lesson Wizard</h2>
+  <p class="text-muted mb-4">Auto-schedule Oak National Academy lessons into <strong>{{ course.name }}</strong>.</p>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  {# ── STEP 1: Subject selection ─────────────────────────────────── #}
+  {% if step == 1 %}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <h5 class="fw-semibold mb-1">Step 1 of 2 — Select subjects</h5>
+      <p class="text-muted small mb-3">Choose the Oak subjects and year groups to include in this course's lesson plan.</p>
+
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="step" value="2">
+
+        {% regroup available_subjects by subject_name as subject_groups %}
+        <div class="row g-2">
+          {% for group in subject_groups %}
+          <div class="col-12 col-md-6">
+            <div class="border rounded p-3 h-100">
+              <div class="fw-semibold mb-2">{{ group.grouper }}</div>
+              {% for item in group.list %}
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox"
+                  name="subject_{{ item.subject_name }}__{{ item.year }}"
+                  id="subj_{{ item.subject_name|slugify }}_{{ item.year }}"
+                  value="1">
+                <label class="form-check-label" for="subj_{{ item.subject_name|slugify }}_{{ item.year }}">
+                  Year {{ item.year }}
+                  <span class="text-muted small ms-1">({{ item.lesson_count }} lessons)</span>
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="mt-4 d-flex gap-2">
+          <button type="submit" class="btn btn-primary">Next: Configure schedule</button>
+          <a href="{% url 'planning:plan_course' course.pk %}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── STEP 2: Configure schedule per subject ────────────────────── #}
+  {% if step == 2 %}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <h5 class="fw-semibold mb-1">Step 2 of 2 — Configure schedule</h5>
+      <p class="text-muted small mb-3">Set how many lessons per week and which days for each subject.</p>
+
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="step" value="3">
+
+        {% for subject in selected_subjects %}
+        <div class="border rounded p-3 mb-3">
+          <input type="hidden" name="subject_name_{{ forloop.counter0 }}" value="{{ subject.subject_name }}">
+          <input type="hidden" name="year_{{ forloop.counter0 }}" value="{{ subject.year }}">
+
+          <div class="fw-semibold mb-2">{{ subject.subject_name }} — Year {{ subject.year }}</div>
+
+          <div class="row g-3 align-items-start">
+            <div class="col-12 col-sm-3">
+              <label class="form-label small fw-medium">Lessons per week</label>
+              <select name="lessons_per_week_{{ forloop.counter0 }}" class="form-select form-select-sm">
+                {% for n in "12345"|make_list %}
+                <option value="{{ n }}" {% if n == "3" %}selected{% endif %}>{{ n }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-sm-5">
+              <label class="form-label small fw-medium">Days of week</label>
+              <div class="d-flex flex-wrap gap-2">
+                {% for day_val, day_label in day_choices %}
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="checkbox"
+                    name="days_of_week_{{ forloop.parentloop.counter0 }}"
+                    id="day_{{ forloop.parentloop.counter0 }}_{{ day_val }}"
+                    value="{{ day_val }}"
+                    {% if day_val < 5 %}checked{% endif %}>
+                  <label class="form-check-label small" for="day_{{ forloop.parentloop.counter0 }}_{{ day_val }}">
+                    {{ day_label }}
+                  </label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="col-12 col-sm-4">
+              <label class="form-label small fw-medium">Colour</label>
+              <input type="color" name="colour_hex_{{ forloop.counter0 }}" class="form-control form-control-sm form-control-color" value="#6c757d">
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+
+        <div class="mt-4 d-flex gap-2">
+          <button type="submit" class="btn btn-primary">Generate lesson plan</button>
+          <a href="{% url 'planning:oak_wizard' course.pk %}" class="btn btn-outline-secondary">Back</a>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

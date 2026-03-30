@@ -171,6 +171,24 @@ class Course(models.Model):
     def __str__(self):
         return self.name
 
+    def get_grade_year_labels(self):
+        """Return a list of human-readable grade year strings."""
+        if not self.grade_years:
+            return []
+        return [
+            GRADE_YEAR_LABELS.get(gy.strip(), gy.strip())
+            for gy in self.grade_years.split(",")
+            if gy.strip()
+        ]
+
+    def get_default_days_list(self):
+        """Return default_days as a list of integers."""
+        return list(self.default_days) if self.default_days else []
+
+    @property
+    def active_enrollments_count(self):
+        return self.enrollments.filter(status="active").count()
+
 
 class CourseSubjectConfig(models.Model):
     SOURCE_CHOICES = [("oak", "Oak"), ("custom", "Custom"), ("csv", "CSV")]
@@ -198,24 +216,6 @@ class CourseSubjectConfig(models.Model):
 
     def __str__(self):
         return f"{self.course.name} - {self.subject_name}"
-
-    def get_grade_year_labels(self):
-        """Return a list of human-readable grade year strings."""
-        if not self.grade_years:
-            return []
-        return [
-            GRADE_YEAR_LABELS.get(gy.strip(), gy.strip())
-            for gy in self.grade_years.split(",")
-            if gy.strip()
-        ]
-
-    def get_default_days_list(self):
-        """Return default_days as a list of integers."""
-        return list(self.default_days) if self.default_days else []
-
-    @property
-    def active_enrollments_count(self):
-        return self.enrollments.filter(status="active").count()
 
 
 class AssignmentType(models.Model):

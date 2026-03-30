@@ -11,6 +11,7 @@ from django.views.decorators.http import require_POST
 
 from courses.models import AssignmentType, Course, Subject
 from planning.models import (
+    ActivityProgress,
     AssignmentAttachment,
     AssignmentComment,
     AssignmentSubmission,
@@ -94,7 +95,7 @@ def home_assignments_view(request):
 
     today = timezone.localdate()
     active_tab = (request.GET.get("tab") or "lessons").strip().lower()
-    if active_tab not in {"lessons", "assignments"}:
+    if active_tab not in {"lessons", "assignments", "activities"}:
         active_tab = "lessons"
 
     selected_student_id = _safe_int(request.GET.get("student"))
@@ -122,12 +123,33 @@ def home_assignments_view(request):
     lesson_scoped_qs = lesson_scoped_qs.filter(scheduled_date__lte=today)
     lesson_total_count = lesson_scoped_qs.count()
 
+    # Activities: query ActivityProgress rows that have a new_plan_item (unified model)
+    if role == "student":
+        child = getattr(request.user, "child_profile", None)
+        activity_base_qs = ActivityProgress.objects.filter(
+            enrollment__child=child,
+            enrollment__status="active",
+            new_plan_item__isnull=False,
+        ) if child else ActivityProgress.objects.none()
+    else:
+        activity_base_qs = ActivityProgress.objects.filter(
+            enrollment__course__parent=request.user,
+            enrollment__status="active",
+            new_plan_item__isnull=False,
+        )
+    activity_base_qs = activity_base_qs.select_related(
+        "enrollment__child", "enrollment__course", "new_plan_item"
+    ).order_by("created_at")
+    activity_total_count = activity_base_qs.count()
+
     scoped_qs = assignment_scoped_qs
     lesson_qs = lesson_scoped_qs
+    activity_qs = activity_base_qs
 
     if role in {"parent", "teacher"} and selected_student_id:
         scoped_qs = scoped_qs.filter(enrollment__child_id=selected_student_id)
         lesson_qs = lesson_qs.filter(child_id=selected_student_id)
+        activity_qs = activity_qs.filter(enrollment__child_id=selected_student_id)
 
     if selected_course_id:
         scoped_qs = scoped_qs.filter(enrollment__course_id=selected_course_id)
@@ -135,6 +157,7 @@ def home_assignments_view(request):
             child__course_enrollments__course_id=selected_course_id,
             child__course_enrollments__status="active",
         )
+        activity_qs = activity_qs.filter(enrollment__course_id=selected_course_id)
 
     selected_subject = None
     if selected_subject_id:
@@ -154,6 +177,7 @@ def home_assignments_view(request):
 
     scoped_qs = scoped_qs.distinct()
     lesson_qs = lesson_qs.distinct().order_by("scheduled_date", "id")
+    activity_qs = activity_qs.distinct()
 
     assignments = list(scoped_qs)
     for assignment in assignments:
@@ -176,6 +200,11 @@ def home_assignments_view(request):
         sl.effective_status_label = lesson_status.title()
         lessons.append(sl)
 
+    activities = list(activity_qs)
+    for act in activities:
+        act.effective_status = act.status  # "pending" or "complete"
+        act.effective_status_label = act.status.title()
+
     if selected_status in {"done", "incomplete", "overdue", "needs_grading"}:
         assignments = [a for a in assignments if a.effective_status == selected_status]
 
@@ -184,17 +213,25 @@ def home_assignments_view(request):
             lesson for lesson in lessons if lesson.effective_status == selected_status
         ]
 
+    if selected_status in {"pending", "complete"}:
+        activities = [a for a in activities if a.effective_status == selected_status]
+
     if hide_completed:
         assignments = [a for a in assignments if a.effective_status != "done"]
         lessons = [
             lesson for lesson in lessons if lesson.effective_status != "complete"
         ]
+        activities = [a for a in activities if a.effective_status != "complete"]
+
+    selected_activity_id = _safe_int(request.GET.get("selected_activity"))
 
     base_query = request.GET.copy()
     if "selected" in base_query:
         del base_query["selected"]
     if "selected_lesson" in base_query:
         del base_query["selected_lesson"]
+    if "selected_activity" in base_query:
+        del base_query["selected_activity"]
 
     for assignment in assignments:
         assignment_query = base_query.copy()
@@ -208,6 +245,12 @@ def home_assignments_view(request):
         lesson_query["selected_lesson"] = str(sl.pk)
         sl.select_url = f"?{lesson_query.urlencode()}"
 
+    for act in activities:
+        activity_query = base_query.copy()
+        activity_query["tab"] = "activities"
+        activity_query["selected_activity"] = str(act.pk)
+        act.select_url = f"?{activity_query.urlencode()}"
+
     selected_assignment = None
     if selected_assignment_id is not None:
         selected_assignment = next(
@@ -219,6 +262,13 @@ def home_assignments_view(request):
     if selected_lesson_id is not None:
         selected_lesson = next(
             (lesson for lesson in lessons if lesson.pk == selected_lesson_id),
+            None,
+        )
+
+    selected_activity = None
+    if selected_activity_id is not None:
+        selected_activity = next(
+            (a for a in activities if a.pk == selected_activity_id),
             None,
         )
 
@@ -322,12 +372,15 @@ def home_assignments_view(request):
     if selected_assignment is not None:
         selected_label = selected_assignment.effective_status_label
 
-    current_total_count = (
-        lesson_total_count if active_tab == "lessons" else assignment_total_count
-    )
-    current_filtered_count = (
-        len(lessons) if active_tab == "lessons" else len(assignments)
-    )
+    if active_tab == "lessons":
+        current_total_count = lesson_total_count
+        current_filtered_count = len(lessons)
+    elif active_tab == "activities":
+        current_total_count = activity_total_count
+        current_filtered_count = len(activities)
+    else:
+        current_total_count = assignment_total_count
+        current_filtered_count = len(assignments)
 
     tab_base_query = request.GET.copy()
     tab_base_query.pop("tab", None)
@@ -335,6 +388,8 @@ def home_assignments_view(request):
     lesson_tab_query["tab"] = "lessons"
     assignment_tab_query = tab_base_query.copy()
     assignment_tab_query["tab"] = "assignments"
+    activity_tab_query = tab_base_query.copy()
+    activity_tab_query["tab"] = "activities"
 
     return render(
         request,
@@ -351,6 +406,8 @@ def home_assignments_view(request):
             "assignments": assignments,
             "selected_assignment": selected_assignment,
             "selected_status_label": selected_label,
+            "activities": activities,
+            "selected_activity": selected_activity,
             "total_count": current_total_count,
             "filtered_count": current_filtered_count,
             "student_options": student_options,
@@ -366,6 +423,7 @@ def home_assignments_view(request):
             "today": today,
             "lesson_tab_url": f"?{lesson_tab_query.urlencode()}",
             "assignment_tab_url": f"?{assignment_tab_query.urlencode()}",
+            "activity_tab_url": f"?{activity_tab_query.urlencode()}",
             "selected_attachments": selected_attachments,
             "selected_comments": selected_comments,
             "selected_submissions": selected_submissions,

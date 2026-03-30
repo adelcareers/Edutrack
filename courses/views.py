@@ -24,6 +24,7 @@ from .models import (
     Course,
     CourseArchive,
     CourseEnrollment,
+    CourseSubjectConfig,
     GlobalAssignmentType,
     Subject,
     seed_global_assignment_types,
@@ -797,3 +798,51 @@ def _save_assignment_weights(request, course):
                 weight=weight,
                 is_hidden=is_hidden,
             )
+
+
+# ── CourseSubjectConfig soft/hard delete ───────────────────────────────────
+
+
+@role_required("parent")
+@require_POST
+def subject_config_soft_delete_view(request, config_id):
+    """Soft-delete a CourseSubjectConfig: hide future unstarted lessons."""
+    config = get_object_or_404(
+        CourseSubjectConfig, pk=config_id, course__parent=request.user
+    )
+    config.is_active = False
+    config.save(update_fields=["is_active"])
+    messages.success(
+        request,
+        f'Subject "{config.subject_name}" hidden. Completed progress is preserved.',
+    )
+    return redirect("planning:plan_course", course_id=config.course_id)
+
+
+@role_required("parent")
+@require_POST
+def subject_config_hard_delete_view(request, config_id):
+    """Hard-delete a CourseSubjectConfig after confirmation.
+
+    Requires the parent to type "DELETE" in the confirmation field.
+    Cascades to related PlanItems and per-student records.
+    """
+    config = get_object_or_404(
+        CourseSubjectConfig, pk=config_id, course__parent=request.user
+    )
+    confirm = request.POST.get("confirm", "").strip()
+    if confirm != "DELETE":
+        messages.error(
+            request,
+            'Type "DELETE" to confirm permanent removal of this subject.',
+        )
+        return redirect("planning:plan_course", course_id=config.course_id)
+
+    course_id = config.course_id
+    subject_name = config.subject_name
+    config.delete()
+    messages.success(
+        request,
+        f'Subject "{subject_name}" and all related plan items have been deleted.',
+    )
+    return redirect("planning:plan_course", course_id=course_id)
