@@ -338,12 +338,12 @@ class AddChildFormTests(TestCase):
         child = Child.objects.get(first_name="Alice")
         self.assertEqual(child.parent, self.parent)
 
-    def test_valid_post_redirects_to_subject_selection(self):
+    def test_valid_post_redirects_to_oak_wizard(self):
         response = self.client.post(self.url, VALID_CHILD_DATA)
-        child = Child.objects.get(first_name="Alice")
+        course = Course.objects.get(parent=self.parent, name=VALID_CHILD_DATA["school_year"])
         self.assertRedirects(
             response,
-            f"/children/{child.pk}/",
+            reverse("planning:oak_wizard", args=[course.pk]),
             fetch_redirect_response=False,
         )
 
