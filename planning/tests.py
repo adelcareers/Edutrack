@@ -1,6 +1,8 @@
 import datetime
+from io import StringIO
 
 from django.contrib.auth.models import User
+from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
@@ -22,10 +24,12 @@ from planning.models import (
     AssignmentPlanItem,
     AssignmentPlanDetail,
     CourseAssignmentTemplate,
+    LessonPlanDetail,
     PlanItem,
     StudentAssignment,
 )
 from scheduler.models import Child, EnrolledSubject, ScheduledLesson
+from scheduler.models import Vacation
 from planning import services as planning_services
 
 
@@ -374,41 +378,46 @@ class StudentAssignmentSelectionTests(TestCase):
         )
         assignment_type = response.context["assignment_types"].first()
 
-        assignment_template = CourseAssignmentTemplate.objects.create(
+        assignment_item = PlanItem.objects.create(
             course=self.course,
-            assignment_type=assignment_type,
-            item_kind="assignment",
+            item_type=PlanItem.ITEM_TYPE_ASSIGNMENT,
+            week_number=1,
+            day_number=1,
             name="Worksheet",
         )
-        lesson_template = CourseAssignmentTemplate.objects.create(
+        AssignmentPlanDetail.objects.create(
+            plan_item=assignment_item,
+            assignment_type=assignment_type,
+            due_offset_days=0,
+            is_graded=False,
+        )
+        lesson_subject = self.course.subject_configs.create(
+            subject_name="Maths",
+            year=self.child_one.school_year,
+            lessons_per_week=1,
+            days_of_week=[0],
+        )
+        lesson_item = PlanItem.objects.create(
             course=self.course,
-            assignment_type=None,
-            item_kind="lesson",
+            item_type=PlanItem.ITEM_TYPE_LESSON,
+            week_number=1,
+            day_number=1,
             name="Lesson Item",
         )
-        activity_template = CourseAssignmentTemplate.objects.create(
+        LessonPlanDetail.objects.create(
+            plan_item=lesson_item,
+            course_subject=lesson_subject,
+        )
+        activity_item = PlanItem.objects.create(
             course=self.course,
-            assignment_type=None,
-            item_kind="activity",
+            item_type=PlanItem.ITEM_TYPE_ACTIVITY,
+            week_number=1,
+            day_number=1,
             name="Activity Item",
         )
-        AssignmentPlanItem.objects.create(
-            course=self.course,
-            template=assignment_template,
-            week_number=1,
-            day_number=1,
-        )
-        AssignmentPlanItem.objects.create(
-            course=self.course,
-            template=lesson_template,
-            week_number=1,
-            day_number=1,
-        )
-        AssignmentPlanItem.objects.create(
-            course=self.course,
-            template=activity_template,
-            week_number=1,
-            day_number=1,
+        ActivityPlanDetail.objects.create(
+            plan_item=activity_item,
+            due_offset_days=0,
         )
 
         response = self.client.get(
@@ -419,8 +428,8 @@ class StudentAssignmentSelectionTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["workflow"], "lessons")
         self.assertEqual(
-            list(response.context["plan_items"]),
-            [AssignmentPlanItem.objects.get(template=lesson_template)],
+            [item.plan_item_id for item in response.context["plan_items"]],
+            [lesson_item.id],
         )
 
     def test_plan_course_renders_new_only_plan_items_without_duplicates(self):
@@ -567,7 +576,30 @@ class StudentAssignmentSelectionTests(TestCase):
             ("Imported Plan", imported_subject, imported_lesson),
             ("Manual Plan", manual_subject, manual_lesson),
         ]:
-            template = CourseAssignmentTemplate.objects.create(
+            course_subject = self.course.subject_configs.create(
+                subject_name=subject.subject_name,
+                key_stage=subject.key_stage,
+                year=subject.source_year or self.child_one.school_year,
+                lessons_per_week=subject.lessons_per_week,
+                days_of_week=subject.days_of_week,
+                colour_hex=subject.colour_hex,
+                source="csv" if (subject.source_year or subject.source_subject_name) else "oak",
+                source_subject_name=subject.source_subject_name or subject.subject_name,
+                source_year=subject.source_year,
+            )
+            plan_item = PlanItem.objects.create(
+                course=self.course,
+                item_type=PlanItem.ITEM_TYPE_LESSON,
+                week_number=1,
+                day_number=2,
+                name=template_name,
+            )
+            LessonPlanDetail.objects.create(
+                plan_item=plan_item,
+                course_subject=course_subject,
+                curriculum_lesson=lesson,
+            )
+            legacy_template = CourseAssignmentTemplate.objects.create(
                 course=self.course,
                 assignment_type=None,
                 item_kind="lesson",
@@ -579,10 +611,12 @@ class StudentAssignmentSelectionTests(TestCase):
                 lesson=lesson,
                 scheduled_date=datetime.date(2026, 1, 7),
                 order_on_day=0,
+                plan_item=plan_item,
+                course_subject=course_subject,
             )
             AssignmentPlanItem.objects.create(
                 course=self.course,
-                template=template,
+                template=legacy_template,
                 week_number=1,
                 day_number=2,
                 lesson_child=self.child_one,
@@ -982,3 +1016,127 @@ class GeneratePlanGridTests(TestCase):
         lesson_titles = [d.curriculum_lesson.lesson_title for d in details]
         # Should be in curriculum order: Addition 1, Addition 2, Subtraction 1
         self.assertEqual(lesson_titles, ["Addition 1", "Addition 2", "Subtraction 1"])
+
+
+class PlanItemMigrationCommandTests(TestCase):
+    def setUp(self):
+        self.parent = User.objects.create_user(username="migrate-parent", password="pw")
+        UserProfile.objects.create(user=self.parent, role="parent")
+        self.course = Course.objects.create(parent=self.parent, name="Migration Course")
+        self.child = Child.objects.create(
+            parent=self.parent,
+            first_name="Mia",
+            birth_month=1,
+            birth_year=2015,
+            school_year="Year 5",
+            academic_year_start=datetime.date(2025, 9, 1),
+        )
+        self.enrollment = self.course.enrollments.create(
+            child=self.child,
+            start_date=datetime.date(2026, 1, 6),
+            days_of_week=[0, 1, 2, 3, 4],
+            status="active",
+        )
+        self.assignment_type = AssignmentType.objects.create(
+            course=self.course,
+            name="Homework",
+            color="#9ca3af",
+            order=0,
+        )
+        template = CourseAssignmentTemplate.objects.create(
+            course=self.course,
+            assignment_type=self.assignment_type,
+            item_kind="assignment",
+            name="Legacy Task",
+            is_graded=True,
+        )
+        self.legacy_plan_item = AssignmentPlanItem.objects.create(
+            course=self.course,
+            template=template,
+            week_number=1,
+            day_number=1,
+            order=0,
+        )
+        self.student_assignment = StudentAssignment.objects.create(
+            enrollment=self.enrollment,
+            plan_item=self.legacy_plan_item,
+            due_date=datetime.date(2026, 1, 6),
+            status="pending",
+        )
+
+    def test_migration_command_dry_run_reports_without_mutating(self):
+        output = StringIO()
+        call_command("migrate_to_plan_items", "--dry-run", stdout=output)
+        self.assertIn("scanned_legacy_rows=1", output.getvalue())
+        self.assertEqual(PlanItem.objects.count(), 0)
+        self.student_assignment.refresh_from_db()
+        self.assertIsNone(self.student_assignment.new_plan_item_id)
+
+    def test_migration_command_creates_plan_item_and_repairs_bridge(self):
+        output = StringIO()
+        call_command("migrate_to_plan_items", stdout=output)
+        self.assertIn("created_plan_items=1", output.getvalue())
+        self.assertEqual(PlanItem.objects.count(), 1)
+        self.student_assignment.refresh_from_db()
+        self.assertIsNotNone(self.student_assignment.new_plan_item_id)
+
+    def test_migration_command_is_idempotent(self):
+        call_command("migrate_to_plan_items")
+        first_plan_item_id = StudentAssignment.objects.get().new_plan_item_id
+        call_command("migrate_to_plan_items")
+        self.assertEqual(PlanItem.objects.count(), 1)
+        self.assertEqual(StudentAssignment.objects.get().new_plan_item_id, first_plan_item_id)
+
+
+class PlanningVacationConflictTests(TestCase):
+    def setUp(self):
+        self.parent = User.objects.create_user(username="vac-parent", password="pw")
+        UserProfile.objects.create(user=self.parent, role="parent")
+        self.client.login(username="vac-parent", password="pw")
+        self.course = Course.objects.create(
+            parent=self.parent,
+            name="Conflict Course",
+            duration_weeks=4,
+            frequency_days=5,
+        )
+        self.child = Child.objects.create(
+            parent=self.parent,
+            first_name="Layla",
+            birth_month=1,
+            birth_year=2015,
+            school_year="Year 5",
+            academic_year_start=datetime.date(2025, 9, 1),
+        )
+        self.enrollment = self.course.enrollments.create(
+            child=self.child,
+            start_date=datetime.date(2026, 1, 6),
+            days_of_week=[0, 1, 2, 3, 4],
+            status="active",
+        )
+        self.course_subject = CourseSubjectConfig.objects.create(
+            course=self.course,
+            subject_name="Maths",
+            year="Year 5",
+            lessons_per_week=1,
+            days_of_week=[0],
+        )
+        self.plan_item = planning_services.create_plan_item(
+            course=self.course,
+            item_type=PlanItem.ITEM_TYPE_LESSON,
+            week_number=1,
+            day_number=1,
+            name="Fractions",
+            course_subject=self.course_subject,
+        )
+        Vacation.objects.create(
+            child=self.child,
+            name="Winter trip",
+            start_date=datetime.date(2026, 1, 6),
+            end_date=datetime.date(2026, 1, 8),
+        )
+
+    def test_plan_course_renders_vacation_conflict_warning(self):
+        response = self.client.get(reverse("planning:plan_course", args=[self.course.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Vacation conflicts detected")
+        self.assertContains(response, "Winter trip")

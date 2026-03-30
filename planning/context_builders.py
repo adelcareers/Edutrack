@@ -12,6 +12,7 @@ from django.utils import timezone
 from courses.models import AssignmentType, sync_course_assignment_types_from_global
 from scheduler.models import EnrolledSubject
 
+from . import services as planning_services
 from .models import (
     ActivityProgress,
     AssignmentPlanItem,
@@ -120,6 +121,61 @@ def _display_id_for_new(plan_item):
 
 
 def _serialize_new_plan_item(plan_item):
+    return _serialize_canonical_plan_item(plan_item)
+
+
+def _bridge_items_by_plan_item(course, new_plan_items):
+    legacy_items = list(
+        AssignmentPlanItem.objects.filter(course=course)
+        .select_related(
+            "template",
+            "template__assignment_type",
+            "lesson_child",
+            "lesson_enrolled_subject",
+            "scheduled_lesson__lesson",
+        )
+        .order_by("week_number", "day_number", "order", "id")
+    )
+    bridge_by_new_id = {}
+    for new_plan_item_id, legacy_id in StudentAssignment.objects.filter(
+        new_plan_item__course=course
+    ).values_list("new_plan_item_id", "plan_item_id"):
+        if new_plan_item_id and legacy_id:
+            bridge_by_new_id.setdefault(
+                new_plan_item_id,
+                next((item for item in legacy_items if item.id == legacy_id), None),
+            )
+    for new_plan_item_id, legacy_id in ActivityProgress.objects.filter(
+        new_plan_item__course=course
+    ).values_list("new_plan_item_id", "plan_item_id"):
+        if new_plan_item_id and legacy_id and bridge_by_new_id.get(new_plan_item_id) is None:
+            bridge_by_new_id[new_plan_item_id] = next(
+                (item for item in legacy_items if item.id == legacy_id), None
+            )
+    from scheduler.models import ScheduledLesson
+
+    for scheduled_lesson in ScheduledLesson.objects.filter(
+        plan_item__course=course
+    ).select_related("plan_item"):
+        if scheduled_lesson.plan_item_id and bridge_by_new_id.get(scheduled_lesson.plan_item_id) is None:
+            bridge_by_new_id[scheduled_lesson.plan_item_id] = next(
+                (
+                    item
+                    for item in legacy_items
+                    if item.scheduled_lesson_id == scheduled_lesson.id
+                ),
+                None,
+            )
+
+    legacy_by_signature = {
+        _legacy_signature(item): item for item in legacy_items
+    }
+    for plan_item in new_plan_items:
+        bridge_by_new_id.setdefault(plan_item.id, legacy_by_signature.get(_new_signature(plan_item)))
+    return bridge_by_new_id
+
+
+def _serialize_canonical_plan_item(plan_item, bridge_item=None):
     assignment_detail = getattr(plan_item, "assignment_detail", None)
     activity_detail = getattr(plan_item, "activity_detail", None)
     lesson_detail = getattr(plan_item, "lesson_detail", None)
@@ -141,26 +197,29 @@ def _serialize_new_plan_item(plan_item):
         is_graded = False
 
     lesson_subject = None
-    scheduled_lesson = None
+    scheduled_lesson = bridge_item.scheduled_lesson if bridge_item else None
+    lesson_child = bridge_item.lesson_child if bridge_item else None
+    notes = bridge_item.notes if bridge_item else ""
     if lesson_detail and lesson_detail.course_subject:
         lesson_subject = SimpleNamespace(
             subject_name=lesson_detail.course_subject.subject_name,
             source_year=lesson_detail.course_subject.source_year,
         )
-    if lesson_detail and lesson_detail.curriculum_lesson:
+    if scheduled_lesson is None and lesson_detail and lesson_detail.curriculum_lesson:
         scheduled_lesson = SimpleNamespace(lesson=lesson_detail.curriculum_lesson)
 
     return SimpleNamespace(
         id=_display_id_for_new(plan_item),
+        plan_item_id=plan_item.id,
         display_id=_display_id_for_new(plan_item),
-        legacy_id=None,
+        legacy_id=bridge_item.id if bridge_item else None,
         new_plan_item=plan_item,
         week_number=plan_item.week_number,
         day_number=plan_item.day_number,
         order=plan_item.order,
         due_in_days=due_in_days,
-        notes="",
-        lesson_child=None,
+        notes=notes,
+        lesson_child=lesson_child,
         lesson_enrolled_subject=lesson_subject,
         scheduled_lesson=scheduled_lesson,
         template=SimpleNamespace(
@@ -315,7 +374,21 @@ def build_plan_course_context(course, request_params, active_enrollments):
     workflow = normalize_workflow(request_params.get("workflow", WORKFLOW_ASSIGNMENTS))
     scope = normalize_scope(request_params.get("scope", "day"))
 
-    legacy_plan_items, new_plan_items, merged_plan_items, _ = _merge_plan_items(course)
+    new_plan_items = list(
+        PlanItem.objects.filter(course=course, is_active=True)
+        .select_related(
+            "lesson_detail__course_subject",
+            "lesson_detail__curriculum_lesson",
+            "assignment_detail__assignment_type",
+            "activity_detail__course_subject",
+        )
+        .order_by("week_number", "day_number", "order", "id")
+    )
+    bridge_map = _bridge_items_by_plan_item(course, new_plan_items)
+    merged_plan_items = [
+        _serialize_canonical_plan_item(plan_item, bridge_map.get(plan_item.id))
+        for plan_item in new_plan_items
+    ]
 
     # Editing state
     edit_id = safe_int(request_params.get("edit"), None)
@@ -327,19 +400,25 @@ def build_plan_course_context(course, request_params, active_enrollments):
 
     if edit_id:
         editing_item = get_object_or_404(
-            AssignmentPlanItem, pk=edit_id, course=course
+            PlanItem, pk=edit_id, course=course
         )
+        bridge_item = bridge_map.get(editing_item.id)
         selected_week = editing_item.week_number
         selected_day = editing_item.day_number
-        workflow = ITEM_KIND_TO_WORKFLOW.get(
-            editing_item.template.item_kind, workflow
-        )
-        editing_attachments = list(editing_item.attachments.all())
+        workflow = {
+            PlanItem.ITEM_TYPE_ASSIGNMENT: WORKFLOW_ASSIGNMENTS,
+            PlanItem.ITEM_TYPE_LESSON: WORKFLOW_LESSONS,
+            PlanItem.ITEM_TYPE_ACTIVITY: WORKFLOW_ACTIVITIES,
+        }.get(editing_item.item_type, workflow)
+        editing_attachments = list(bridge_item.attachments.all()) if bridge_item else []
+        editing_item = _serialize_canonical_plan_item(editing_item, bridge_item)
         student_assignments = list(
-            editing_item.student_assignments.select_related("enrollment__child")
+            StudentAssignment.objects.filter(new_plan_item_id=editing_item.plan_item_id).select_related(
+                "enrollment__child"
+            )
         )
         activity_progress_items = list(
-            editing_item.activity_progress_items.select_related(
+            ActivityProgress.objects.filter(new_plan_item_id=editing_item.plan_item_id).select_related(
                 "enrollment__child"
             ).prefetch_related("attachments")
         )
@@ -414,8 +493,23 @@ def build_plan_course_context(course, request_params, active_enrollments):
     filtered_items = workflow_items if scope == "all" else day_items
 
     # Status maps
-    plan_status_map = _build_plan_status_map(legacy_plan_items, new_plan_items)
-    lesson_provenance_map = _build_lesson_provenance_map(legacy_plan_items, new_plan_items)
+    plan_status_map = _build_plan_status_map([], new_plan_items)
+    lesson_provenance_map = _build_lesson_provenance_map([], new_plan_items)
+    vacation_conflicts = []
+    for enrollment in active_enrollments:
+        conflicts = planning_services.check_vacation_conflicts(
+            enrollment.child, new_plan_items, enrollment
+        )
+        for plan_item, calendar_date, vacation in conflicts:
+            vacation_conflicts.append(
+                {
+                    "display_id": _display_id_for_new(plan_item),
+                    "plan_item_name": plan_item.name,
+                    "child_name": enrollment.child.first_name,
+                    "date": calendar_date,
+                    "vacation_name": vacation.name,
+                }
+            )
 
     workflow_tabs = [
         {
@@ -458,6 +552,7 @@ def build_plan_course_context(course, request_params, active_enrollments):
         "activity_rows": activity_rows,
         "plan_status_map": plan_status_map,
         "lesson_provenance_map": lesson_provenance_map,
+        "vacation_conflicts": vacation_conflicts,
         "item_kind_choices": [
             (CourseAssignmentTemplate.ITEM_KIND_ASSIGNMENT, "Assignment"),
             (CourseAssignmentTemplate.ITEM_KIND_ACTIVITY, "Activity"),

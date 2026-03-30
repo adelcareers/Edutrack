@@ -18,10 +18,12 @@ from courses.models import (
 )
 from curriculum.models import Lesson
 from planning.models import (
+    ActivityProgress,
     AssignmentComment,
     AssignmentPlanItem,
     AssignmentSubmission,
     CourseAssignmentTemplate,
+    PlanItem,
     StudentAssignment,
 )
 from reports.forms import ReportForm
@@ -900,3 +902,119 @@ class GradebookViewsAndServiceTests(TestCase):
         summary = recalculate_enrollment_grade(self.enrollment)
         self.assertEqual(float(summary.final_percent), 70.0)
         self.assertEqual(summary.graded_assignments_count, 1)
+
+
+class TrackingOverviewTests(TestCase):
+    def setUp(self):
+        self.parent = _make_parent(username="tracking_parent")
+        self.client.force_login(self.parent)
+        self.child = _make_child(self.parent, first_name="Tariq")
+        self.course = Course.objects.create(parent=self.parent, name="Tracking Course")
+        self.enrollment = self.course.enrollments.create(
+            child=self.child,
+            start_date=datetime.date(2026, 1, 6),
+            days_of_week=[0, 1, 2, 3, 4],
+            status="active",
+        )
+        self.subject_config = self.course.subject_configs.create(
+            subject_name="Maths",
+            year=self.child.school_year,
+            lessons_per_week=1,
+            days_of_week=[0],
+        )
+        self.enrolled_subject = EnrolledSubject.objects.create(
+            child=self.child,
+            subject_name="Maths",
+            key_stage="KS2",
+            lessons_per_week=1,
+            colour_hex="#3A86FF",
+            days_of_week=[0],
+        )
+        self.lesson = Lesson.objects.create(
+            key_stage="KS2",
+            subject_name="Maths",
+            programme_slug="maths",
+            year=self.child.school_year,
+            unit_slug="numbers",
+            unit_title="Numbers",
+            lesson_number=1,
+            lesson_title="Numbers 1",
+            lesson_url="https://example.com/numbers-1",
+        )
+        self.scheduled = ScheduledLesson.objects.create(
+            child=self.child,
+            lesson=self.lesson,
+            enrolled_subject=self.enrolled_subject,
+            scheduled_date=datetime.date(2026, 1, 6),
+            order_on_day=0,
+            course_subject=self.subject_config,
+        )
+        LessonLog.objects.create(scheduled_lesson=self.scheduled, status="complete")
+
+        global_type = GlobalAssignmentType.objects.create(
+            parent=self.parent,
+            name="Homework",
+            color="#9ca3af",
+            order=0,
+        )
+        sync_course_assignment_types_from_global(self.course)
+        assignment_type = self.course.assignment_types.get(global_type=global_type)
+        template = CourseAssignmentTemplate.objects.create(
+            course=self.course,
+            assignment_type=assignment_type,
+            name="Worksheet",
+            item_kind="assignment",
+        )
+        legacy_assignment = AssignmentPlanItem.objects.create(
+            course=self.course,
+            template=template,
+            week_number=1,
+            day_number=1,
+        )
+        plan_item = PlanItem.objects.create(
+            course=self.course,
+            item_type=PlanItem.ITEM_TYPE_ASSIGNMENT,
+            week_number=1,
+            day_number=1,
+            name="Worksheet",
+        )
+        StudentAssignment.objects.create(
+            enrollment=self.enrollment,
+            plan_item=legacy_assignment,
+            new_plan_item=plan_item,
+            due_date=datetime.date(2026, 1, 7),
+            status="complete",
+        )
+
+        legacy_activity_template = CourseAssignmentTemplate.objects.create(
+            course=self.course,
+            assignment_type=None,
+            name="Field Trip",
+            item_kind="activity",
+        )
+        legacy_activity = AssignmentPlanItem.objects.create(
+            course=self.course,
+            template=legacy_activity_template,
+            week_number=1,
+            day_number=2,
+        )
+        activity_item = PlanItem.objects.create(
+            course=self.course,
+            item_type=PlanItem.ITEM_TYPE_ACTIVITY,
+            week_number=1,
+            day_number=2,
+            name="Field Trip",
+        )
+        ActivityProgress.objects.create(
+            enrollment=self.enrollment,
+            plan_item=legacy_activity,
+            new_plan_item=activity_item,
+            status="complete",
+        )
+
+    def test_tracking_overview_renders_course_and_completion_percentages(self):
+        response = self.client.get(reverse("reports:tracking_overview"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Tracking Course")
+        self.assertContains(response, "100%")
+        self.assertContains(response, "Maths")

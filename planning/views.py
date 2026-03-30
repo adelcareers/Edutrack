@@ -24,17 +24,7 @@ from .context_builders import (
     safe_int,
 )
 from .models import AssignmentPlanItem
-from django.db import models
-from .services import (
-    create_plan_item_from_post,
-    delete_plan_item_legacy,
-    update_plan_item_from_post,
-)
 from . import services as planning_services
-from planning.models import PlanItem as NewPlanItemModel
-from courses.models import CourseSubjectConfig
-from planning.models import StudentAssignment, ActivityProgress
-from scheduler.models import ScheduledLesson
 from .services import create_subject_configs_from_selection, generate_plan_grid
 
 logger = logging.getLogger(__name__)
@@ -128,10 +118,17 @@ def plan_course_view(request, course_id):
             request.POST.get("day_number", selected_day), selected_day
         )
         if delete_id:
-            plan_item = get_object_or_404(
-                AssignmentPlanItem, pk=delete_id, course=course
-            )
-            delete_plan_item_legacy(plan_item)
+            canonical_item = planning_services.PlanItem.objects.filter(
+                pk=delete_id, course=course
+            ).first()
+            if canonical_item is not None:
+                planning_services.delete_plan_item(canonical_item)
+            else:
+                legacy_item = get_object_or_404(
+                    AssignmentPlanItem, pk=delete_id, course=course
+                )
+                canonical_item = planning_services.ensure_plan_item_for_legacy(legacy_item)
+                planning_services.delete_plan_item(canonical_item)
         return redirect(
             build_plan_url(request.path, week_number, day_number, post_workflow, post_scope)
         )
@@ -164,132 +161,28 @@ def plan_course_view(request, course_id):
 
         template_name = request.POST.get("assignment_name", "").strip()
 
+        canonical_item = None
+        legacy_bridge_item = None
         if plan_item_id:
-            plan_item = get_object_or_404(
-                AssignmentPlanItem, pk=plan_item_id, course=course
-            )
-            plan_item, error = update_plan_item_from_post(
-                plan_item, course, request.POST, request.FILES, active_enrollments
-            )
-            # Attempt to update corresponding new PlanItem if present
-            try:
-                # try to locate an associated new PlanItem via the scheduled_lesson bridge
-                new_plan = None
-                if getattr(plan_item, "scheduled_lesson", None):
-                    sl = plan_item.scheduled_lesson
-                    if sl and sl.plan_item_id:
-                        new_plan = NewPlanItemModel.objects.filter(pk=sl.plan_item_id).first()
-                # fallback: try to find by course + grid position + name
-                if new_plan is None:
-                    new_plan = NewPlanItemModel.objects.filter(
-                        course=course,
-                        week_number=plan_item.week_number,
-                        day_number=plan_item.day_number,
-                        name=plan_item.template.name,
-                    ).first()
-                if new_plan:
-                    # map fields from legacy template/plan_item to new detail fields
-                    detail_fields = {}
-                    tk = (plan_item.template.item_kind or "assignment").lower()
-                    if tk == "assignment":
-                        detail_fields["assignment_type"] = plan_item.template.assignment_type
-                        detail_fields["is_graded"] = plan_item.template.is_graded
-                        detail_fields["due_offset_days"] = plan_item.template.due_offset_days
-                    elif tk == "lesson":
-                        # try to map enrolled subject -> course_subject
-                        cs = None
-                        if plan_item.lesson_enrolled_subject:
-                            source = (plan_item.lesson_enrolled_subject.source_subject_name or "").strip()
-                            name = (plan_item.lesson_enrolled_subject.subject_name or "").strip()
-                            cs = CourseSubjectConfig.objects.filter(course=course).filter(
-                                models.Q(subject_name__iexact=name) | models.Q(source_subject_name__iexact=source)
-                            ).first()
-                        if cs is None:
-                            new_plan = None
-                        else:
-                            detail_fields["course_subject"] = cs
-                            detail_fields["curriculum_lesson"] = getattr(plan_item.scheduled_lesson, "lesson", None)
-                    # update the new plan item
-                    if new_plan is not None:
-                        planning_services.update_plan_item(new_plan, **{
-                            "week_number": plan_item.week_number,
-                            "day_number": plan_item.day_number,
-                            "name": plan_item.template.name,
-                            "description": plan_item.template.description,
-                            **detail_fields,
-                        })
-            except Exception:
-                logger.exception("Dual-write update to PlanItem failed for legacy id=%s", plan_item_id)
-        else:
-            plan_item, error = create_plan_item_from_post(
-                course, request.POST, request.FILES, active_enrollments
-            )
-            # Dual-write: create a new PlanItem to mirror legacy creation
-            try:
-                if plan_item is not None:
-                    tk = (plan_item.template.item_kind or "assignment").lower()
-                    item_type = {
-                        "assignment": NewPlanItemModel.ITEM_TYPE_ASSIGNMENT,
-                        "lesson": NewPlanItemModel.ITEM_TYPE_LESSON,
-                        "activity": NewPlanItemModel.ITEM_TYPE_ACTIVITY,
-                    }.get(tk, NewPlanItemModel.ITEM_TYPE_ASSIGNMENT)
+            canonical_item = planning_services.PlanItem.objects.filter(
+                pk=plan_item_id, course=course
+            ).first()
+            if canonical_item is None:
+                legacy_bridge_item = get_object_or_404(
+                    AssignmentPlanItem, pk=plan_item_id, course=course
+                )
+                canonical_item = planning_services.ensure_plan_item_for_legacy(
+                    legacy_bridge_item
+                )
 
-                    detail_kwargs = {}
-                    if item_type == NewPlanItemModel.ITEM_TYPE_ASSIGNMENT:
-                        detail_kwargs["assignment_type"] = plan_item.template.assignment_type
-                        detail_kwargs["is_graded"] = plan_item.template.is_graded
-                        detail_kwargs["due_offset_days"] = plan_item.template.due_offset_days
-                    elif item_type == NewPlanItemModel.ITEM_TYPE_LESSON:
-                        cs = None
-                        if plan_item.lesson_enrolled_subject:
-                            source = (plan_item.lesson_enrolled_subject.source_subject_name or "").strip()
-                            name = (plan_item.lesson_enrolled_subject.subject_name or "").strip()
-                            cs = CourseSubjectConfig.objects.filter(course=course).filter(
-                                models.Q(subject_name__iexact=name) | models.Q(source_subject_name__iexact=source)
-                            ).first()
-                        if cs is None:
-                            new_plan = None
-                        else:
-                            detail_kwargs["course_subject"] = cs
-                            detail_kwargs["curriculum_lesson"] = getattr(plan_item.scheduled_lesson, "lesson", None)
-
-                    if item_type != NewPlanItemModel.ITEM_TYPE_LESSON or cs is not None:
-                        new_plan = planning_services.create_plan_item(
-                            course=course,
-                            item_type=item_type,
-                            week_number=plan_item.week_number,
-                            day_number=plan_item.day_number,
-                            name=plan_item.template.name,
-                            description=plan_item.template.description,
-                            order=plan_item.order,
-                            is_active=True,
-                            **detail_kwargs,
-                        )
-                    else:
-                        new_plan = None
-
-                    # Backfill bridge FKs: student assignments and activity progress
-                    if new_plan is not None:
-                        try:
-                            StudentAssignment.objects.filter(plan_item=plan_item).update(new_plan_item=new_plan)
-                        except Exception:
-                            logger.exception("Failed to backfill StudentAssignment.new_plan_item for legacy id=%s", plan_item.id)
-                        try:
-                            ActivityProgress.objects.filter(plan_item=plan_item).update(new_plan_item=new_plan)
-                        except Exception:
-                            logger.exception("Failed to backfill ActivityProgress.new_plan_item for legacy id=%s", plan_item.id)
-                        # If scheduled_lesson exists, link it
-                        if getattr(plan_item, "scheduled_lesson", None):
-                            try:
-                                sl = plan_item.scheduled_lesson
-                                sl.plan_item = new_plan
-                                if getattr(new_plan, "lesson_detail", None):
-                                    sl.course_subject = new_plan.lesson_detail.course_subject
-                                sl.save(update_fields=["plan_item", "course_subject"])
-                            except Exception:
-                                logger.exception("Failed to link ScheduledLesson to new PlanItem for legacy id=%s", plan_item.id)
-            except Exception:
-                logger.exception("Dual-write create PlanItem failed for legacy id=%s", getattr(plan_item, "id", None))
+        plan_item, error = planning_services.save_plan_item_from_post(
+            course,
+            request.POST,
+            request.FILES,
+            active_enrollments,
+            plan_item=canonical_item,
+            legacy_bridge_item=legacy_bridge_item,
+        )
 
         if error:
             messages.error(request, error)

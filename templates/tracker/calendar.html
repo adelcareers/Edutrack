@@ -677,11 +677,13 @@
         tabindex="0"
         aria-haspopup="dialog"
       >
-        <div class="assignment-title">{{ assignment.plan_item.template.name }}</div>
+        <div class="assignment-title">{{ assignment.display_name }}</div>
         <div class="assignment-meta">
           {{ assignment.enrollment.course.name }}
+          {% if assignment.display_assignment_type %}
           <span class="mx-1">•</span>
-          {{ assignment.plan_item.template.assignment_type.name }}
+          {{ assignment.display_assignment_type.name }}
+          {% endif %}
         </div>
         <div class="mt-1">
           {% if assignment.effective_status == 'done' %}
@@ -699,7 +701,7 @@
       <p class="small text-uppercase text-muted fw-semibold mb-2 mt-2">Activities</p>
       {% for act in day.activities %}
       <div class="assignment-card assignment-{{ act.status }}">
-        <div class="assignment-title">{{ act.new_plan_item.name }}</div>
+        <div class="assignment-title">{{ act.display_name }}</div>
         <div class="assignment-meta">{{ act.enrollment.course.name }}</div>
         <div class="mt-1">
           {% if act.status == 'complete' %}
@@ -1030,4 +1032,3 @@
 })();
 </script>
 {% endblock %}
-

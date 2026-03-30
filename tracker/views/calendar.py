@@ -11,7 +11,12 @@ from planning.models import ActivityProgress, StudentAssignment
 from scheduler.models import ScheduledLesson, Vacation
 
 from .assignments import _effective_assignment_status
-from .utils import _get_or_create_settings
+from .utils import (
+    _get_or_create_settings,
+    _grid_calendar_date,
+    _hydrate_activity_display,
+    _hydrate_assignment_display,
+)
 
 
 def _build_calendar_context(
@@ -72,10 +77,13 @@ def _build_calendar_context(
                 "enrollment__course",
                 "plan_item__template",
                 "plan_item__template__assignment_type",
+                "new_plan_item",
+                "new_plan_item__assignment_detail__assignment_type",
             )
             .order_by("due_date", "id")
         )
         for assignment in assignment_qs:
+            _hydrate_assignment_display(assignment)
             assignment.effective_status = _effective_assignment_status(
                 assignment, today=today, viewer_role=viewer_role
             )
@@ -88,18 +96,17 @@ def _build_calendar_context(
             ActivityProgress.objects.filter(
                 enrollment__child=child,
                 enrollment__status="active",
-                new_plan_item__isnull=False,
             )
-            .select_related("enrollment", "new_plan_item")
+            .select_related("enrollment", "new_plan_item", "plan_item__template")
         )
         for act in activity_qs:
-            pi = act.new_plan_item
-            start = act.enrollment.start_date
-            if start is None:
-                continue
-            act_date = start + datetime.timedelta(
-                days=(pi.week_number - 1) * 7 + (pi.day_number - 1)
+            _hydrate_activity_display(act)
+            act_date = act.display_date or _grid_calendar_date(
+                act.enrollment,
+                act.new_plan_item or act.plan_item,
             )
+            if act_date is None:
+                continue
             if start_date <= act_date <= end_date:
                 activities_by_date.setdefault(act_date, []).append(act)
 

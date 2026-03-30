@@ -5,7 +5,7 @@ Extracted from plan_course_view to enable testable, reusable business logic.
 
 import datetime
 
-from django.db import transaction
+from django.db import models, transaction
 from django.db.models import Max
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -95,13 +95,14 @@ def _normalize_lessons_per_week(raw_value):
     return max(1, min(10, parsed))
 
 
-def _sync_legacy_bridge_template(plan_item):
+def _sync_legacy_bridge_template(plan_item, template=None):
     item_kind = {
+        PlanItem.ITEM_TYPE_LESSON: CourseAssignmentTemplate.ITEM_KIND_LESSON,
         PlanItem.ITEM_TYPE_ASSIGNMENT: CourseAssignmentTemplate.ITEM_KIND_ASSIGNMENT,
         PlanItem.ITEM_TYPE_ACTIVITY: CourseAssignmentTemplate.ITEM_KIND_ACTIVITY,
     }.get(plan_item.item_type)
     if item_kind is None:
-        return None
+        raise ValueError(f"unsupported plan item type for legacy bridge: {plan_item.item_type}")
 
     assignment_type = None
     due_offset_days = 0
@@ -118,75 +119,207 @@ def _sync_legacy_bridge_template(plan_item):
         detail = getattr(plan_item, "activity_detail", None)
         due_offset_days = detail.due_offset_days if detail else 0
 
-    template, _ = CourseAssignmentTemplate.objects.get_or_create(
-        course=plan_item.course,
-        item_kind=item_kind,
-        name=plan_item.name,
-        assignment_type=assignment_type,
-        defaults={
-            "description": plan_item.description or "",
-            "is_graded": is_graded,
-            "due_offset_days": due_offset_days,
-            "order": plan_item.order,
-        },
-    )
+    if template is None:
+        template = CourseAssignmentTemplate.objects.filter(
+            course=plan_item.course,
+            item_kind=item_kind,
+            name=plan_item.name,
+            assignment_type=assignment_type,
+        ).first()
+    if template is None:
+        template = CourseAssignmentTemplate.objects.create(
+            course=plan_item.course,
+            item_kind=item_kind,
+            name=plan_item.name,
+            assignment_type=assignment_type,
+            description=plan_item.description or "",
+            is_graded=is_graded,
+            due_offset_days=due_offset_days,
+            order=plan_item.order,
+        )
+        return template
 
-    changed_fields = []
+    changed_fields = set()
+    if template.item_kind != item_kind:
+        template.item_kind = item_kind
+        changed_fields.add("item_kind")
+    if template.assignment_type_id != getattr(assignment_type, "id", None):
+        template.assignment_type = assignment_type
+        changed_fields.add("assignment_type")
+    if template.name != plan_item.name:
+        template.name = plan_item.name
+        changed_fields.add("name")
     if template.description != (plan_item.description or ""):
         template.description = plan_item.description or ""
-        changed_fields.append("description")
+        changed_fields.add("description")
     if template.is_graded != is_graded:
         template.is_graded = is_graded
-        changed_fields.append("is_graded")
+        changed_fields.add("is_graded")
     if template.due_offset_days != due_offset_days:
         template.due_offset_days = due_offset_days
-        changed_fields.append("due_offset_days")
+        changed_fields.add("due_offset_days")
     if template.order != plan_item.order:
         template.order = plan_item.order
-        changed_fields.append("order")
+        changed_fields.add("order")
     if changed_fields:
-        template.save(update_fields=changed_fields)
+        template.save(update_fields=list(changed_fields))
 
     return template
 
 
-def _get_or_create_legacy_bridge_plan_item(plan_item):
-    template = _sync_legacy_bridge_template(plan_item)
-    if template is None:
-        return None
-
-    bridge_item, _ = AssignmentPlanItem.objects.get_or_create(
-        course=plan_item.course,
-        template=template,
-        week_number=plan_item.week_number,
-        day_number=plan_item.day_number,
-        order=plan_item.order,
-        defaults={"due_in_days": 0, "notes": ""},
+def _get_or_create_legacy_bridge_plan_item(plan_item, bridge_item=None, notes=""):
+    template = _sync_legacy_bridge_template(
+        plan_item,
+        template=bridge_item.template if bridge_item is not None else None,
     )
 
-    update_fields = []
+    if bridge_item is None:
+        bridge_item = AssignmentPlanItem.objects.filter(
+            course=plan_item.course,
+            template=template,
+            week_number=plan_item.week_number,
+            day_number=plan_item.day_number,
+            order=plan_item.order,
+        ).first()
+    if bridge_item is None:
+        bridge_item = AssignmentPlanItem.objects.create(
+            course=plan_item.course,
+            template=template,
+            week_number=plan_item.week_number,
+            day_number=plan_item.day_number,
+            order=plan_item.order,
+            due_in_days=0,
+            notes=notes or "",
+        )
+        return bridge_item
+
+    update_fields = set()
     due_in_days = 0
     if plan_item.item_type == PlanItem.ITEM_TYPE_ASSIGNMENT:
         due_in_days = getattr(plan_item.assignment_detail, "due_offset_days", 0)
     elif plan_item.item_type == PlanItem.ITEM_TYPE_ACTIVITY:
         due_in_days = getattr(plan_item.activity_detail, "due_offset_days", 0)
 
+    if bridge_item.template_id != template.id:
+        bridge_item.template = template
+        update_fields.add("template")
     if bridge_item.due_in_days != due_in_days:
         bridge_item.due_in_days = due_in_days
-        update_fields.append("due_in_days")
+        update_fields.add("due_in_days")
     if bridge_item.week_number != plan_item.week_number:
         bridge_item.week_number = plan_item.week_number
-        update_fields.append("week_number")
+        update_fields.add("week_number")
     if bridge_item.day_number != plan_item.day_number:
         bridge_item.day_number = plan_item.day_number
-        update_fields.append("day_number")
+        update_fields.add("day_number")
     if bridge_item.order != plan_item.order:
         bridge_item.order = plan_item.order
-        update_fields.append("order")
+        update_fields.add("order")
+    if bridge_item.notes != (notes or ""):
+        bridge_item.notes = notes or ""
+        update_fields.add("notes")
     if update_fields:
-        bridge_item.save(update_fields=update_fields)
+        bridge_item.save(update_fields=list(update_fields))
 
     return bridge_item
+
+
+def ensure_plan_item_for_legacy(legacy_item):
+    """Return the canonical PlanItem for a legacy AssignmentPlanItem, creating one if needed."""
+    linked_ids = set()
+    if legacy_item.scheduled_lesson_id and legacy_item.scheduled_lesson.plan_item_id:
+        linked_ids.add(legacy_item.scheduled_lesson.plan_item_id)
+    linked_ids.update(
+        StudentAssignment.objects.filter(plan_item=legacy_item)
+        .exclude(new_plan_item_id__isnull=True)
+        .values_list("new_plan_item_id", flat=True)
+    )
+    linked_ids.update(
+        ActivityProgress.objects.filter(plan_item=legacy_item)
+        .exclude(new_plan_item_id__isnull=True)
+        .values_list("new_plan_item_id", flat=True)
+    )
+    linked_ids.discard(None)
+
+    if linked_ids:
+        canonical = PlanItem.objects.filter(pk=next(iter(linked_ids))).first()
+        if canonical is not None:
+            return canonical
+
+    item_type = {
+        CourseAssignmentTemplate.ITEM_KIND_LESSON: PlanItem.ITEM_TYPE_LESSON,
+        CourseAssignmentTemplate.ITEM_KIND_ACTIVITY: PlanItem.ITEM_TYPE_ACTIVITY,
+        CourseAssignmentTemplate.ITEM_KIND_ASSIGNMENT: PlanItem.ITEM_TYPE_ASSIGNMENT,
+    }.get(legacy_item.template.item_kind, PlanItem.ITEM_TYPE_ASSIGNMENT)
+
+    canonical = PlanItem.objects.filter(
+        course=legacy_item.course,
+        item_type=item_type,
+        week_number=legacy_item.week_number,
+        day_number=legacy_item.day_number,
+        order=legacy_item.order,
+        name=legacy_item.template.name,
+    ).first()
+    if canonical is not None:
+        return canonical
+
+    detail_kwargs = {}
+    if item_type == PlanItem.ITEM_TYPE_ASSIGNMENT:
+        if legacy_item.template.assignment_type is None:
+            raise ValueError("legacy assignment plan item is missing assignment type")
+        detail_kwargs.update(
+            assignment_type=legacy_item.template.assignment_type,
+            is_graded=legacy_item.template.is_graded,
+            due_offset_days=legacy_item.due_in_days,
+        )
+    elif item_type == PlanItem.ITEM_TYPE_ACTIVITY:
+        detail_kwargs.update(due_offset_days=legacy_item.due_in_days)
+    else:
+        enrolled_subject = legacy_item.lesson_enrolled_subject or getattr(
+            legacy_item.scheduled_lesson, "enrolled_subject", None
+        )
+        course_subject = getattr(legacy_item.scheduled_lesson, "course_subject", None)
+        if course_subject is None and enrolled_subject is not None:
+            course_subject = CourseSubjectConfig.objects.filter(
+                course=legacy_item.course
+            ).filter(
+                models.Q(subject_name__iexact=enrolled_subject.subject_name)
+                | models.Q(
+                    source_subject_name__iexact=(
+                        enrolled_subject.source_subject_name or enrolled_subject.subject_name
+                    )
+                )
+            ).first()
+        if course_subject is None:
+            raise ValueError("legacy lesson plan item is missing a course subject mapping")
+        detail_kwargs.update(
+            course_subject=course_subject,
+            curriculum_lesson=getattr(legacy_item.scheduled_lesson, "lesson", None),
+        )
+
+    canonical = create_plan_item(
+        course=legacy_item.course,
+        item_type=item_type,
+        week_number=legacy_item.week_number,
+        day_number=legacy_item.day_number,
+        name=legacy_item.template.name,
+        description=legacy_item.template.description,
+        order=legacy_item.order,
+        **detail_kwargs,
+    )
+    _get_or_create_legacy_bridge_plan_item(
+        canonical, bridge_item=legacy_item, notes=legacy_item.notes
+    )
+    if legacy_item.scheduled_lesson_id:
+        legacy_item.scheduled_lesson.plan_item = canonical
+        update_fields = ["plan_item"]
+        if getattr(getattr(canonical, "lesson_detail", None), "course_subject", None):
+            legacy_item.scheduled_lesson.course_subject = canonical.lesson_detail.course_subject
+            update_fields.append("course_subject")
+        legacy_item.scheduled_lesson.save(update_fields=update_fields)
+    StudentAssignment.objects.filter(plan_item=legacy_item).update(new_plan_item=canonical)
+    ActivityProgress.objects.filter(plan_item=legacy_item).update(new_plan_item=canonical)
+    return canonical
 
 
 # ---------------------------------------------------------------------------
@@ -820,6 +953,297 @@ def soft_delete_plan_item(plan_item):
 
 def hard_delete_plan_item(plan_item):
     plan_item.delete()
+
+
+def save_plan_item_from_post(
+    course,
+    post_data,
+    files,
+    active_enrollments,
+    plan_item=None,
+    legacy_bridge_item=None,
+):
+    """Create or update a canonical PlanItem from the planning form payload."""
+    active_enrollment_ids = {e.id for e in active_enrollments}
+    active_child_ids = {e.child_id for e in active_enrollments}
+
+    template_name = post_data.get("assignment_name", "").strip()
+    item_kind = (post_data.get("item_kind", "assignment")).strip().lower()
+    if item_kind not in ("assignment", "lesson", "activity"):
+        item_kind = "assignment"
+    item_type = {
+        "assignment": PlanItem.ITEM_TYPE_ASSIGNMENT,
+        "lesson": PlanItem.ITEM_TYPE_LESSON,
+        "activity": PlanItem.ITEM_TYPE_ACTIVITY,
+    }[item_kind]
+
+    week_number = _safe_int(post_data.get("week_number", 1), 1)
+    day_number = _safe_int(post_data.get("day_number", 1), 1)
+    due_in_days = _safe_int(post_data.get("due_in_days", 0), 0)
+    description = post_data.get("description", "").strip()
+    teacher_notes = post_data.get("teacher_notes", "").strip()
+
+    if not template_name:
+        return plan_item, None
+
+    assignment_type = None
+    is_graded = False
+    if item_type == PlanItem.ITEM_TYPE_ASSIGNMENT:
+        type_id = post_data.get("assignment_type")
+        if not type_id:
+            return plan_item, "Please select an assignment type."
+        assignment_type = get_object_or_404(
+            AssignmentType, pk=type_id, course=course, is_hidden=False
+        )
+        is_graded = post_data.get("is_graded") == "on"
+
+    selected_child = None
+    selected_subject = None
+    selected_enrollment = None
+    course_subject = None
+    if item_type == PlanItem.ITEM_TYPE_LESSON:
+        selected_child, selected_subject, err = _resolve_lesson_context(
+            post_data, active_enrollments, active_child_ids
+        )
+        if err:
+            return plan_item, err
+        selected_enrollment = next(
+            (enrollment for enrollment in active_enrollments if enrollment.child_id == selected_child.id),
+            None,
+        )
+        if selected_enrollment is None:
+            return plan_item, "Please select a valid student for this lesson."
+        source_name = selected_subject.source_subject_name or selected_subject.subject_name
+        course_subject = CourseSubjectConfig.objects.filter(course=course).filter(
+            models.Q(subject_name__iexact=selected_subject.subject_name)
+            | models.Q(source_subject_name__iexact=source_name)
+        ).first()
+        if course_subject is None:
+            course_subject = CourseSubjectConfig.objects.create(
+                course=course,
+                subject_name=selected_subject.subject_name,
+                key_stage=selected_subject.key_stage,
+                year=selected_subject.source_year or selected_child.school_year,
+                lessons_per_week=selected_subject.lessons_per_week,
+                days_of_week=selected_subject.days_of_week or _normalized_course_weekdays(course),
+                colour_hex=selected_subject.colour_hex,
+                source="csv"
+                if (selected_subject.source_year or selected_subject.source_subject_name)
+                else "oak",
+                source_subject_name=source_name,
+                source_year=selected_subject.source_year,
+                is_active=True,
+            )
+
+    with transaction.atomic():
+        if plan_item is None:
+            detail_kwargs = {}
+            if item_type == PlanItem.ITEM_TYPE_ASSIGNMENT:
+                detail_kwargs.update(
+                    assignment_type=assignment_type,
+                    is_graded=is_graded,
+                    due_offset_days=due_in_days,
+                )
+            elif item_type == PlanItem.ITEM_TYPE_ACTIVITY:
+                detail_kwargs.update(due_offset_days=due_in_days)
+            else:
+                detail_kwargs.update(course_subject=course_subject)
+            plan_item = create_plan_item(
+                course=course,
+                item_type=item_type,
+                week_number=week_number,
+                day_number=day_number,
+                name=template_name,
+                description=description,
+                order=0,
+                **detail_kwargs,
+            )
+        else:
+            detail_kwargs = {
+                "week_number": week_number,
+                "day_number": day_number,
+                "name": template_name,
+                "description": description,
+            }
+            if item_type == PlanItem.ITEM_TYPE_ASSIGNMENT:
+                detail_kwargs.update(
+                    assignment_type=assignment_type,
+                    is_graded=is_graded,
+                    due_offset_days=due_in_days,
+                )
+            elif item_type == PlanItem.ITEM_TYPE_ACTIVITY:
+                detail_kwargs.update(due_offset_days=due_in_days)
+            elif item_type == PlanItem.ITEM_TYPE_LESSON:
+                detail_kwargs.update(course_subject=course_subject)
+            update_plan_item(plan_item, **detail_kwargs)
+
+        legacy_bridge_item = _get_or_create_legacy_bridge_plan_item(
+            plan_item,
+            bridge_item=legacy_bridge_item,
+            notes=teacher_notes,
+        )
+        _save_attachments(legacy_bridge_item, files)
+
+        if item_type == PlanItem.ITEM_TYPE_ASSIGNMENT:
+            selected_ids = _parse_enrollment_selection(
+                post_data,
+                "assign_enrollment_selection_present",
+                "assign_enrollment_ids",
+                active_enrollment_ids,
+            )
+            StudentAssignment.objects.filter(new_plan_item=plan_item).exclude(
+                enrollment_id__in=selected_ids
+            ).delete()
+            for enrollment in active_enrollments:
+                if enrollment.id not in selected_ids:
+                    continue
+                student_assignment = materialize_plan_item_for_enrollment(
+                    plan_item, enrollment
+                )[0]
+                status_value = post_data.get(
+                    f"student_status_{student_assignment.id}",
+                    student_assignment.status,
+                )
+                if status_value in {"pending", "complete"}:
+                    update_fields = []
+                    if student_assignment.status != status_value:
+                        student_assignment.status = status_value
+                        student_assignment.completed_at = (
+                            timezone.now() if status_value == "complete" else None
+                        )
+                        update_fields.extend(["status", "completed_at"])
+                    if update_fields:
+                        student_assignment.save(update_fields=update_fields)
+        else:
+            StudentAssignment.objects.filter(new_plan_item=plan_item).delete()
+
+        if item_type == PlanItem.ITEM_TYPE_ACTIVITY:
+            selected_ids = _parse_enrollment_selection(
+                post_data,
+                "activity_enrollment_selection_present",
+                "activity_enrollment_ids",
+                active_enrollment_ids,
+            )
+            ActivityProgress.objects.filter(new_plan_item=plan_item).exclude(
+                enrollment_id__in=selected_ids
+            ).delete()
+            for enrollment in active_enrollments:
+                if enrollment.id not in selected_ids:
+                    continue
+                progress = materialize_plan_item_for_enrollment(plan_item, enrollment)[0]
+                status_value = post_data.get(
+                    f"activity_status_{enrollment.id}",
+                    progress.status,
+                )
+                if status_value not in {"pending", "complete"}:
+                    status_value = "pending"
+                progress.notes = post_data.get(
+                    f"activity_notes_{enrollment.id}",
+                    progress.notes,
+                ).strip()
+                progress.status = status_value
+                progress.completed_at = (
+                    timezone.now() if status_value == "complete" else None
+                )
+                progress.save()
+                external_url = post_data.get(
+                    f"activity_link_{enrollment.id}", ""
+                ).strip()
+                if external_url:
+                    ActivityProgressAttachment.objects.create(
+                        progress=progress,
+                        external_url=external_url,
+                    )
+                for attachment in files.getlist(f"activity_files_{enrollment.id}"):
+                    ActivityProgressAttachment.objects.create(
+                        progress=progress,
+                        file=attachment,
+                        original_name=attachment.name,
+                    )
+        else:
+            ActivityProgress.objects.filter(new_plan_item=plan_item).delete()
+
+        if item_type == PlanItem.ITEM_TYPE_LESSON:
+            current_lesson = getattr(getattr(plan_item, "lesson_detail", None), "curriculum_lesson", None)
+            if current_lesson is None:
+                current_lesson = next_unscheduled_lesson(selected_child, selected_subject)
+                if current_lesson is not None:
+                    update_plan_item(plan_item, curriculum_lesson=current_lesson)
+            ScheduledLesson.objects.filter(plan_item=plan_item).exclude(
+                child=selected_child
+            ).delete()
+            scheduled_items = materialize_plan_item_for_enrollment(plan_item, selected_enrollment)
+            scheduled_lesson = scheduled_items[0] if scheduled_items else None
+            legacy_bridge_item.lesson_child = selected_child
+            legacy_bridge_item.lesson_enrolled_subject = selected_subject
+            legacy_bridge_item.scheduled_lesson = scheduled_lesson
+            legacy_bridge_item.save(
+                update_fields=[
+                    "lesson_child",
+                    "lesson_enrolled_subject",
+                    "scheduled_lesson",
+                ]
+            )
+        else:
+            if (
+                legacy_bridge_item.lesson_child_id
+                or legacy_bridge_item.lesson_enrolled_subject_id
+                or legacy_bridge_item.scheduled_lesson_id
+            ):
+                legacy_bridge_item.lesson_child = None
+                legacy_bridge_item.lesson_enrolled_subject = None
+                legacy_bridge_item.scheduled_lesson = None
+                legacy_bridge_item.save(
+                    update_fields=[
+                        "lesson_child",
+                        "lesson_enrolled_subject",
+                        "scheduled_lesson",
+                    ]
+                )
+
+    return plan_item, None
+
+
+def delete_plan_item(plan_item):
+    """Delete a canonical PlanItem and its bridge/runtime rows."""
+    legacy_bridge_ids = set(
+        StudentAssignment.objects.filter(new_plan_item=plan_item).values_list(
+            "plan_item_id", flat=True
+        )
+    )
+    legacy_bridge_ids.update(
+        ActivityProgress.objects.filter(new_plan_item=plan_item).values_list(
+            "plan_item_id", flat=True
+        )
+    )
+    if plan_item.item_type == PlanItem.ITEM_TYPE_LESSON:
+        legacy_bridge = AssignmentPlanItem.objects.filter(
+            course=plan_item.course,
+            week_number=plan_item.week_number,
+            day_number=plan_item.day_number,
+            order=plan_item.order,
+            template__item_kind=CourseAssignmentTemplate.ITEM_KIND_LESSON,
+            template__name=plan_item.name,
+        ).first()
+        if legacy_bridge is not None:
+            legacy_bridge_ids.add(legacy_bridge.id)
+
+    ScheduledLesson.objects.filter(plan_item=plan_item).delete()
+    StudentAssignment.objects.filter(new_plan_item=plan_item).delete()
+    ActivityProgress.objects.filter(new_plan_item=plan_item).delete()
+    plan_item.delete()
+
+    templates_to_check = []
+    for bridge_id in legacy_bridge_ids:
+        bridge_item = AssignmentPlanItem.objects.filter(pk=bridge_id).select_related("template").first()
+        if bridge_item is None:
+            continue
+        templates_to_check.append(bridge_item.template_id)
+        bridge_item.delete()
+    for template_id in templates_to_check:
+        template = CourseAssignmentTemplate.objects.filter(pk=template_id).first()
+        if template is not None and not template.plan_items.exists():
+            template.delete()
 
 
 def materialize_plan_item_for_enrollment(plan_item, enrollment):

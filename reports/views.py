@@ -6,6 +6,7 @@ from decimal import Decimal, InvalidOperation
 import cloudinary.utils
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import models
 from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -664,7 +665,7 @@ def gradebook_transcript_view(request, child_id):
 def tracking_overview_view(request):
     """MVP tracking dashboard: lesson/assignment/activity completion per course."""
     from courses.models import Course
-    from planning.models import ActivityProgress, PlanItem
+    from planning.models import ActivityProgress, StudentAssignment
     from scheduler.models import ScheduledLesson
 
     courses = list(
@@ -676,13 +677,14 @@ def tracking_overview_view(request):
     course_summaries = []
     for course in courses:
         active_enrollments = [e for e in course.enrollments.all() if e.status == "active"]
+        active_child_ids = [enrollment.child_id for enrollment in active_enrollments]
 
         # Lessons: ScheduledLesson with LessonLog.status=complete
         total_lessons = ScheduledLesson.objects.filter(
-            enrolled_subject__course=course
-        ).count()
+            child_id__in=active_child_ids
+        ).distinct().count()
         complete_lessons = ScheduledLesson.objects.filter(
-            enrolled_subject__course=course, log__status="complete"
+            child_id__in=active_child_ids, log__status="complete"
         ).count()
 
         # Assignments: StudentAssignment complete vs total
@@ -695,26 +697,27 @@ def tracking_overview_view(request):
 
         # Activities: ActivityProgress complete vs total
         total_activities = ActivityProgress.objects.filter(
-            enrollment__course=course, new_plan_item__isnull=False
+            enrollment__course=course
         ).count()
         complete_activities = ActivityProgress.objects.filter(
-            enrollment__course=course, new_plan_item__isnull=False, status="complete"
+            enrollment__course=course, status="complete"
         ).count()
 
         # Per-subject breakdown (CourseSubjectConfig)
         subject_rows = []
         for sc in course.subject_configs.filter(is_active=True):
-            s_total = PlanItem.objects.filter(
-                course=course,
-                item_type="lesson",
-                lesson_detail__course_subject=sc,
-                is_active=True,
-            ).count()
-            s_complete = ActivityProgress.objects.filter(
-                enrollment__course=course,
-                new_plan_item__course=course,
-                new_plan_item__lesson_detail__course_subject=sc,
-                status="complete",
+            s_total = ScheduledLesson.objects.filter(
+                child_id__in=active_child_ids,
+            ).filter(
+                models.Q(course_subject=sc)
+                | models.Q(enrolled_subject__subject_name=sc.subject_name)
+            ).distinct().count()
+            s_complete = ScheduledLesson.objects.filter(
+                child_id__in=active_child_ids,
+                log__status="complete",
+            ).filter(
+                models.Q(course_subject=sc)
+                | models.Q(enrolled_subject__subject_name=sc.subject_name)
             ).count()
             subject_rows.append({
                 "subject_name": sc.subject_name,

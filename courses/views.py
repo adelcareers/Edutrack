@@ -4,7 +4,7 @@ import csv
 import json
 
 from django.contrib import messages
-from django.db import transaction
+from django.db import models, transaction
 from django.db.models import Count
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -807,11 +807,18 @@ def _save_assignment_weights(request, course):
 @require_POST
 def subject_config_soft_delete_view(request, config_id):
     """Soft-delete a CourseSubjectConfig: hide future unstarted lessons."""
+    from planning.models import PlanItem
+
     config = get_object_or_404(
         CourseSubjectConfig, pk=config_id, course__parent=request.user
     )
     config.is_active = False
     config.save(update_fields=["is_active"])
+    PlanItem.objects.filter(
+        models.Q(lesson_detail__course_subject=config)
+        | models.Q(activity_detail__course_subject=config),
+        is_active=True,
+    ).update(is_active=False)
     messages.success(
         request,
         f'Subject "{config.subject_name}" hidden. Completed progress is preserved.',
@@ -827,6 +834,8 @@ def subject_config_hard_delete_view(request, config_id):
     Requires the parent to type "DELETE" in the confirmation field.
     Cascades to related PlanItems and per-student records.
     """
+    from planning.models import ActivityProgress, PlanItem, StudentAssignment
+
     config = get_object_or_404(
         CourseSubjectConfig, pk=config_id, course__parent=request.user
     )
@@ -840,6 +849,16 @@ def subject_config_hard_delete_view(request, config_id):
 
     course_id = config.course_id
     subject_name = config.subject_name
+    related_plan_items = list(
+        PlanItem.objects.filter(
+            models.Q(lesson_detail__course_subject=config)
+            | models.Q(activity_detail__course_subject=config)
+        )
+    )
+    related_plan_item_ids = [plan_item.id for plan_item in related_plan_items]
+    StudentAssignment.objects.filter(new_plan_item_id__in=related_plan_item_ids).delete()
+    ActivityProgress.objects.filter(new_plan_item_id__in=related_plan_item_ids).delete()
+    PlanItem.objects.filter(id__in=related_plan_item_ids).delete()
     config.delete()
     messages.success(
         request,

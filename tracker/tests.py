@@ -12,10 +12,12 @@ from accounts.models import ParentSettings, UserProfile
 from courses.models import AssignmentType, Course
 from curriculum.models import Lesson
 from planning.models import (
+    ActivityProgress,
     AssignmentComment,
     AssignmentPlanItem,
     AssignmentSubmission,
     CourseAssignmentTemplate,
+    PlanItem,
     StudentAssignment,
 )
 from scheduler.models import Child, EnrolledSubject, ScheduledLesson
@@ -1902,6 +1904,48 @@ class HomeAssignmentsDashboardTests(TestCase):
             self.enrolled_subject,
             datetime.date.today(),
         )
+
+    def test_home_assignments_prefers_new_plan_item_display_data(self):
+        plan_item = PlanItem.objects.create(
+            course=self.course,
+            item_type=PlanItem.ITEM_TYPE_ASSIGNMENT,
+            week_number=1,
+            day_number=2,
+            name="Unified Algebra Quiz",
+            description="Use PlanItem description",
+        )
+        self.assignment.new_plan_item = plan_item
+        self.assignment.save(update_fields=["new_plan_item"])
+
+        self.client.force_login(self.parent)
+        response = self.client.get(reverse(self.URL) + "?tab=assignments")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Unified Algebra Quiz")
+        self.assertContains(response, "Use PlanItem description")
+
+    def test_home_activities_include_legacy_only_progress_rows(self):
+        activity_template = CourseAssignmentTemplate.objects.create(
+            course=self.course,
+            assignment_type=None,
+            item_kind="activity",
+            name="Legacy Activity",
+        )
+        activity_plan = AssignmentPlanItem.objects.create(
+            course=self.course,
+            template=activity_template,
+            week_number=1,
+            day_number=2,
+        )
+        ActivityProgress.objects.create(
+            enrollment=self.enrollment,
+            plan_item=activity_plan,
+            status="pending",
+        )
+
+        self.client.force_login(self.parent)
+        response = self.client.get(reverse(self.URL) + "?tab=activities")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Legacy Activity")
 
     def test_parent_sees_assignments_dashboard(self):
         self.client.force_login(self.parent)

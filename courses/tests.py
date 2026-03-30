@@ -13,8 +13,10 @@ from courses.models import (
     sync_course_assignment_types_from_global,
 )
 from planning.models import (
+    ActivityProgress,
     AssignmentPlanItem,
     CourseAssignmentTemplate,
+    PlanItem,
     StudentAssignment,
 )
 from scheduler.models import Child
@@ -219,6 +221,82 @@ class SingleSourceAssignmentTypeSyncTests(TestCase):
         sync_course_assignment_types_from_global(self.course)
         at = AssignmentType.objects.get(course=self.course, global_type=gt)
         self.assertEqual(at.weight, 40)
+
+
+class CourseSubjectConfigDeleteTests(TestCase):
+    def setUp(self):
+        self.parent = User.objects.create_user(username="cfg-parent", password="pw")
+        UserProfile.objects.create(user=self.parent, role="parent")
+        self.client.login(username="cfg-parent", password="pw")
+
+        self.course = Course.objects.create(parent=self.parent, name="Delete Course")
+        self.child = Child.objects.create(
+            parent=self.parent,
+            first_name="Sami",
+            birth_month=1,
+            birth_year=2014,
+            school_year="Year 6",
+            academic_year_start=datetime.date(2025, 9, 1),
+        )
+        self.enrollment = self.course.enrollments.create(
+            child=self.child,
+            start_date=datetime.date(2026, 1, 6),
+            days_of_week=[0, 1, 2, 3, 4],
+            status="active",
+        )
+        self.config = self.course.subject_configs.create(
+            subject_name="Science",
+            year="Year 6",
+            lessons_per_week=1,
+            days_of_week=[0],
+        )
+        self.plan_item = PlanItem.objects.create(
+            course=self.course,
+            item_type=PlanItem.ITEM_TYPE_ACTIVITY,
+            week_number=1,
+            day_number=1,
+            name="Lab",
+        )
+        from planning.models import ActivityPlanDetail
+        ActivityPlanDetail.objects.create(plan_item=self.plan_item, course_subject=self.config)
+        template = CourseAssignmentTemplate.objects.create(
+            course=self.course,
+            assignment_type=None,
+            item_kind="activity",
+            name="Lab",
+        )
+        legacy = AssignmentPlanItem.objects.create(
+            course=self.course,
+            template=template,
+            week_number=1,
+            day_number=1,
+        )
+        self.progress = ActivityProgress.objects.create(
+            enrollment=self.enrollment,
+            plan_item=legacy,
+            new_plan_item=self.plan_item,
+            status="pending",
+        )
+
+    def test_subject_config_soft_delete_deactivates_related_plan_items(self):
+        response = self.client.post(
+            reverse("courses:subject_config_deactivate", kwargs={"config_id": self.config.pk})
+        )
+        self.assertEqual(response.status_code, 302)
+        self.config.refresh_from_db()
+        self.plan_item.refresh_from_db()
+        self.assertFalse(self.config.is_active)
+        self.assertFalse(self.plan_item.is_active)
+
+    def test_subject_config_hard_delete_removes_related_plan_items_and_progress(self):
+        response = self.client.post(
+            reverse("courses:subject_config_delete", kwargs={"config_id": self.config.pk}),
+            {"confirm": "DELETE"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(self.course.subject_configs.filter(pk=self.config.pk).exists())
+        self.assertFalse(PlanItem.objects.filter(pk=self.plan_item.pk).exists())
+        self.assertFalse(ActivityProgress.objects.filter(pk=self.progress.pk).exists())
 
     def test_sync_preserves_course_hidden_when_global_visible(self):
         gt = GlobalAssignmentType.objects.create(

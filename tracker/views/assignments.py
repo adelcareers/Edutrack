@@ -28,6 +28,8 @@ from .lessons import (
 from .utils import (
     _base_assignment_queryset_for_role,
     _base_lesson_queryset_for_role,
+    _hydrate_activity_display,
+    _hydrate_assignment_display,
     _safe_int,
 )
 
@@ -114,6 +116,8 @@ def home_assignments_view(request):
             "enrollment__course",
             "plan_item__template",
             "plan_item__template__assignment_type",
+            "new_plan_item",
+            "new_plan_item__assignment_detail__assignment_type",
         )
         .order_by("due_date", "id")
     )
@@ -129,16 +133,14 @@ def home_assignments_view(request):
         activity_base_qs = ActivityProgress.objects.filter(
             enrollment__child=child,
             enrollment__status="active",
-            new_plan_item__isnull=False,
         ) if child else ActivityProgress.objects.none()
     else:
         activity_base_qs = ActivityProgress.objects.filter(
             enrollment__course__parent=request.user,
             enrollment__status="active",
-            new_plan_item__isnull=False,
         )
     activity_base_qs = activity_base_qs.select_related(
-        "enrollment__child", "enrollment__course", "new_plan_item"
+        "enrollment__child", "enrollment__course", "new_plan_item", "plan_item__template"
     ).order_by("created_at")
     activity_total_count = activity_base_qs.count()
 
@@ -172,7 +174,8 @@ def home_assignments_view(request):
 
     if selected_type_id:
         scoped_qs = scoped_qs.filter(
-            plan_item__template__assignment_type_id=selected_type_id
+            Q(plan_item__template__assignment_type_id=selected_type_id)
+            | Q(new_plan_item__assignment_detail__assignment_type_id=selected_type_id)
         )
 
     scoped_qs = scoped_qs.distinct()
@@ -181,6 +184,7 @@ def home_assignments_view(request):
 
     assignments = list(scoped_qs)
     for assignment in assignments:
+        _hydrate_assignment_display(assignment)
         assignment.effective_status = _effective_assignment_status(
             assignment, today=today, viewer_role=role
         )
@@ -202,6 +206,7 @@ def home_assignments_view(request):
 
     activities = list(activity_qs)
     for act in activities:
+        _hydrate_activity_display(act)
         act.effective_status = act.status  # "pending" or "complete"
         act.effective_status_label = act.status.title()
 
@@ -257,6 +262,8 @@ def home_assignments_view(request):
             (a for a in assignments if a.pk == selected_assignment_id),
             None,
         )
+    elif active_tab == "assignments" and assignments:
+        selected_assignment = assignments[0]
 
     selected_lesson = None
     if selected_lesson_id is not None:
@@ -264,6 +271,8 @@ def home_assignments_view(request):
             (lesson for lesson in lessons if lesson.pk == selected_lesson_id),
             None,
         )
+    elif active_tab == "lessons" and lessons:
+        selected_lesson = lessons[0]
 
     selected_activity = None
     if selected_activity_id is not None:
@@ -271,6 +280,8 @@ def home_assignments_view(request):
             (a for a in activities if a.pk == selected_activity_id),
             None,
         )
+    elif active_tab == "activities" and activities:
+        selected_activity = activities[0]
 
     selected_attachments = []
     selected_comments = []
