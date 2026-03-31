@@ -5,15 +5,10 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("planning", "0013_activityprogress_new_plan_item_and_more"),
+        ("planning", "0014_add_notes_to_planitem"),
     ]
 
     operations = [
-        migrations.AddField(
-            model_name="planitem",
-            name="notes",
-            field=models.TextField(blank=True, default=""),
-        ),
         migrations.AlterField(
             model_name="studentassignment",
             name="plan_item",

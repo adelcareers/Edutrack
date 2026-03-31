@@ -30,10 +30,16 @@ def get_effective_points_available(student_assignment):
     if student_assignment.points_available is not None:
         return _to_decimal(student_assignment.points_available)
 
-    if not student_assignment.new_plan_item or not student_assignment.new_plan_item.assignment_detail:
+    plan_item = getattr(student_assignment, "new_plan_item", None)
+    detail = getattr(plan_item, "assignment_detail", None) if plan_item else None
+    assignment_type = getattr(detail, "assignment_type", None)
+    if assignment_type is None:
+        legacy_plan_item = getattr(student_assignment, "plan_item", None)
+        legacy_template = getattr(legacy_plan_item, "template", None)
+        assignment_type = getattr(legacy_template, "assignment_type", None)
+    if assignment_type is None:
         return HUNDRED
 
-    assignment_type = student_assignment.new_plan_item.assignment_detail.assignment_type
     if assignment_type.default_points_available is not None:
         return _to_decimal(assignment_type.default_points_available)
 
@@ -96,7 +102,10 @@ def recalculate_enrollment_grade(enrollment):
         return None
 
     assignments = list(
-        enrollment.assignments.select_related("new_plan_item__assignment_detail__assignment_type")
+        enrollment.assignments.select_related(
+            "new_plan_item__assignment_detail__assignment_type",
+            "plan_item__template__assignment_type",
+        )
     )
 
     total_count = len(assignments)
@@ -123,10 +132,16 @@ def recalculate_enrollment_grade(enrollment):
         if assignment.score is not None or assignment.score_percent is not None:
             graded_count += 1
 
-        if not assignment.new_plan_item or not assignment.new_plan_item.assignment_detail:
+        plan_item = getattr(assignment, "new_plan_item", None)
+        detail = getattr(plan_item, "assignment_detail", None) if plan_item else None
+        assignment_type = getattr(detail, "assignment_type", None)
+        if assignment_type is None:
+            legacy_plan_item = getattr(assignment, "plan_item", None)
+            legacy_template = getattr(legacy_plan_item, "template", None)
+            assignment_type = getattr(legacy_template, "assignment_type", None)
+        if assignment_type is None:
             continue
 
-        assignment_type = assignment.new_plan_item.assignment_detail.assignment_type
         bucket = by_assignment_type.setdefault(
             assignment_type.id,
             {

@@ -79,6 +79,17 @@ def _hydrate_assignment_display(assignment):
         assignment.display_assignment_type = (
             detail.assignment_type if detail and detail.assignment_type else None
         )
+        return assignment
+
+    legacy_plan_item = getattr(assignment, "plan_item", None)
+    legacy_template = getattr(legacy_plan_item, "template", None)
+    if legacy_plan_item and legacy_template:
+        assignment.display_name = legacy_template.name
+        assignment.display_description = legacy_template.description
+        assignment.display_notes = getattr(legacy_plan_item, "notes", "")
+        assignment.display_assignment_type = getattr(
+            legacy_template, "assignment_type", None
+        )
     return assignment
 
 
@@ -88,4 +99,12 @@ def _hydrate_activity_display(progress):
         progress.display_name = source_plan.name
         progress.display_description = source_plan.description
         progress.display_date = _grid_calendar_date(progress.enrollment, source_plan)
+        return progress
+
+    legacy_plan_item = getattr(progress, "plan_item", None)
+    legacy_template = getattr(legacy_plan_item, "template", None)
+    if legacy_plan_item and legacy_template:
+        progress.display_name = legacy_template.name
+        progress.display_description = legacy_template.description
+        progress.display_date = _grid_calendar_date(progress.enrollment, legacy_plan_item)
     return progress

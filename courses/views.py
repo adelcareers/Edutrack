@@ -103,6 +103,8 @@ def _archive_course_snapshot(course, remark="course deleted"):
             "enrollment__child",
             "new_plan_item",
             "new_plan_item__assignment_detail__assignment_type",
+            "plan_item",
+            "plan_item__template__assignment_type",
         )
         .order_by("due_date", "id")
     )
@@ -110,12 +112,20 @@ def _archive_course_snapshot(course, remark="course deleted"):
     assignment_history = []
     today = timezone.localdate()
     for assignment in student_assignments:
-        plan_item = assignment.new_plan_item
+        plan_item = assignment.new_plan_item or assignment.plan_item
         if plan_item is None:
             continue
 
-        assignment_detail = plan_item.assignment_detail
-        assignment_type = assignment_detail.assignment_type if assignment_detail else None
+        assignment_detail = getattr(plan_item, "assignment_detail", None)
+        legacy_template = getattr(plan_item, "template", None)
+        if assignment_detail is not None:
+            assignment_type = assignment_detail.assignment_type
+            is_graded = assignment_detail.is_graded
+            due_in_days = assignment_detail.due_offset_days
+        else:
+            assignment_type = getattr(legacy_template, "assignment_type", None)
+            is_graded = getattr(legacy_template, "is_graded", False)
+            due_in_days = getattr(plan_item, "due_in_days", 0)
 
         # Note: Attachments still use old plan_item FK during transition
         attachments_query = []
@@ -151,11 +161,17 @@ def _archive_course_snapshot(course, remark="course deleted"):
                 ),
                 "week_number": plan_item.week_number,
                 "day_number": plan_item.day_number,
-                "due_in_days": 0,
+                "due_in_days": due_in_days,
                 "plan_notes": plan_item.notes,
-                "template_name": plan_item.name,
-                "template_description": plan_item.description,
-                "is_graded": assignment_detail.is_graded if assignment_detail else False,
+                "template_name": (
+                    plan_item.name if assignment_detail is not None else plan_item.template.name
+                ),
+                "template_description": (
+                    plan_item.description
+                    if assignment_detail is not None
+                    else plan_item.template.description
+                ),
+                "is_graded": is_graded,
                 "assignment_type": assignment_type.name if assignment_type else "",
                 "assignment_type_id": assignment_type.id if assignment_type else None,
                 "attachments": attachments_query,

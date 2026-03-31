@@ -397,6 +397,29 @@ def gradebook_detail_view(request, enrollment_id):
     if sort_order not in {"asc", "desc"}:
         sort_order = "asc"
 
+    def _assignment_sort_name(item):
+        plan_item = getattr(item, "new_plan_item", None)
+        if plan_item:
+            return plan_item.name.lower()
+        legacy_plan_item = getattr(item, "plan_item", None)
+        if legacy_plan_item and getattr(legacy_plan_item, "template", None):
+            return legacy_plan_item.template.name.lower()
+        return ""
+
+    def _assignment_sort_type(item):
+        plan_item = getattr(item, "new_plan_item", None)
+        if plan_item:
+            detail = getattr(plan_item, "assignment_detail", None)
+            assignment_type = getattr(detail, "assignment_type", None)
+            if assignment_type:
+                return assignment_type.name.lower()
+        legacy_plan_item = getattr(item, "plan_item", None)
+        if legacy_plan_item and getattr(legacy_plan_item, "template", None):
+            assignment_type = getattr(legacy_plan_item.template, "assignment_type", None)
+            if assignment_type:
+                return assignment_type.name.lower()
+        return ""
+
     if sort_by == "status":
         status_rank = {
             "pending": 0,
@@ -404,6 +427,7 @@ def gradebook_detail_view(request, enrollment_id):
             "needs_grading": 2,
             "complete": 3,
         }
+
         assignments.sort(
             key=lambda item: (
                 status_rank.get(item.display_status, 99),
@@ -412,19 +436,10 @@ def gradebook_detail_view(request, enrollment_id):
         )
     elif sort_by == "type":
         assignments.sort(
-            key=lambda item: (
-                (item.new_plan_item.assignment_detail.assignment_type.name.lower()
-                 if item.new_plan_item and item.new_plan_item.assignment_detail else ""),
-                item.due_date,
-            )
+            key=lambda item: (_assignment_sort_type(item), item.due_date)
         )
     elif sort_by == "name":
-        assignments.sort(
-            key=lambda item: (
-                (item.new_plan_item.name.lower() if item.new_plan_item else ""),
-                item.due_date,
-            )
-        )
+        assignments.sort(key=lambda item: (_assignment_sort_name(item), item.due_date))
     elif sort_by == "percent":
         assignments.sort(
             key=lambda item: (
@@ -615,10 +630,12 @@ def gradebook_transcript_view(request, child_id):
         for assignment in assignment_qs:
             assignment_name = ""
             assignment_type_name = ""
-            if assignment.new_plan_item:
-                assignment_name = assignment.new_plan_item.name
-                if assignment.new_plan_item.assignment_detail:
-                    assignment_type_name = assignment.new_plan_item.assignment_detail.assignment_type.name
+            plan_item = getattr(assignment, "new_plan_item", None)
+            if plan_item:
+                assignment_name = plan_item.name
+                detail = getattr(plan_item, "assignment_detail", None)
+                if detail and detail.assignment_type:
+                    assignment_type_name = detail.assignment_type.name
 
             all_assignment_rows.append(
                 {

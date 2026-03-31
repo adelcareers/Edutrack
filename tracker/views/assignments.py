@@ -621,11 +621,13 @@ def assignment_detail_view(request, assignment_id):
     assignment_name = ""
     assignment_type_name = ""
     notes = ""
-    if assignment.new_plan_item:
-        assignment_name = assignment.new_plan_item.name
-        notes = assignment.new_plan_item.notes
-        if assignment.new_plan_item.assignment_detail:
-            assignment_type_name = assignment.new_plan_item.assignment_detail.assignment_type.name
+    plan_item = getattr(assignment, "new_plan_item", None)
+    if plan_item:
+        assignment_name = plan_item.name
+        notes = plan_item.notes
+        detail = getattr(plan_item, "assignment_detail", None)
+        if detail and detail.assignment_type:
+            assignment_type_name = detail.assignment_type.name
 
     return JsonResponse(
         {
