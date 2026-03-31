@@ -1142,8 +1142,14 @@ def generate_lessons_from_timetable(course, enrollment):
         LessonPlanDetail.objects.filter(plan_item_id__in=lesson_plan_item_ids).delete()
         PlanItem.objects.filter(id__in=lesson_plan_item_ids).delete()
 
+    enrolled_subjects = list(
+        EnrolledSubject.objects.filter(
+            child=enrollment.child,
+            is_active=True,
+        )
+    )
+    matched_subjects = {}
     queues = {}
-    slot_counts = {}
     summary = {}
     for subject_config in subject_configs:
         lesson_subject = (
@@ -1151,6 +1157,21 @@ def generate_lessons_from_timetable(course, enrollment):
             or subject_config.subject_name
         )
         lesson_year = subject_config.source_year or subject_config.year
+        matched = None
+        source_key = lesson_subject.lower()
+        target_name = (subject_config.subject_name or "").strip().lower()
+        for enrolled_subject in enrolled_subjects:
+            if (
+                source_key
+                and (enrolled_subject.source_subject_name or "").strip().lower()
+                == source_key
+            ):
+                matched = enrolled_subject
+                break
+            if (enrolled_subject.subject_name or "").strip().lower() == target_name:
+                matched = enrolled_subject
+                break
+        matched_subjects[subject_config.id] = matched
         queues[subject_config.id] = list(
             Lesson.objects.filter(
                 subject_name=lesson_subject,
@@ -1160,7 +1181,6 @@ def generate_lessons_from_timetable(course, enrollment):
         subject_slot_count = len(
             [slot for slot in slot_rows if slot.course_subject_id == subject_config.id]
         )
-        slot_counts[subject_config.id] = subject_slot_count
         summary[subject_config.id] = {
             "subject_name": subject_config.subject_name,
             "requested_count": subject_slot_count * max(course.duration_weeks, 1),
@@ -1168,15 +1188,21 @@ def generate_lessons_from_timetable(course, enrollment):
             "shortfall_count": 0,
         }
 
+    plan_items_to_create = []
+    plan_item_meta = []
     for week_number in range(1, max(course.duration_weeks, 1) + 1):
         for slot in slot_rows:
             subject_config = slot.course_subject
+            matched_subject = matched_subjects.get(subject_config.id)
+            if matched_subject is None:
+                summary[subject_config.id]["shortfall_count"] += 1
+                continue
             queue = queues.get(subject_config.id, [])
             if not queue:
                 summary[subject_config.id]["shortfall_count"] += 1
                 continue
             lesson = queue.pop(0)
-            plan_item = create_plan_item(
+            plan_item = PlanItem(
                 course=course,
                 item_type=PlanItem.ITEM_TYPE_LESSON,
                 week_number=week_number,
@@ -1184,11 +1210,47 @@ def generate_lessons_from_timetable(course, enrollment):
                 name=lesson.lesson_title,
                 description="",
                 order=slot.period,
-                course_subject=subject_config,
-                curriculum_lesson=lesson,
+                is_active=True,
             )
-            materialize_plan_item_for_enrollment(plan_item, enrollment)
+            plan_items_to_create.append(plan_item)
+            plan_item_meta.append((plan_item, subject_config, lesson, matched_subject))
             summary[subject_config.id]["generated_count"] += 1
+
+    if not plan_items_to_create:
+        return list(summary.values())
+
+    with transaction.atomic():
+        created_plan_items = PlanItem.objects.bulk_create(
+            plan_items_to_create,
+            batch_size=500,
+        )
+        lesson_details = []
+        scheduled_lessons = []
+        for plan_item, subject_config, lesson, matched_subject in plan_item_meta:
+            lesson_details.append(
+                LessonPlanDetail(
+                    plan_item=plan_item,
+                    course_subject=subject_config,
+                    curriculum_lesson=lesson,
+                )
+            )
+            scheduled_lessons.append(
+                ScheduledLesson(
+                    child=enrollment.child,
+                    lesson=lesson,
+                    enrolled_subject=matched_subject,
+                    scheduled_date=compute_enrollment_calendar_date(
+                        enrollment,
+                        plan_item.week_number,
+                        plan_item.day_number,
+                    ),
+                    order_on_day=plan_item.order,
+                    plan_item=plan_item,
+                    course_subject=subject_config,
+                )
+            )
+        LessonPlanDetail.objects.bulk_create(lesson_details, batch_size=500)
+        ScheduledLesson.objects.bulk_create(scheduled_lessons, batch_size=500)
 
     return list(summary.values())
 
