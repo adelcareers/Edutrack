@@ -1,10 +1,10 @@
 from django.contrib import admin
 
 from .models import (
-    PlanItem,
-    LessonPlanDetail,
-    AssignmentPlanDetail,
     ActivityPlanDetail,
+    AssignmentPlanDetail,
+    LessonPlanDetail,
+    PlanItem,
 )
 
 

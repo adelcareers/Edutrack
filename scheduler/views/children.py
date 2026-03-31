@@ -7,6 +7,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 
 from accounts.decorators import role_required
@@ -14,7 +15,6 @@ from accounts.forms import StudentCreationForm
 from accounts.models import UserProfile
 from courses.models import Course, CourseEnrollment
 from curriculum.models import Lesson
-from django.urls import reverse
 from scheduler.models import Child
 
 

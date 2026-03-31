@@ -5,10 +5,10 @@ from .models import (
     Course,
     CourseArchive,
     CourseEnrollment,
+    CourseSubjectConfig,
     Label,
     Subject,
 )
-from .models import CourseSubjectConfig
 
 
 class AssignmentTypeInline(admin.TabularInline):
