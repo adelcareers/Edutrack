@@ -7,6 +7,10 @@ from scheduler.views.children import (
     delete_child_view,
 )
 from scheduler.views.logins import create_student_login_view
+from scheduler.views.onboarding import (
+    student_onboarding_new_view,
+    student_onboarding_resume_view,
+)
 from scheduler.views.schedule import generate_schedule_view, schedule_edit_view
 from scheduler.views.subjects import (
     SUBJECT_COLOUR_PALETTE,
@@ -32,6 +36,8 @@ __all__ = [
     "generate_schedule_view",
     "schedule_edit_view",
     "create_student_login_view",
+    "student_onboarding_new_view",
+    "student_onboarding_resume_view",
     "manage_vacations_view",
     "add_vacation_view",
     "delete_vacation_view",

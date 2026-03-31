@@ -55,7 +55,7 @@
   /* ── Calendar grid ─────────────────────── */
   .calendar-grid {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(7, 1fr);
     gap: 0.75rem;
     min-height: 60vh;
   }
@@ -539,8 +539,8 @@
   }
   .lesson-card.filter-hidden { display: none !important; }
 
-  /* Saturday column subtle tint */
-  .day-column.saturday { background: #fafdf7; }
+  /* Weekend columns subtle tint */
+  .day-column.weekend { background: #fafdf7; }
 </style>
 {% endblock %}
 
@@ -637,7 +637,7 @@
 <!-- ── Calendar grid ────────────────────────────────── -->
 <div class="calendar-grid">
   {% for name, day in days.items %}
-  <div class="day-column {% if day.date|date:"l"|lower == 'saturday' %}saturday{% endif %}">
+  <div class="day-column {% if day.date|date:'w' == '0' or day.date|date:'w' == '6' %}weekend{% endif %}">
     <div class="day-header">
       <div class="day-header-left">
         <span class="day-name">{{ day.date|date:"l" }}</span>

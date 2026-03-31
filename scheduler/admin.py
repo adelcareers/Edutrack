@@ -7,8 +7,14 @@ from .models import Child, EnrolledSubject, ScheduledLesson
 class ChildAdmin(admin.ModelAdmin):
     """Admin view for children registered by parents."""
 
-    list_display = ["first_name", "school_year", "parent", "is_active"]
-    list_filter = ["school_year", "is_active"]
+    list_display = [
+        "first_name",
+        "school_year",
+        "parent",
+        "is_setup_complete",
+        "is_active",
+    ]
+    list_filter = ["school_year", "is_setup_complete", "is_active"]
     search_fields = ["first_name", "parent__username"]
 
 

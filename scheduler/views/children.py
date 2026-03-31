@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -16,6 +17,12 @@ from accounts.models import UserProfile
 from courses.models import Course, CourseEnrollment
 from curriculum.models import Lesson
 from scheduler.models import Child
+from scheduler.onboarding import (
+    clear_subject_timetable_data,
+    ensure_student_workspace,
+    get_student_workspace,
+    mark_setup_complete,
+)
 
 
 @role_required("parent")
@@ -176,6 +183,7 @@ def child_detail_view(request, child_id):
         if "save_student" in request.POST:
             first_name = request.POST.get("first_name", "").strip()
             school_year = request.POST.get("school_year", "").strip()
+            previous_school_year = child.school_year
             if not first_name:
                 info_errors["first_name"] = "Student name is required."
             if not school_year:
@@ -186,6 +194,12 @@ def child_detail_view(request, child_id):
                 if request.FILES.get("photo"):
                     child.photo = request.FILES["photo"]
                 child.save()
+                workspace = get_student_workspace(child)
+                if workspace is not None:
+                    ensure_student_workspace(child)
+                    if previous_school_year != school_year:
+                        clear_subject_timetable_data(child, workspace)
+                        mark_setup_complete(child, False)
                 messages.success(request, f"{child.first_name} updated successfully.")
                 return redirect("scheduler:child_detail", child_id=child.pk)
 
@@ -198,10 +212,12 @@ def child_detail_view(request, child_id):
             login_form = StudentCreationForm(request.POST)
             login_section_open = True
             if login_form.is_valid():
-                username = login_form.cleaned_data["username"]
+                email = login_form.cleaned_data["email"].lower().strip()
                 password = login_form.cleaned_data["password1"]
                 student_user = User.objects.create_user(
-                    username=username, password=password
+                    username=email,
+                    email=email,
+                    password=password,
                 )
                 UserProfile.objects.create(user=student_user, role="student")
                 child.student_user = student_user
@@ -209,29 +225,43 @@ def child_detail_view(request, child_id):
                 messages.success(request, f"Login created for {child.first_name}.")
                 return redirect("scheduler:child_detail", child_id=child.pk)
 
-        elif "update_login_username" in request.POST:
+        elif "update_login_email" in request.POST:
             login_section_open = True
             if child.student_user is None:
                 messages.error(request, "Create a student login first.")
                 return redirect("scheduler:child_detail", child_id=child.pk)
 
-            new_username = request.POST.get("new_username", "").strip()
-            login_manage_data["new_username"] = new_username
+            new_email = request.POST.get("new_email", "").lower().strip()
+            login_manage_data["new_email"] = new_email
 
-            if not new_username:
-                login_manage_errors["new_username"] = "Username is required."
-            elif (
-                User.objects.filter(username__iexact=new_username)
-                .exclude(pk=child.student_user.pk)
-                .exists()
-            ):
-                login_manage_errors["new_username"] = "This username is already taken."
+            if not new_email:
+                login_manage_errors["new_email"] = "Email is required."
             else:
-                child.student_user.username = new_username
-                child.student_user.save(update_fields=["username"])
+                try:
+                    validate_email(new_email)
+                except ValidationError:
+                    login_manage_errors["new_email"] = "Enter a valid email address."
+            if (
+                "new_email" not in login_manage_errors
+                and (
+                    User.objects.filter(username__iexact=new_email)
+                    .exclude(pk=child.student_user.pk)
+                    .exists()
+                    or User.objects.filter(email__iexact=new_email)
+                    .exclude(pk=child.student_user.pk)
+                    .exists()
+                )
+            ):
+                login_manage_errors["new_email"] = (
+                    "An account with this email already exists."
+                )
+            if "new_email" not in login_manage_errors:
+                child.student_user.username = new_email
+                child.student_user.email = new_email
+                child.student_user.save(update_fields=["username", "email"])
                 messages.success(
                     request,
-                    f"{child.first_name}'s login username was updated.",
+                    f"{child.first_name}'s login email was updated.",
                 )
                 return redirect("scheduler:child_detail", child_id=child.pk)
 

@@ -1,8 +1,10 @@
 """Forms for the accounts app."""
 
 from django import forms
+from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 
 
 class CustomUserCreationForm(UserCreationForm):
@@ -47,22 +49,41 @@ class CustomUserCreationForm(UserCreationForm):
 class StudentCreationForm(forms.Form):
     """Form for a parent to create login credentials for their child.
 
-    Students do not have an email address — they log in with a username
-    and password chosen by their parent.
+    Students log in with an email address chosen by their parent. For MVP this
+    email is also stored in Django's ``username`` field so the existing auth
+    backend does not need to change.
     """
 
-    username = forms.CharField(
-        max_length=150,
-        help_text="The username your child will use to log in.",
+    email = forms.EmailField(
+        help_text="The email your child will use to log in.",
     )
     password1 = forms.CharField(
         label="Password",
         widget=forms.PasswordInput,
     )
+    password2 = forms.CharField(
+        label="Confirm password",
+        widget=forms.PasswordInput,
+    )
 
-    def clean_username(self):
-        """Ensure the username is not already taken."""
-        username = self.cleaned_data.get("username", "").strip()
-        if User.objects.filter(username=username).exists():
-            raise forms.ValidationError("This username is already taken.")
-        return username
+    def clean_email(self):
+        """Ensure the email address is globally unique across auth users."""
+        email = self.cleaned_data.get("email", "").lower().strip()
+        if User.objects.filter(username__iexact=email).exists() or User.objects.filter(
+            email__iexact=email
+        ).exists():
+            raise forms.ValidationError("An account with this email already exists.")
+        return email
+
+    def clean(self):
+        cleaned_data = super().clean()
+        password1 = cleaned_data.get("password1", "")
+        password2 = cleaned_data.get("password2", "")
+        if password1 and password2 and password1 != password2:
+            self.add_error("password2", "Passwords do not match.")
+        if password1:
+            try:
+                validate_password(password1)
+            except ValidationError as exc:
+                self.add_error("password1", exc)
+        return cleaned_data

@@ -10,7 +10,12 @@ from django.db.models import Max
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-from courses.models import AssignmentType, CourseEnrollment, CourseSubjectConfig
+from courses.models import (
+    AssignmentType,
+    CourseEnrollment,
+    CourseSubjectConfig,
+    CourseSubjectScheduleSlot,
+)
 from curriculum.models import Lesson
 from scheduler.models import EnrolledSubject, ScheduledLesson, Vacation
 
@@ -1098,6 +1103,81 @@ def generate_plan_grid(course, subject_configs=None):
         LessonPlanDetail.objects.bulk_create(batch, batch_size=500)
 
     return created_count
+
+
+def generate_lessons_from_timetable(course, enrollment):
+    """Generate lesson plan items and runtime scheduled lessons from saved slots."""
+    subject_configs = list(
+        course.subject_configs.filter(is_active=True).order_by("subject_name", "pk")
+    )
+    slot_rows = list(
+        CourseSubjectScheduleSlot.objects.filter(course_subject__course=course)
+        .select_related("course_subject")
+        .order_by("weekday", "period", "course_subject__subject_name")
+    )
+    if not subject_configs or not slot_rows:
+        return []
+
+    lesson_plan_item_ids = list(
+        PlanItem.objects.filter(
+            course=course,
+            item_type=PlanItem.ITEM_TYPE_LESSON,
+        ).values_list("id", flat=True)
+    )
+    if lesson_plan_item_ids:
+        ScheduledLesson.objects.filter(plan_item_id__in=lesson_plan_item_ids).delete()
+        LessonPlanDetail.objects.filter(plan_item_id__in=lesson_plan_item_ids).delete()
+        PlanItem.objects.filter(id__in=lesson_plan_item_ids).delete()
+
+    queues = {}
+    slot_counts = {}
+    summary = {}
+    for subject_config in subject_configs:
+        lesson_subject = (
+            (subject_config.source_subject_name or "").strip()
+            or subject_config.subject_name
+        )
+        lesson_year = subject_config.source_year or subject_config.year
+        queues[subject_config.id] = list(
+            Lesson.objects.filter(
+                subject_name=lesson_subject,
+                year=lesson_year,
+            ).order_by("unit_slug", "lesson_number")
+        )
+        subject_slot_count = len(
+            [slot for slot in slot_rows if slot.course_subject_id == subject_config.id]
+        )
+        slot_counts[subject_config.id] = subject_slot_count
+        summary[subject_config.id] = {
+            "subject_name": subject_config.subject_name,
+            "requested_count": subject_slot_count * max(course.duration_weeks, 1),
+            "generated_count": 0,
+            "shortfall_count": 0,
+        }
+
+    for week_number in range(1, max(course.duration_weeks, 1) + 1):
+        for slot in slot_rows:
+            subject_config = slot.course_subject
+            queue = queues.get(subject_config.id, [])
+            if not queue:
+                summary[subject_config.id]["shortfall_count"] += 1
+                continue
+            lesson = queue.pop(0)
+            plan_item = create_plan_item(
+                course=course,
+                item_type=PlanItem.ITEM_TYPE_LESSON,
+                week_number=week_number,
+                day_number=slot.weekday + 1,
+                name=lesson.lesson_title,
+                description="",
+                order=slot.period,
+                course_subject=subject_config,
+                curriculum_lesson=lesson,
+            )
+            materialize_plan_item_for_enrollment(plan_item, enrollment)
+            summary[subject_config.id]["generated_count"] += 1
+
+    return list(summary.values())
 
 
 def check_vacation_conflicts(child, plan_items, enrollment):

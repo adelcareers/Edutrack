@@ -94,6 +94,10 @@ def home_assignments_view(request):
     role = getattr(getattr(request.user, "profile", None), "role", None)
     if role not in {"parent", "student", "teacher"}:
         return HttpResponseForbidden("You do not have permission to access this page.")
+    if role == "student":
+        child = getattr(request.user, "child_profile", None)
+        if child is not None and not child.is_setup_complete:
+            return HttpResponseForbidden("Student setup is not complete yet.")
 
     today = timezone.localdate()
     active_tab = (request.GET.get("tab") or "lessons").strip().lower()

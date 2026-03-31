@@ -84,7 +84,7 @@
   <!-- Section heading -->
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2 class="fw-bold mb-0">Students</h2>
-    <a href="{% url 'scheduler:child_new' %}" class="btn btn-primary">
+    <a href="{% url 'scheduler:student_onboarding_new' %}" class="btn btn-primary">
       <i class="bi bi-plus me-1"></i>New Student
     </a>
   </div>
@@ -112,6 +112,14 @@
                     <i class="bi bi-three-dots-vertical fs-5"></i>
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                    {% if not child.is_setup_complete %}
+                    <li>
+                      <a class="dropdown-item" href="{% url 'scheduler:student_onboarding_resume' child_id=child.pk %}">
+                        <i class="bi bi-arrow-repeat me-2 text-secondary"></i>Resume Setup
+                      </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    {% endif %}
                     <li>
                       <a class="dropdown-item" href="{% url 'scheduler:subject_selection' child_id=child.pk %}">
                         <i class="bi bi-book me-2 text-secondary"></i>Manage Subjects
@@ -149,13 +157,19 @@
                 </div>
                 <div>
                   <h5 class="fw-bold mb-0">{{ child.first_name }}</h5>
-                  <span class="text-muted small">{{ child.school_year }}</span>
+                  <span class="text-muted small">{{ child.school_year|default:"School year pending" }}</span>
                 </div>
               </div>
 
+              {% if not child.is_setup_complete %}
+                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle mb-2">
+                  Setup incomplete
+                </span>
+              {% endif %}
+
               {% if child.student_user %}
                 <span class="badge bg-success-subtle text-success border border-success-subtle mb-2">
-                  <i class="bi bi-person-check me-1"></i>{{ child.student_user.username }}
+                  <i class="bi bi-person-check me-1"></i>{{ child.student_user.email|default:child.student_user.username }}
                 </span>
               {% endif %}
 
@@ -193,6 +207,12 @@
 
               <!-- Action buttons -->
               <div class="d-flex gap-2 flex-wrap mt-2">
+                {% if not child.is_setup_complete %}
+                <a href="{% url 'scheduler:student_onboarding_resume' child_id=child.pk %}"
+                   class="btn btn-sm btn-primary">
+                  <i class="bi bi-arrow-repeat me-1"></i>Resume Setup
+                </a>
+                {% endif %}
                 <a href="{% url 'scheduler:subject_selection' child_id=child.pk %}"
                    class="btn btn-sm btn-outline-primary">
                   <i class="bi bi-book me-1"></i>Subjects
@@ -219,7 +239,7 @@
       <i class="bi bi-people display-3 d-block mb-3"></i>
       <p class="fs-5 mb-1">No students yet.</p>
       <p class="small mb-4">Add your first student to start building their schedule.</p>
-      <a href="{% url 'scheduler:child_new' %}" class="btn btn-primary">
+      <a href="{% url 'scheduler:student_onboarding_new' %}" class="btn btn-primary">
         <i class="bi bi-plus me-1"></i>New Student
       </a>
     </div>
@@ -294,4 +314,3 @@ document.getElementById('deleteConfirmInput').addEventListener('input', function
 });
 </script>
 {% endblock %}
-

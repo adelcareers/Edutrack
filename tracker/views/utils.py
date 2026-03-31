@@ -22,7 +22,7 @@ def _base_assignment_queryset_for_role(user, role):
     queryset = StudentAssignment.objects.filter(enrollment__status="active")
     if role == "student":
         child = getattr(user, "child_profile", None)
-        if child is None:
+        if child is None or not getattr(child, "is_setup_complete", True):
             return StudentAssignment.objects.none()
         return queryset.filter(enrollment__child=child)
 
@@ -43,7 +43,7 @@ def _base_lesson_queryset_for_role(user, role):
 
     if role == "student":
         child = getattr(user, "child_profile", None)
-        if child is None:
+        if child is None or not getattr(child, "is_setup_complete", True):
             return ScheduledLesson.objects.none()
         return queryset.filter(child=child)
 

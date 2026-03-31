@@ -33,13 +33,13 @@ def _build_calendar_context(
 ):
     """Shared helper: build the full context dict for the calendar template.
 
-    Covers Mon–Sat (6 days), queries lessons and vacations that overlap
+    Covers a 7-day week, queries lessons and vacations that overlap
     the week, and computes navigation years/weeks.
     """
     monday = datetime.date.fromisocalendar(year, week, 1)
     day_offset = first_day_of_week if first_day_of_week <= 5 else -1
     start_date = monday + datetime.timedelta(days=day_offset)
-    end_date = start_date + datetime.timedelta(days=5)
+    end_date = start_date + datetime.timedelta(days=6)
 
     # Lessons
     lesson_by_date: dict = {}
@@ -106,7 +106,7 @@ def _build_calendar_context(
                 activities_by_date.setdefault(act_date, []).append(act)
 
     days = {}
-    for i in range(6):
+    for i in range(7):
         date = start_date + datetime.timedelta(days=i)
         day_key = date.strftime("%A").lower()
         days[day_key] = {
@@ -153,7 +153,7 @@ def _build_calendar_context(
 @login_required
 @role_required("student")
 def calendar_view(request, year=None, week=None):
-    """Weekly calendar for a student showing Mon–Sat lessons.
+    """Weekly calendar for a student showing a 7-day lesson grid.
 
     URL params ``year`` and ``week`` are ISO year/week integers.
     Defaults to the current ISO week when omitted.
@@ -164,6 +164,8 @@ def calendar_view(request, year=None, week=None):
         year, week = iso_year, iso_week
 
     child = getattr(request.user, "child_profile", None)
+    if child is not None and not child.is_setup_complete:
+        return HttpResponse(status=403, content="Student setup is not complete yet.")
     parent = child.parent if child else None
     settings = _get_or_create_settings(parent) if parent else None
     ctx = _build_calendar_context(

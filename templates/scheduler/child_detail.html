@@ -293,7 +293,7 @@
             </div>
             <div>
               <div class="fw-semibold">{{ child.first_name }} has a student login</div>
-              <div class="text-muted small">Username: <strong>{{ child.student_user.username }}</strong></div>
+              <div class="text-muted small">Login Email: <strong>{{ child.student_user.email|default:child.student_user.username }}</strong></div>
             </div>
           </div>
 
@@ -301,19 +301,19 @@
             <div class="col-md-6">
               <form method="post" novalidate>
                 {% csrf_token %}
-                <input type="hidden" name="update_login_username" value="1">
-                <label class="form-label fw-semibold" style="font-size: 0.9rem;">Change Username</label>
+                <input type="hidden" name="update_login_email" value="1">
+                <label class="form-label fw-semibold" style="font-size: 0.9rem;">Change Email</label>
                 <div class="input-group">
                   <input
-                    type="text"
-                    name="new_username"
-                    class="form-control{% if login_manage_errors.new_username %} is-invalid{% endif %}"
-                    value="{{ login_manage_data.new_username|default:child.student_user.username }}"
-                    placeholder="Student username"
+                    type="email"
+                    name="new_email"
+                    class="form-control{% if login_manage_errors.new_email %} is-invalid{% endif %}"
+                    value="{{ login_manage_data.new_email|default:child.student_user.email|default:child.student_user.username }}"
+                    placeholder="student@example.com"
                   >
                   <button type="submit" class="btn btn-outline-primary">Update</button>
-                  {% if login_manage_errors.new_username %}
-                    <div class="invalid-feedback d-block">{{ login_manage_errors.new_username }}</div>
+                  {% if login_manage_errors.new_email %}
+                    <div class="invalid-feedback d-block">{{ login_manage_errors.new_email }}</div>
                   {% endif %}
                 </div>
               </form>
@@ -363,12 +363,12 @@
                 <label class="form-label fw-semibold" style="font-size: 0.9rem;">
                   Email <span class="text-muted fw-normal">(Required)</span>
                 </label>
-                <input type="text" name="username"
-                       class="form-control{% if login_form.errors.username %} is-invalid{% endif %}"
+                <input type="email" name="email"
+                       class="form-control{% if login_form.errors.email %} is-invalid{% endif %}"
                        placeholder="e.g. student@example.com"
-                       value="{{ login_form.username.value|default:'' }}">
-                {% if login_form.errors.username %}
-                  <div class="invalid-feedback">{{ login_form.errors.username|join:", " }}</div>
+                       value="{{ login_form.email.value|default:'' }}">
+                {% if login_form.errors.email %}
+                  <div class="invalid-feedback">{{ login_form.errors.email|join:", " }}</div>
                 {% endif %}
               </div>
               <div class="col-md-6">
@@ -386,7 +386,17 @@
                   <div class="invalid-feedback">{{ login_form.errors.password1|join:", " }}</div>
                 {% endif %}
               </div>
-
+              <div class="col-md-6">
+                <label class="form-label fw-semibold" style="font-size: 0.9rem;">
+                  Confirm Password <span class="text-muted fw-normal">(Required)</span>
+                </label>
+                <input type="password" name="password2"
+                       class="form-control{% if login_form.errors.password2 %} is-invalid{% endif %}"
+                       placeholder="••••••••">
+                {% if login_form.errors.password2 %}
+                  <div class="invalid-feedback">{{ login_form.errors.password2|join:", " }}</div>
+                {% endif %}
+              </div>
             </div>
             <div class="text-end mt-3">
               <button type="submit" class="btn btn-primary px-4">Create Student Login</button>

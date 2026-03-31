@@ -53,7 +53,7 @@ def _make_student(username="cal_student", password="TestPass123!"):
     return user
 
 
-def _make_child(parent, student_user=None, first_name="Sam"):
+def _make_child(parent, student_user=None, first_name="Sam", is_setup_complete=True):
     return Child.objects.create(
         parent=parent,
         first_name=first_name,
@@ -62,6 +62,7 @@ def _make_child(parent, student_user=None, first_name="Sam"):
         school_year="Year 7",
         academic_year_start=datetime.date(2025, 9, 1),
         student_user=student_user,
+        is_setup_complete=is_setup_complete,
     )
 
 
@@ -149,11 +150,11 @@ class CalendarViewTests(TestCase):
         for key in ("days", "year", "week", "today"):
             self.assertIn(key, response.context)
 
-    def test_days_has_six_columns(self):
+    def test_days_has_seven_columns(self):
         self.client.force_login(self.student)
         response = self.client.get(self.url)
         days = response.context["days"]
-        self.assertEqual(len(days), 6)
+        self.assertEqual(len(days), 7)
         for name in (
             "monday",
             "tuesday",
@@ -161,6 +162,7 @@ class CalendarViewTests(TestCase):
             "thursday",
             "friday",
             "saturday",
+            "sunday",
         ):
             self.assertIn(name, days)
 
@@ -347,6 +349,27 @@ class CalendarNavigationTests(TestCase):
         )
         self.assertContains(response, today_url)
         self.assertContains(response, "Today")
+
+
+class IncompleteStudentAccessGuardTests(TestCase):
+    def setUp(self):
+        self.parent = _make_parent(username="draft_parent")
+        self.student = _make_student(username="draft_student")
+        _make_child(
+            self.parent,
+            student_user=self.student,
+            first_name="Draft",
+            is_setup_complete=False,
+        )
+        self.client.force_login(self.student)
+
+    def test_student_home_is_blocked_until_setup_is_complete(self):
+        response = self.client.get(reverse("tracker:home_assignments"))
+        self.assertEqual(response.status_code, 403)
+
+    def test_student_calendar_is_blocked_until_setup_is_complete(self):
+        response = self.client.get(reverse("tracker:calendar"))
+        self.assertEqual(response.status_code, 403)
 
 
 class SubjectColourCardTests(TestCase):

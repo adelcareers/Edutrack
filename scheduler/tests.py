@@ -1,14 +1,21 @@
 """Tests for the scheduler app — S1.4, S1.5 & S1.6."""
 
 import datetime
+import json
 
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
 from accounts.models import UserProfile
-from courses.models import Course, CourseEnrollment, CourseSubjectConfig
+from courses.models import (
+    Course,
+    CourseEnrollment,
+    CourseSubjectConfig,
+    CourseSubjectScheduleSlot,
+)
 from curriculum.models import Lesson
+from planning.models import PlanItem
 from scheduler.models import Child, EnrolledSubject, ScheduledLesson
 from tracker.models import LessonLog
 
@@ -80,34 +87,41 @@ class CreateStudentLoginPostTests(TestCase):
         response = self.client.post(
             self.url,
             {
-                "username": "alice_student",
+                "email": "alice_student@example.com",
                 "password1": "SecurePass99!",
                 "password2": "SecurePass99!",
             },
         )
         self.assertRedirects(response, "/", fetch_redirect_response=False)
-        student_user = User.objects.get(username="alice_student")
+        student_user = User.objects.get(username="alice_student@example.com")
         self.assertEqual(student_user.profile.role, "student")
+        self.assertEqual(student_user.email, "alice_student@example.com")
 
     def test_valid_post_links_child_student_user(self):
         self.client.post(
             self.url,
             {
-                "username": "alice_student",
+                "email": "alice_student@example.com",
                 "password1": "SecurePass99!",
                 "password2": "SecurePass99!",
             },
         )
         self.child.refresh_from_db()
         self.assertIsNotNone(self.child.student_user)
-        self.assertEqual(self.child.student_user.username, "alice_student")
+        self.assertEqual(
+            self.child.student_user.username, "alice_student@example.com"
+        )
 
-    def test_duplicate_username_shows_error(self):
-        User.objects.create_user(username="taken", password="Pass123!")
+    def test_duplicate_email_shows_error(self):
+        User.objects.create_user(
+            username="taken@example.com",
+            email="taken@example.com",
+            password="Pass123!",
+        )
         response = self.client.post(
             self.url,
             {
-                "username": "taken",
+                "email": "taken@example.com",
                 "password1": "SecurePass99!",
                 "password2": "SecurePass99!",
             },
@@ -115,7 +129,7 @@ class CreateStudentLoginPostTests(TestCase):
         self.assertEqual(response.status_code, 200)
         form = response.context["form"]
         self.assertTrue(form.errors)
-        self.assertIn("username", form.errors)
+        self.assertIn("email", form.errors)
 
     def test_child_with_existing_student_user_redirects(self):
         existing = User.objects.create_user(
@@ -131,14 +145,14 @@ class CreateStudentLoginPostTests(TestCase):
         self.client.post(
             self.url,
             {
-                "username": "alice_student",
+                "email": "alice_student@example.com",
                 "password1": "SecurePass99!",
                 "password2": "SecurePass99!",
             },
         )
         self.client.logout()
         logged_in = self.client.login(
-            username="alice_student", password="SecurePass99!"
+            username="alice_student@example.com", password="SecurePass99!"
         )
         self.assertTrue(logged_in)
 
@@ -159,31 +173,36 @@ class ChildDetailStudentCredentialManagementTests(TestCase):
         self.url = reverse("scheduler:child_detail", kwargs={"child_id": self.child.pk})
         self.client.force_login(self.parent)
 
-    def test_parent_can_update_student_username(self):
+    def test_parent_can_update_student_email(self):
         response = self.client.post(
             self.url,
             {
-                "update_login_username": "1",
-                "new_username": "student_new",
+                "update_login_email": "1",
+                "new_email": "student_new@example.com",
             },
         )
         self.assertRedirects(response, self.url, fetch_redirect_response=False)
 
         self.student.refresh_from_db()
-        self.assertEqual(self.student.username, "student_new")
+        self.assertEqual(self.student.username, "student_new@example.com")
+        self.assertEqual(self.student.email, "student_new@example.com")
 
-    def test_duplicate_username_shows_error(self):
-        User.objects.create_user(username="taken_user", password="AnyPass123!")
+    def test_duplicate_email_shows_error(self):
+        User.objects.create_user(
+            username="taken_user@example.com",
+            email="taken_user@example.com",
+            password="AnyPass123!",
+        )
 
         response = self.client.post(
             self.url,
             {
-                "update_login_username": "1",
-                "new_username": "taken_user",
+                "update_login_email": "1",
+                "new_email": "taken_user@example.com",
             },
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "This username is already taken.")
+        self.assertContains(response, "An account with this email already exists.")
 
     def test_parent_can_reset_student_password(self):
         response = self.client.post(
@@ -367,6 +386,140 @@ class AddChildFormTests(TestCase):
         school_years = response.context["school_years"]
         self.assertIn("Year 5", school_years)
         self.assertIn("Year 6", school_years)
+
+
+class StudentOnboardingFlowTests(TestCase):
+    def setUp(self):
+        self.parent = _make_parent(username="setup_parent")
+        self.client.force_login(self.parent)
+        self.new_url = reverse("scheduler:student_onboarding_new")
+        for subject_name in ("Maths", "English"):
+            lessons = []
+            for lesson_number in range(1, 46):
+                lessons.append(
+                    Lesson(
+                        key_stage="KS2",
+                        subject_name=subject_name,
+                        programme_slug=f"{subject_name.lower()}-prog",
+                        year="Year 5",
+                        unit_slug=f"{subject_name.lower()}-unit-1",
+                        unit_title="Unit 1",
+                        lesson_number=lesson_number,
+                        lesson_title=f"{subject_name} Lesson {lesson_number}",
+                        lesson_url=f"https://example.com/{subject_name.lower()}/{lesson_number}",
+                    )
+                )
+            Lesson.objects.bulk_create(lessons)
+
+    def test_parent_can_access_new_onboarding_route(self):
+        response = self.client.get(self.new_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "scheduler/student_onboarding.html")
+
+    def test_full_onboarding_flow_creates_workspace_subjects_slots_and_lessons(self):
+        response = self.client.post(
+            self.new_url,
+            {
+                "action": "save_info",
+                "first_name": "Amina",
+                "date_of_birth": "2015-03-14",
+            },
+        )
+        child = Child.objects.get(first_name="Amina")
+        self.assertFalse(child.is_setup_complete)
+        self.assertRedirects(
+            response,
+            reverse("scheduler:student_onboarding_resume", kwargs={"child_id": child.pk}),
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(child.birth_month, 3)
+        self.assertEqual(child.birth_year, 2015)
+
+        resume_url = reverse("scheduler:student_onboarding_resume", kwargs={"child_id": child.pk})
+        self.client.post(
+            resume_url,
+            {
+                "action": "save_credentials",
+                "email": "amina.student@example.com",
+                "password1": "SecurePass99!",
+                "password2": "SecurePass99!",
+            },
+        )
+        child.refresh_from_db()
+        self.assertEqual(child.student_user.username, "amina.student@example.com")
+        self.assertEqual(child.student_user.email, "amina.student@example.com")
+
+        self.client.post(
+            resume_url,
+            {
+                "action": "save_school_year",
+                "school_year": "Year 5",
+            },
+        )
+        child.refresh_from_db()
+        workspace = Course.objects.get(student_owner=child, is_student_workspace=True)
+        self.assertEqual(workspace.duration_weeks, 40)
+        self.assertEqual(workspace.frequency_days, 7)
+        self.assertEqual(workspace.default_days, [0, 1, 2, 3, 4])
+        enrollment = CourseEnrollment.objects.get(course=workspace, child=child, status="active")
+
+        self.client.post(
+            resume_url,
+            {
+                "action": "save_subjects",
+                "subjects": ["Maths", "English"],
+                "colour_Maths": "#E63946",
+                "colour_English": "#2A9D8F",
+            },
+        )
+        self.assertTrue(
+            CourseSubjectConfig.objects.filter(course=workspace, subject_name="Maths").exists()
+        )
+        self.assertTrue(
+            EnrolledSubject.objects.filter(child=child, subject_name="English").exists()
+        )
+
+        self.client.post(
+            resume_url,
+            {
+                "action": "save_timetable",
+                "slots_json": json.dumps(
+                    [
+                        {"subject_name": "Maths", "weekday": 0, "period": 0},
+                        {"subject_name": "English", "weekday": 1, "period": 1},
+                    ]
+                ),
+            },
+        )
+        self.assertEqual(
+            CourseSubjectScheduleSlot.objects.filter(course_subject__course=workspace).count(),
+            2,
+        )
+        maths_cfg = CourseSubjectConfig.objects.get(course=workspace, subject_name="Maths")
+        self.assertEqual(maths_cfg.lessons_per_week, 1)
+        self.assertEqual(maths_cfg.days_of_week, [0])
+
+        self.client.post(resume_url, {"action": "generate_lessons"})
+        child.refresh_from_db()
+        self.assertTrue(child.is_setup_complete)
+        self.assertEqual(
+            PlanItem.objects.filter(course=workspace, item_type=PlanItem.ITEM_TYPE_LESSON).count(),
+            80,
+        )
+        self.assertEqual(
+            ScheduledLesson.objects.filter(child=child, plan_item__course=workspace).count(),
+            80,
+        )
+        self.assertEqual(
+            ScheduledLesson.objects.filter(
+                child=child,
+                plan_item__course=workspace,
+                plan_item__day_number=1,
+                plan_item__order=0,
+            ).count(),
+            40,
+        )
+        self.assertEqual(enrollment.days_of_week, [0, 1, 2, 3, 4])
 
 
 class ChildListTests(TestCase):

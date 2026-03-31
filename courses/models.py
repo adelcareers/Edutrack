@@ -124,6 +124,13 @@ class Course(models.Model):
     """
 
     parent = models.ForeignKey(User, on_delete=models.CASCADE, related_name="courses")
+    student_owner = models.ForeignKey(
+        "scheduler.Child",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="workspace_courses",
+    )
     name = models.CharField(max_length=200)
     color = models.CharField(max_length=7, default="#6c757d")
 
@@ -161,6 +168,7 @@ class Course(models.Model):
     course_intro = models.TextField(blank=True, default="")
 
     is_archived = models.BooleanField(default=False, db_index=True)
+    is_student_workspace = models.BooleanField(default=False, db_index=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -216,6 +224,30 @@ class CourseSubjectConfig(models.Model):
 
     def __str__(self):
         return f"{self.course.name} - {self.subject_name}"
+
+
+class CourseSubjectScheduleSlot(models.Model):
+    """Draft timetable slot for a course subject."""
+
+    course_subject = models.ForeignKey(
+        CourseSubjectConfig,
+        on_delete=models.CASCADE,
+        related_name="schedule_slots",
+    )
+    weekday = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(6)]
+    )
+    period = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(12)]
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["weekday", "period", "id"]
+        unique_together = [("course_subject", "weekday", "period")]
+
+    def __str__(self):
+        return f"{self.course_subject.subject_name} @ {self.weekday}:{self.period}"
 
 
 class AssignmentType(models.Model):

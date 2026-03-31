@@ -28,17 +28,19 @@ def create_student_login_view(request, child_id):
         messages.info(
             request,
             f"{child.first_name} already has login credentials "
-            f"(username: {child.student_user.username}).",
+            f"(email: {child.student_user.email or child.student_user.username}).",
         )
         return redirect("home")
 
     if request.method == "POST":
         form = StudentCreationForm(request.POST)
         if form.is_valid():
-            username = form.cleaned_data["username"]
+            email = form.cleaned_data["email"].lower().strip()
             password = form.cleaned_data["password1"]
             student_user = User.objects.create_user(
-                username=username, password=password
+                username=email,
+                email=email,
+                password=password,
             )
             UserProfile.objects.create(user=student_user, role="student")
             child.student_user = student_user
@@ -46,7 +48,7 @@ def create_student_login_view(request, child_id):
             messages.success(
                 request,
                 f"Login created for {child.first_name}. "
-                f'They can now sign in as "{username}".',
+                f'They can now sign in as "{email}".',
             )
             return redirect("home")
     else:

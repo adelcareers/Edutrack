@@ -39,9 +39,14 @@ class Child(models.Model):
     parent = models.ForeignKey(User, on_delete=models.CASCADE, related_name="children")
     first_name = models.CharField(max_length=100)
     photo = models.ImageField(upload_to="student_photos/", blank=True, null=True)
-    birth_month = models.IntegerField(choices=[(i, i) for i in range(1, 13)])
-    birth_year = models.IntegerField()
-    school_year = models.CharField(max_length=20)
+    birth_month = models.IntegerField(
+        choices=[(i, i) for i in range(1, 13)],
+        null=True,
+        blank=True,
+    )
+    birth_year = models.IntegerField(null=True, blank=True)
+    date_of_birth = models.DateField(null=True, blank=True)
+    school_year = models.CharField(max_length=20, blank=True, default="")
     academic_year_start = models.DateField()
     student_user = models.OneToOneField(
         User,
@@ -51,6 +56,8 @@ class Child(models.Model):
         related_name="child_profile",
     )
     is_active = models.BooleanField(default=True)
+    is_setup_complete = models.BooleanField(default=True)
+    onboarding_updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "Child"

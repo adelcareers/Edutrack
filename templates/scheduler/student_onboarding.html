@@ -1,0 +1,686 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% if child %}{{ child.first_name|default:"Student" }} Setup{% else %}Student Onboarding{% endif %} — EduTrack{% endblock %}
+{% block nav_students %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  body { background: #f7f7f3; }
+  .setup-shell { max-width: 1120px; margin: 2rem auto 3rem; }
+  .setup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .setup-kicker {
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #78716c;
+    font-weight: 700;
+  }
+  .setup-title { font-size: 2rem; font-weight: 800; margin: 0.2rem 0 0.35rem; color: #1c1917; }
+  .setup-subtitle { color: #57534e; margin: 0; max-width: 720px; }
+  .setup-card {
+    background: #fff;
+    border: 1px solid #e7e5e4;
+    border-radius: 18px;
+    box-shadow: 0 12px 30px rgba(28, 25, 23, 0.06);
+    overflow: hidden;
+  }
+  .setup-section + .setup-section { border-top: 1px solid #f1f5f9; }
+  .setup-section.is-locked { opacity: 0.65; }
+  .setup-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.2rem;
+    background: #fcfcfb;
+  }
+  .setup-section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-weight: 700;
+    color: #1f2937;
+  }
+  .setup-step {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #e7e5e4;
+    color: #44403c;
+    font-size: 0.85rem;
+  }
+  .setup-step.complete { background: #0f766e; color: #fff; }
+  .setup-state {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+  }
+  .setup-state.complete { color: #0f766e; }
+  .setup-state.pending { color: #b45309; }
+  .setup-section-body { padding: 1.2rem; }
+  .subject-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem;
+  }
+  .subject-option {
+    border: 1px solid #e7e5e4;
+    border-radius: 14px;
+    padding: 0.9rem;
+    background: #fff;
+  }
+  .subject-option.selected {
+    border-color: #0f766e;
+    box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.12);
+  }
+  .subject-meta {
+    display: flex;
+    gap: 0.75rem;
+    color: #57534e;
+    font-size: 0.82rem;
+    margin-top: 0.35rem;
+    flex-wrap: wrap;
+  }
+  .subject-colour-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.65rem;
+  }
+  .timetable-shell {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    gap: 1rem;
+  }
+  .subject-palette, .timetable-grid-shell {
+    border: 1px solid #e7e5e4;
+    border-radius: 14px;
+    background: #fcfcfb;
+    padding: 0.9rem;
+  }
+  .palette-button {
+    width: 100%;
+    border: 1px solid #d6d3d1;
+    border-radius: 12px;
+    background: #fff;
+    padding: 0.7rem 0.8rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.6rem;
+    text-align: left;
+    cursor: pointer;
+  }
+  .palette-button.active {
+    border-color: #0f766e;
+    box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.12);
+  }
+  .palette-chip {
+    width: 0.9rem;
+    height: 0.9rem;
+    border-radius: 999px;
+    display: inline-block;
+  }
+  .timetable-grid {
+    display: grid;
+    grid-template-columns: 70px repeat(7, minmax(96px, 1fr));
+    gap: 0.5rem;
+    align-items: stretch;
+  }
+  .timetable-head,
+  .timetable-period {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #57534e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .timetable-head {
+    min-height: 42px;
+    border-radius: 12px;
+    background: #f5f5f4;
+  }
+  .timetable-period {
+    min-height: 70px;
+    border-radius: 12px;
+    background: #fafaf9;
+  }
+  .slot-cell {
+    min-height: 70px;
+    border: 1px dashed #d6d3d1;
+    border-radius: 12px;
+    background: #fff;
+    padding: 0.35rem;
+    position: relative;
+    cursor: pointer;
+  }
+  .slot-cell.break-cell {
+    background: linear-gradient(135deg, #fff7ed, #fffbeb);
+  }
+  .slot-card {
+    height: 100%;
+    border-radius: 10px;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.15rem;
+    padding: 0.45rem;
+    font-size: 0.76rem;
+    font-weight: 700;
+  }
+  .slot-card small {
+    display: block;
+    opacity: 0.85;
+    font-size: 0.66rem;
+    font-weight: 600;
+  }
+  .slot-empty {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #a8a29e;
+    font-size: 0.72rem;
+  }
+  .locked-hint {
+    border: 1px dashed #d6d3d1;
+    border-radius: 12px;
+    padding: 0.9rem 1rem;
+    background: #fafaf9;
+    color: #57534e;
+  }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.8rem;
+  }
+  .summary-card {
+    border: 1px solid #e7e5e4;
+    border-radius: 14px;
+    padding: 0.9rem;
+    background: #fff;
+  }
+  @media (max-width: 991px) {
+    .subject-grid,
+    .summary-grid,
+    .timetable-shell { grid-template-columns: 1fr; }
+    .timetable-grid { grid-template-columns: 64px repeat(7, minmax(82px, 1fr)); }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid setup-shell">
+  <div class="setup-header">
+    <div>
+      <div class="setup-kicker">Student Setup</div>
+      <h1 class="setup-title">{% if child %}{{ child.first_name|default:"Draft student" }}{% else %}Create a student{% endif %}</h1>
+      <p class="setup-subtitle">Work from top to bottom. Each section unlocks the next, and changing school year or subject choices resets only the dependent setup below it.</p>
+    </div>
+    <a href="{% url 'scheduler:child_list' %}" class="btn btn-outline-secondary">Back to Students</a>
+  </div>
+
+  {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show" role="alert">
+      {{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  {% endfor %}
+
+  <div class="setup-card">
+    <section class="setup-section">
+      <div class="setup-section-head">
+        <div class="setup-section-title">
+          <span class="setup-step {% if completion.info %}complete{% endif %}">1</span>
+          <span>Student Info</span>
+        </div>
+        <span class="setup-state {% if completion.info %}complete{% else %}pending{% endif %}">{% if completion.info %}Complete{% else %}Pending{% endif %}</span>
+      </div>
+      <div class="setup-section-body">
+        <form method="post" enctype="multipart/form-data" class="row g-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_info">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Student Name</label>
+            <input
+              type="text"
+              name="first_name"
+              class="form-control{% if info_errors.first_name %} is-invalid{% endif %}"
+              value="{% if info_form_data.first_name %}{{ info_form_data.first_name }}{% elif child %}{{ child.first_name }}{% endif %}"
+              required
+            >
+            {% if info_errors.first_name %}<div class="invalid-feedback">{{ info_errors.first_name }}</div>{% endif %}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Date of Birth</label>
+            <input
+              type="date"
+              name="date_of_birth"
+              class="form-control{% if info_errors.date_of_birth %} is-invalid{% endif %}"
+              value="{% if info_form_data.date_of_birth %}{{ info_form_data.date_of_birth }}{% elif child and child.date_of_birth %}{{ child.date_of_birth|date:'Y-m-d' }}{% endif %}"
+              required
+            >
+            {% if info_errors.date_of_birth %}<div class="invalid-feedback">{{ info_errors.date_of_birth }}</div>{% endif %}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Photo</label>
+            <input type="file" name="photo" accept="image/*" class="form-control">
+          </div>
+          <div class="col-12 d-flex justify-content-end">
+            <button type="submit" class="btn btn-primary">Save Student Info</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="setup-section {% if not completion.info %}is-locked{% endif %}">
+      <div class="setup-section-head">
+        <div class="setup-section-title">
+          <span class="setup-step {% if completion.credentials %}complete{% endif %}">2</span>
+          <span>Student Credentials</span>
+        </div>
+        <span class="setup-state {% if completion.credentials %}complete{% else %}pending{% endif %}">{% if completion.credentials %}Complete{% else %}Pending{% endif %}</span>
+      </div>
+      <div class="setup-section-body">
+        {% if not completion.info %}
+          <div class="locked-hint">Save the student info section before setting login credentials.</div>
+        {% else %}
+          <form method="post" class="row g-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_credentials">
+            <div class="col-md-5">
+              <label class="form-label fw-semibold">Student Email</label>
+              <input
+                type="email"
+                name="email"
+                class="form-control{% if credentials_form.email.errors %} is-invalid{% endif %}"
+                value="{{ credentials_form.email.value|default:'' }}"
+                placeholder="student@example.com"
+                required
+              >
+              {% if credentials_form.email.errors %}<div class="invalid-feedback">{{ credentials_form.email.errors|join:', ' }}</div>{% endif %}
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Password</label>
+              <input type="password" name="password1" class="form-control{% if credentials_form.password1.errors %} is-invalid{% endif %}" required>
+              {% if credentials_form.password1.errors %}<div class="invalid-feedback">{{ credentials_form.password1.errors|join:', ' }}</div>{% endif %}
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Confirm Password</label>
+              <input type="password" name="password2" class="form-control{% if credentials_form.password2.errors %} is-invalid{% endif %}" required>
+              {% if credentials_form.password2.errors %}<div class="invalid-feedback">{{ credentials_form.password2.errors|join:', ' }}</div>{% endif %}
+            </div>
+            <div class="col-md-1 d-flex align-items-end">
+              <button type="submit" class="btn btn-primary w-100">{% if child.student_user_id %}Update{% else %}Save{% endif %}</button>
+            </div>
+          </form>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="setup-section {% if not completion.credentials %}is-locked{% endif %}">
+      <div class="setup-section-head">
+        <div class="setup-section-title">
+          <span class="setup-step {% if completion.school_year %}complete{% endif %}">3</span>
+          <span>School Year</span>
+        </div>
+        <span class="setup-state {% if completion.school_year %}complete{% else %}pending{% endif %}">{% if completion.school_year %}Complete{% else %}Pending{% endif %}</span>
+      </div>
+      <div class="setup-section-body">
+        {% if not completion.credentials %}
+          <div class="locked-hint">Save student credentials before choosing the school year.</div>
+        {% else %}
+          <form method="post" class="row g-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_school_year">
+            <div class="col-md-5">
+              <label class="form-label fw-semibold">School Year</label>
+              <select name="school_year" class="form-select{% if school_year_error %} is-invalid{% endif %}">
+                <option value="">Select a school year</option>
+                {% for year in school_years %}
+                  <option value="{{ year }}" {% if child.school_year == year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+              </select>
+              {% if school_year_error %}<div class="invalid-feedback">{{ school_year_error }}</div>{% endif %}
+            </div>
+            <div class="col-md-4 d-flex align-items-end text-muted small">
+              This creates or updates the student’s dedicated workspace course.
+            </div>
+            <div class="col-md-3 d-flex align-items-end justify-content-end">
+              <button type="submit" class="btn btn-primary">Save School Year</button>
+            </div>
+          </form>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="setup-section {% if not completion.school_year %}is-locked{% endif %}">
+      <div class="setup-section-head">
+        <div class="setup-section-title">
+          <span class="setup-step {% if completion.subjects %}complete{% endif %}">4</span>
+          <span>Subjects</span>
+        </div>
+        <span class="setup-state {% if completion.subjects %}complete{% else %}pending{% endif %}">{% if completion.subjects %}Complete{% else %}Pending{% endif %}</span>
+      </div>
+      <div class="setup-section-body">
+        {% if not completion.school_year %}
+          <div class="locked-hint">Save the school year before selecting subjects.</div>
+        {% else %}
+          {% if subjects_error %}<div class="alert alert-warning">{{ subjects_error }}</div>{% endif %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_subjects">
+            <div class="subject-grid">
+              {% for row in subject_rows %}
+                <label class="subject-option {% if row.subject_name in selected_names %}selected{% endif %}">
+                  <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div class="form-check">
+                      <input class="form-check-input subject-checkbox" type="checkbox" name="subjects" value="{{ row.subject_name }}" {% if row.subject_name in selected_names %}checked{% endif %}>
+                      <span class="fw-semibold">{{ row.subject_name }}</span>
+                    </div>
+                    <span class="badge text-bg-light">{{ row.key_stage }}</span>
+                  </div>
+                  <div class="subject-meta">
+                    <span>{{ row.total_units }} units</span>
+                    <span>{{ row.total_lessons }} lessons</span>
+                    <span>{{ child.school_year }}</span>
+                  </div>
+                  <div class="subject-colour-row">
+                    <span class="text-muted small">Subject colour</span>
+                    <input type="color" name="colour_{{ row.subject_name }}" value="{{ row.current_colour }}" class="form-control form-control-color">
+                  </div>
+                </label>
+              {% empty %}
+                <div class="locked-hint">No Oak subjects were found for the selected school year.</div>
+              {% endfor %}
+            </div>
+            <div class="d-flex justify-content-end mt-3">
+              <button type="submit" class="btn btn-primary">Save Subjects</button>
+            </div>
+          </form>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="setup-section {% if not completion.subjects %}is-locked{% endif %}">
+      <div class="setup-section-head">
+        <div class="setup-section-title">
+          <span class="setup-step {% if completion.timetable %}complete{% endif %}">5</span>
+          <span>Draft Timetable</span>
+        </div>
+        <span class="setup-state {% if completion.timetable %}complete{% else %}pending{% endif %}">{% if completion.timetable %}Complete{% else %}Pending{% endif %}</span>
+      </div>
+      <div class="setup-section-body">
+        {% if not completion.subjects %}
+          <div class="locked-hint">Save subjects before building the timetable.</div>
+        {% else %}
+          {% if timetable_error %}<div class="alert alert-warning">{{ timetable_error }}</div>{% endif %}
+          <form method="post" id="timetable-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_timetable">
+            <input type="hidden" name="slots_json" id="slots-json" value="{{ slot_payload_json|escape }}">
+            <div class="timetable-shell">
+              <div class="subject-palette">
+                <div class="fw-semibold mb-2">Subjects</div>
+                <p class="text-muted small mb-3">Select a subject, then click or drag it into the weekly grid. Break slots are visual hints only.</p>
+                {% for subject in slot_subjects %}
+                  <button class="palette-button" type="button" data-subject-name="{{ subject.subject_name }}" data-colour="{{ subject.colour_hex }}">
+                    <span class="d-flex align-items-center gap-2">
+                      <span class="palette-chip" style="background: {{ subject.colour_hex }};"></span>
+                      <span>{{ subject.subject_name }}</span>
+                    </span>
+                    <span class="badge text-bg-light">{{ subject.slot_count }}</span>
+                  </button>
+                {% endfor %}
+                <button class="btn btn-outline-secondary w-100 mt-2" type="button" id="clear-selection-btn">Clear active subject</button>
+              </div>
+              <div class="timetable-grid-shell">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <div>
+                    <div class="fw-semibold">Weekly Template</div>
+                    <div class="text-muted small">Periods 0-12. Drag a scheduled slot onto another cell to move it within the week.</div>
+                  </div>
+                  <div class="text-muted small">Break hints: period 4 and 8</div>
+                </div>
+                <div class="timetable-grid" id="timetable-grid">
+                  <div></div>
+                  {% for weekday, label in weekday_choices %}
+                    <div class="timetable-head">{{ label }}</div>
+                  {% endfor %}
+                  {% for period in period_choices %}
+                    <div class="timetable-period">{{ period }}</div>
+                    {% for weekday, label in weekday_choices %}
+                      <div
+                        class="slot-cell {% if period == 4 or period == 8 %}break-cell{% endif %}"
+                        data-weekday="{{ weekday }}"
+                        data-period="{{ period }}"
+                      >
+                        <div class="slot-empty">{% if period == 4 or period == 8 %}Break{% else %}Empty{% endif %}</div>
+                      </div>
+                    {% endfor %}
+                  {% endfor %}
+                </div>
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                  <button class="btn btn-outline-secondary" type="button" id="clear-grid-btn">Clear Timetable</button>
+                  <button class="btn btn-primary" type="submit">Save Timetable</button>
+                </div>
+              </div>
+            </div>
+          </form>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="setup-section {% if not completion.timetable %}is-locked{% endif %}">
+      <div class="setup-section-head">
+        <div class="setup-section-title">
+          <span class="setup-step {% if completion.generated %}complete{% endif %}">6</span>
+          <span>Generate Lesson Cards</span>
+        </div>
+        <span class="setup-state {% if completion.generated %}complete{% else %}pending{% endif %}">{% if completion.generated %}Ready{% else %}Pending{% endif %}</span>
+      </div>
+      <div class="setup-section-body">
+        {% if not completion.timetable %}
+          <div class="locked-hint">Save the timetable before generating lesson cards.</div>
+        {% else %}
+          {% if generation_summary %}
+            <div class="summary-grid mb-3">
+              {% for row in generation_summary %}
+                <div class="summary-card">
+                  <div class="fw-semibold">{{ row.subject_name }}</div>
+                  <div class="text-muted small mt-1">{{ row.generated_count }} lessons generated</div>
+                  <div class="text-muted small">{{ row.requested_count }} requested over 40 weeks</div>
+                  {% if row.shortfall_count %}
+                    <div class="text-danger small mt-2">Shortfall: {{ row.shortfall_count }} slots could not be filled.</div>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+          <form method="post" class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="generate_lessons">
+            <div class="text-muted small">This creates dated lesson cards on Home and Calendar using the saved weekly timetable template.</div>
+            <button type="submit" class="btn btn-primary">Generate Lessons</button>
+          </form>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    const grid = document.getElementById('timetable-grid');
+    const slotsField = document.getElementById('slots-json');
+    if (!grid || !slotsField) return;
+
+    const paletteButtons = Array.from(document.querySelectorAll('.palette-button'));
+    const clearSelectionBtn = document.getElementById('clear-selection-btn');
+    const clearGridBtn = document.getElementById('clear-grid-btn');
+    let activeSubject = null;
+    let slots = [];
+
+    try {
+      slots = JSON.parse(slotsField.value || '[]');
+    } catch (error) {
+      slots = [];
+    }
+
+    function setActiveSubject(subject) {
+      activeSubject = subject;
+      paletteButtons.forEach((button) => {
+        const isActive = subject && button.dataset.subjectName === subject.subject_name;
+        button.classList.toggle('active', Boolean(isActive));
+      });
+    }
+
+    function saveSlots() {
+      slots.sort((a, b) => {
+        if (a.weekday !== b.weekday) return a.weekday - b.weekday;
+        if (a.period !== b.period) return a.period - b.period;
+        return a.subject_name.localeCompare(b.subject_name);
+      });
+      slotsField.value = JSON.stringify(slots);
+      const counts = {};
+      slots.forEach((slot) => {
+        counts[slot.subject_name] = (counts[slot.subject_name] || 0) + 1;
+      });
+      paletteButtons.forEach((button) => {
+        const badge = button.querySelector('.badge');
+        if (badge) badge.textContent = String(counts[button.dataset.subjectName] || 0);
+      });
+    }
+
+    function slotForCell(weekday, period) {
+      return slots.find((slot) => slot.weekday === weekday && slot.period === period);
+    }
+
+    function renderCell(cell) {
+      const weekday = Number(cell.dataset.weekday);
+      const period = Number(cell.dataset.period);
+      const slot = slotForCell(weekday, period);
+      cell.innerHTML = '';
+      if (!slot) {
+        const empty = document.createElement('div');
+        empty.className = 'slot-empty';
+        empty.textContent = cell.classList.contains('break-cell') ? 'Break' : 'Empty';
+        cell.appendChild(empty);
+        return;
+      }
+      const card = document.createElement('div');
+      card.className = 'slot-card';
+      card.draggable = true;
+      card.dataset.subjectName = slot.subject_name;
+      card.dataset.weekday = String(weekday);
+      card.dataset.period = String(period);
+      card.style.background = slot.colour_hex;
+      card.innerHTML = `<span>${slot.subject_name}</span><small>Period ${period}</small>`;
+      card.addEventListener('dragstart', (event) => {
+        event.dataTransfer.setData('text/plain', JSON.stringify({
+          subject_name: slot.subject_name,
+          colour_hex: slot.colour_hex,
+          from_weekday: weekday,
+          from_period: period
+        }));
+      });
+      cell.appendChild(card);
+    }
+
+    function renderGrid() {
+      grid.querySelectorAll('.slot-cell').forEach(renderCell);
+      saveSlots();
+    }
+
+    function upsertSlot(subject, weekday, period) {
+      slots = slots.filter((slot) => !(slot.weekday === weekday && slot.period === period));
+      slots.push({
+        subject_name: subject.subject_name,
+        colour_hex: subject.colour_hex,
+        weekday,
+        period,
+      });
+      renderGrid();
+    }
+
+    function removeSlot(weekday, period) {
+      slots = slots.filter((slot) => !(slot.weekday === weekday && slot.period === period));
+      renderGrid();
+    }
+
+    paletteButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        setActiveSubject({
+          subject_name: button.dataset.subjectName,
+          colour_hex: button.dataset.colour,
+        });
+      });
+    });
+
+    if (clearSelectionBtn) {
+      clearSelectionBtn.addEventListener('click', () => setActiveSubject(null));
+    }
+
+    if (clearGridBtn) {
+      clearGridBtn.addEventListener('click', () => {
+        slots = [];
+        renderGrid();
+      });
+    }
+
+    grid.querySelectorAll('.slot-cell').forEach((cell) => {
+      cell.addEventListener('click', () => {
+        const weekday = Number(cell.dataset.weekday);
+        const period = Number(cell.dataset.period);
+        const existing = slotForCell(weekday, period);
+        if (activeSubject) {
+          upsertSlot(activeSubject, weekday, period);
+          return;
+        }
+        if (existing) removeSlot(weekday, period);
+      });
+      cell.addEventListener('dragover', (event) => event.preventDefault());
+      cell.addEventListener('drop', (event) => {
+        event.preventDefault();
+        const raw = event.dataTransfer.getData('text/plain');
+        if (!raw) return;
+        let payload = null;
+        try {
+          payload = JSON.parse(raw);
+        } catch (error) {
+          payload = null;
+        }
+        if (!payload) return;
+        const weekday = Number(cell.dataset.weekday);
+        const period = Number(cell.dataset.period);
+        removeSlot(Number(payload.from_weekday), Number(payload.from_period));
+        upsertSlot(
+          {
+            subject_name: payload.subject_name,
+            colour_hex: payload.colour_hex,
+          },
+          weekday,
+          period
+        );
+      });
+    });
+
+    renderGrid();
+  })();
+</script>
+{% endblock %}

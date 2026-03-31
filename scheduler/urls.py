@@ -16,6 +16,16 @@ urlpatterns = [
         name="parent_dashboard",
     ),
     path("children/", views.child_list_view, name="child_list"),
+    path(
+        "students/onboarding/",
+        views.student_onboarding_new_view,
+        name="student_onboarding_new",
+    ),
+    path(
+        "students/onboarding/<int:child_id>/",
+        views.student_onboarding_resume_view,
+        name="student_onboarding_resume",
+    ),
     path("children/new/", views.child_new_view, name="child_new"),
     path(
         "children/<int:child_id>/",

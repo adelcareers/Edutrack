@@ -6,6 +6,7 @@ from .models import (
     CourseArchive,
     CourseEnrollment,
     CourseSubjectConfig,
+    CourseSubjectScheduleSlot,
     Label,
     Subject,
 )
@@ -22,6 +23,8 @@ class CourseAdmin(admin.ModelAdmin):
     list_display = [
         "name",
         "parent",
+        "student_owner",
+        "is_student_workspace",
         "duration_weeks",
         "frequency_days",
         "grading_style",
@@ -69,3 +72,10 @@ class CourseSubjectConfigAdmin(admin.ModelAdmin):
     list_filter = ["is_active", "year"]
     search_fields = ["subject_name", "course__name"]
     raw_id_fields = ["course"]
+
+
+@admin.register(CourseSubjectScheduleSlot)
+class CourseSubjectScheduleSlotAdmin(admin.ModelAdmin):
+    list_display = ["course_subject", "weekday", "period", "created_at"]
+    list_filter = ["weekday"]
+    raw_id_fields = ["course_subject"]
