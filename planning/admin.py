@@ -1,11 +1,6 @@
 from django.contrib import admin
 
-from .models import (
-    ActivityPlanDetail,
-    AssignmentPlanDetail,
-    LessonPlanDetail,
-    PlanItem,
-)
+from .models import ActivityPlanDetail, AssignmentPlanDetail, LessonPlanDetail, PlanItem
 
 
 @admin.register(PlanItem)

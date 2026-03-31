@@ -13,11 +13,7 @@ from courses.models import AssignmentType, sync_course_assignment_types_from_glo
 from scheduler.models import EnrolledSubject
 
 from . import services as planning_services
-from .models import (
-    ActivityProgress,
-    PlanItem,
-    StudentAssignment,
-)
+from .models import ActivityProgress, PlanItem, StudentAssignment
 
 WORKFLOW_ASSIGNMENTS = "assignments"
 WORKFLOW_LESSONS = "lessons"
