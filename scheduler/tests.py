@@ -6,6 +6,7 @@ import json
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import UserProfile
 from courses.models import (
@@ -417,6 +418,9 @@ class StudentOnboardingFlowTests(TestCase):
         self.assertTemplateUsed(response, "scheduler/student_onboarding.html")
 
     def test_full_onboarding_flow_creates_workspace_subjects_slots_and_lessons(self):
+        today = timezone.localdate()
+        today_weekday = today.weekday()
+        next_weekday = (today_weekday + 1) % 7
         response = self.client.post(
             self.new_url,
             {
@@ -462,6 +466,7 @@ class StudentOnboardingFlowTests(TestCase):
         self.assertEqual(workspace.frequency_days, 7)
         self.assertEqual(workspace.default_days, [0, 1, 2, 3, 4])
         enrollment = CourseEnrollment.objects.get(course=workspace, child=child, status="active")
+        self.assertEqual(enrollment.start_date, today)
 
         self.client.post(
             resume_url,
@@ -485,8 +490,8 @@ class StudentOnboardingFlowTests(TestCase):
                 "action": "save_timetable",
                 "slots_json": json.dumps(
                     [
-                        {"subject_name": "Maths", "weekday": 0, "period": 0},
-                        {"subject_name": "English", "weekday": 1, "period": 1},
+                        {"subject_name": "Maths", "weekday": today_weekday, "period": 0},
+                        {"subject_name": "English", "weekday": next_weekday, "period": 1},
                     ]
                 ),
             },
@@ -497,11 +502,13 @@ class StudentOnboardingFlowTests(TestCase):
         )
         maths_cfg = CourseSubjectConfig.objects.get(course=workspace, subject_name="Maths")
         self.assertEqual(maths_cfg.lessons_per_week, 1)
-        self.assertEqual(maths_cfg.days_of_week, [0])
+        self.assertEqual(maths_cfg.days_of_week, [today_weekday])
 
-        self.client.post(resume_url, {"action": "generate_lessons"})
+        response = self.client.post(resume_url, {"action": "generate_lessons"}, follow=True)
         child.refresh_from_db()
+        enrollment.refresh_from_db()
         self.assertTrue(child.is_setup_complete)
+        self.assertEqual(enrollment.start_date, today)
         self.assertEqual(
             PlanItem.objects.filter(course=workspace, item_type=PlanItem.ITEM_TYPE_LESSON).count(),
             80,
@@ -514,12 +521,100 @@ class StudentOnboardingFlowTests(TestCase):
             ScheduledLesson.objects.filter(
                 child=child,
                 plan_item__course=workspace,
-                plan_item__day_number=1,
+                plan_item__day_number=today_weekday + 1,
                 plan_item__order=0,
             ).count(),
             40,
         )
+        first_maths = ScheduledLesson.objects.get(
+            child=child,
+            plan_item__course=workspace,
+            plan_item__week_number=1,
+            plan_item__day_number=today_weekday + 1,
+            plan_item__order=0,
+        )
+        first_english = ScheduledLesson.objects.get(
+            child=child,
+            plan_item__course=workspace,
+            plan_item__week_number=1,
+            plan_item__day_number=next_weekday + 1,
+            plan_item__order=1,
+        )
+        self.assertEqual(first_maths.scheduled_date, today)
+        self.assertEqual(
+            first_english.scheduled_date,
+            today + datetime.timedelta(days=1),
+        )
+        self.assertEqual(first_maths.order_on_day, 0)
+        self.assertEqual(first_english.order_on_day, 1)
+        self.assertContains(response, "Lesson cards were scheduled successfully.")
         self.assertEqual(enrollment.days_of_week, [0, 1, 2, 3, 4])
+
+    def test_generation_repairs_legacy_workspace_start_date_before_creating_lessons(self):
+        child = Child.objects.create(
+            parent=self.parent,
+            first_name="Repair",
+            date_of_birth=datetime.date(2015, 3, 14),
+            birth_month=3,
+            birth_year=2015,
+            school_year="Year 5",
+            academic_year_start=datetime.date(2025, 9, 1),
+            is_setup_complete=False,
+        )
+        resume_url = reverse(
+            "scheduler:student_onboarding_resume", kwargs={"child_id": child.pk}
+        )
+        self.client.post(
+            resume_url,
+            {
+                "action": "save_credentials",
+                "email": "repair.student@example.com",
+                "password1": "SecurePass99!",
+                "password2": "SecurePass99!",
+            },
+        )
+        self.client.post(
+            resume_url,
+            {
+                "action": "save_school_year",
+                "school_year": "Year 5",
+            },
+        )
+        workspace = Course.objects.get(student_owner=child, is_student_workspace=True)
+        enrollment = CourseEnrollment.objects.get(course=workspace, child=child, status="active")
+        enrollment.start_date = child.academic_year_start
+        enrollment.save(update_fields=["start_date"])
+        start_weekday = enrollment.enrolled_at.date().weekday()
+
+        self.client.post(
+            resume_url,
+            {
+                "action": "save_subjects",
+                "subjects": ["Maths"],
+                "colour_Maths": "#E63946",
+            },
+        )
+        self.client.post(
+            resume_url,
+            {
+                "action": "save_timetable",
+                "slots_json": json.dumps(
+                    [
+                        {"subject_name": "Maths", "weekday": start_weekday, "period": 2},
+                    ]
+                ),
+            },
+        )
+        self.client.post(resume_url, {"action": "generate_lessons"})
+        enrollment.refresh_from_db()
+        first_scheduled = ScheduledLesson.objects.filter(
+            child=child,
+            plan_item__course=workspace,
+        ).order_by("scheduled_date", "order_on_day").first()
+        self.assertIsNotNone(first_scheduled)
+        self.assertEqual(enrollment.start_date, enrollment.enrolled_at.date())
+        self.assertEqual(first_scheduled.scheduled_date, enrollment.start_date)
+        self.assertEqual(first_scheduled.order_on_day, 2)
 
 
 class ChildListTests(TestCase):

@@ -497,6 +497,9 @@
           <div class="locked-hint">Save the timetable before generating lesson cards.</div>
         {% else %}
           {% if generation_summary %}
+            <div class="alert alert-success">
+              Lesson cards were scheduled successfully. Review the per-subject totals below, then check Home and Calendar.
+            </div>
             <div class="summary-grid mb-3">
               {% for row in generation_summary %}
                 <div class="summary-card">

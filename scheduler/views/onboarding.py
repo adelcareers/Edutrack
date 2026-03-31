@@ -513,7 +513,7 @@ def _handle_onboarding_post(request, child):
         return redirect("scheduler:student_onboarding_resume", child_id=child.pk)
 
     if action == "generate_lessons":
-        enrollment = workspace.enrollments.filter(child=child, status="active").first()
+        workspace, enrollment = ensure_student_workspace(child)
         if enrollment is None:
             messages.error(request, "No active workspace enrollment exists for this student.")
             return redirect("scheduler:student_onboarding_resume", child_id=child.pk)

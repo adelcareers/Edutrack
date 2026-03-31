@@ -326,9 +326,25 @@ def compute_enrollment_calendar_date(
     enrollment, week_number, day_number, due_offset_days=0
 ):
     """Compute a calendar date from an enrollment's start date + grid position."""
-    return enrollment.start_date + datetime.timedelta(
-        days=(week_number - 1) * 7 + (day_number - 1) + due_offset_days
-    )
+    base_date = enrollment.start_date
+    course = getattr(enrollment, "course", None)
+    if (
+        course is not None
+        and course.is_student_workspace
+        and course.frequency_days == 7
+        and 1 <= day_number <= 7
+    ):
+        start_weekday = enrollment.start_date.weekday()
+        target_weekday = day_number - 1
+        first_slot_offset = (target_weekday - start_weekday) % 7
+        base_date = enrollment.start_date + datetime.timedelta(
+            days=first_slot_offset + (week_number - 1) * 7
+        )
+    else:
+        base_date = enrollment.start_date + datetime.timedelta(
+            days=(week_number - 1) * 7 + (day_number - 1)
+        )
+    return base_date + datetime.timedelta(days=due_offset_days)
 
 
 def create_plan_item(
@@ -833,18 +849,12 @@ def materialize_plan_item_for_enrollment(plan_item, enrollment):
             return created
 
         if existing is None:
-            next_order = (
-                ScheduledLesson.objects.filter(
-                    child=child, scheduled_date=scheduled_date
-                ).aggregate(max_order=Max("order_on_day"))["max_order"]
-                or -1
-            )
             scheduled = ScheduledLesson.objects.create(
                 child=child,
                 lesson=lesson,
                 enrolled_subject=matched,
                 scheduled_date=scheduled_date,
-                order_on_day=next_order + 1,
+                order_on_day=plan_item.order,
                 plan_item=plan_item,
                 course_subject=course_subject,
             )
@@ -860,6 +870,9 @@ def materialize_plan_item_for_enrollment(plan_item, enrollment):
             if scheduled.scheduled_date != scheduled_date:
                 scheduled.scheduled_date = scheduled_date
                 update_fields.append("scheduled_date")
+            if scheduled.order_on_day != plan_item.order:
+                scheduled.order_on_day = plan_item.order
+                update_fields.append("order_on_day")
             if scheduled.course_subject_id != course_subject.id:
                 scheduled.course_subject = course_subject
                 update_fields.append("course_subject")

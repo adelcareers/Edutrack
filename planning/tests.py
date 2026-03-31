@@ -805,6 +805,23 @@ class PlanItemServiceTests(TestCase):
         )
         self.assertEqual(actual, expected)
 
+    def test_compute_enrollment_calendar_date_aligns_student_workspace_to_weekday_slots(self):
+        self.course.is_student_workspace = True
+        self.course.frequency_days = 7
+        self.course.save(update_fields=["is_student_workspace", "frequency_days"])
+        self.enrollment.start_date = datetime.date(2026, 4, 1)  # Wednesday
+        self.enrollment.save(update_fields=["start_date"])
+
+        first_monday = planning_services.compute_enrollment_calendar_date(
+            self.enrollment, 1, 1
+        )
+        second_sunday = planning_services.compute_enrollment_calendar_date(
+            self.enrollment, 2, 7
+        )
+
+        self.assertEqual(first_monday, datetime.date(2026, 4, 6))
+        self.assertEqual(second_sunday, datetime.date(2026, 4, 12))
+
     def test_materialize_assignment_plan_item_creates_student_assignment_once(self):
         plan_item = planning_services.create_plan_item(
             course=self.course,

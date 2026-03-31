@@ -77,14 +77,23 @@ def ensure_student_workspace(child):
         child=child,
         status="active",
         defaults={
-            "start_date": child.academic_year_start,
+            "start_date": today,
             "days_of_week": list(DEFAULT_WORKSPACE_DAYS),
         },
     )
     enrollment_updates = []
-    if enrollment.start_date != child.academic_year_start:
-        enrollment.start_date = child.academic_year_start
+    if enrollment.start_date is None:
+        enrollment.start_date = today
         enrollment_updates.append("start_date")
+    elif (
+        course.is_student_workspace
+        and enrollment.start_date == child.academic_year_start
+        and enrollment.enrolled_at is not None
+    ):
+        enrolled_date = timezone.localtime(enrollment.enrolled_at).date()
+        if enrolled_date != enrollment.start_date:
+            enrollment.start_date = enrolled_date
+            enrollment_updates.append("start_date")
     if list(enrollment.days_of_week or []) != list(DEFAULT_WORKSPACE_DAYS):
         enrollment.days_of_week = list(DEFAULT_WORKSPACE_DAYS)
         enrollment_updates.append("days_of_week")
