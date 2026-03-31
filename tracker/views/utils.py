@@ -106,5 +106,7 @@ def _hydrate_activity_display(progress):
     if legacy_plan_item and legacy_template:
         progress.display_name = legacy_template.name
         progress.display_description = legacy_template.description
-        progress.display_date = _grid_calendar_date(progress.enrollment, legacy_plan_item)
+        progress.display_date = _grid_calendar_date(
+            progress.enrollment, legacy_plan_item
+        )
     return progress

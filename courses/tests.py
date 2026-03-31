@@ -258,7 +258,10 @@ class CourseSubjectConfigDeleteTests(TestCase):
             name="Lab",
         )
         from planning.models import ActivityPlanDetail
-        ActivityPlanDetail.objects.create(plan_item=self.plan_item, course_subject=self.config)
+
+        ActivityPlanDetail.objects.create(
+            plan_item=self.plan_item, course_subject=self.config
+        )
         template = CourseAssignmentTemplate.objects.create(
             course=self.course,
             assignment_type=None,
@@ -280,7 +283,10 @@ class CourseSubjectConfigDeleteTests(TestCase):
 
     def test_subject_config_soft_delete_deactivates_related_plan_items(self):
         response = self.client.post(
-            reverse("courses:subject_config_deactivate", kwargs={"config_id": self.config.pk})
+            reverse(
+                "courses:subject_config_deactivate",
+                kwargs={"config_id": self.config.pk},
+            )
         )
         self.assertEqual(response.status_code, 302)
         self.config.refresh_from_db()
@@ -290,7 +296,9 @@ class CourseSubjectConfigDeleteTests(TestCase):
 
     def test_subject_config_hard_delete_removes_related_plan_items_and_progress(self):
         response = self.client.post(
-            reverse("courses:subject_config_delete", kwargs={"config_id": self.config.pk}),
+            reverse(
+                "courses:subject_config_delete", kwargs={"config_id": self.config.pk}
+            ),
             {"confirm": "DELETE"},
         )
         self.assertEqual(response.status_code, 302)

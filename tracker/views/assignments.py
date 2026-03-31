@@ -128,10 +128,14 @@ def home_assignments_view(request):
     # Activities: query ActivityProgress rows that have a new_plan_item (unified model)
     if role == "student":
         child = getattr(request.user, "child_profile", None)
-        activity_base_qs = ActivityProgress.objects.filter(
-            enrollment__child=child,
-            enrollment__status="active",
-        ) if child else ActivityProgress.objects.none()
+        activity_base_qs = (
+            ActivityProgress.objects.filter(
+                enrollment__child=child,
+                enrollment__status="active",
+            )
+            if child
+            else ActivityProgress.objects.none()
+        )
     else:
         activity_base_qs = ActivityProgress.objects.filter(
             enrollment__course__parent=request.user,

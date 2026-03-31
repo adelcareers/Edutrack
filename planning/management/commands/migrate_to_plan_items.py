@@ -3,7 +3,12 @@ from collections import Counter
 from django.core.management.base import BaseCommand
 
 from courses.models import CourseSubjectConfig
-from planning.models import ActivityProgress, AssignmentPlanItem, PlanItem, StudentAssignment
+from planning.models import (
+    ActivityProgress,
+    AssignmentPlanItem,
+    PlanItem,
+    StudentAssignment,
+)
 from planning.services import create_plan_item
 
 
@@ -68,7 +73,10 @@ class Command(BaseCommand):
 
     def _find_canonical_plan_item(self, legacy_item, counters):
         linked_ids = set()
-        if legacy_item.scheduled_lesson_id and legacy_item.scheduled_lesson.plan_item_id:
+        if (
+            legacy_item.scheduled_lesson_id
+            and legacy_item.scheduled_lesson.plan_item_id
+        ):
             linked_ids.add(legacy_item.scheduled_lesson.plan_item_id)
         linked_ids.update(
             StudentAssignment.objects.filter(plan_item=legacy_item)
@@ -119,10 +127,15 @@ class Command(BaseCommand):
             "lessons_per_week": enrolled_subject.lessons_per_week,
             "days_of_week": enrolled_subject.days_of_week or [0, 1, 2, 3, 4],
             "colour_hex": enrolled_subject.colour_hex,
-            "source": "csv"
-            if (enrolled_subject.source_year or enrolled_subject.source_subject_name)
-            else "oak",
-            "source_subject_name": enrolled_subject.source_subject_name or enrolled_subject.subject_name,
+            "source": (
+                "csv"
+                if (
+                    enrolled_subject.source_year or enrolled_subject.source_subject_name
+                )
+                else "oak"
+            ),
+            "source_subject_name": enrolled_subject.source_subject_name
+            or enrolled_subject.subject_name,
             "source_year": enrolled_subject.source_year,
             "is_active": True,
         }
@@ -165,7 +178,9 @@ class Command(BaseCommand):
                     description=legacy_item.template.description,
                     order=legacy_item.order,
                     course_subject=course_subject,
-                    curriculum_lesson=getattr(legacy_item.scheduled_lesson, "lesson", None),
+                    curriculum_lesson=getattr(
+                        legacy_item.scheduled_lesson, "lesson", None
+                    ),
                 ),
                 created_config,
             )
@@ -207,13 +222,19 @@ class Command(BaseCommand):
 
     def _repair_scheduled_lesson(self, legacy_item, canonical, dry_run=False):
         scheduled_lesson = legacy_item.scheduled_lesson
-        if scheduled_lesson is None or canonical is None or canonical is self.DRY_RUN_SENTINEL:
+        if (
+            scheduled_lesson is None
+            or canonical is None
+            or canonical is self.DRY_RUN_SENTINEL
+        ):
             return 0
         updated = False
         if scheduled_lesson.plan_item_id != canonical.id:
             scheduled_lesson.plan_item = canonical
             updated = True
-        course_subject = getattr(getattr(canonical, "lesson_detail", None), "course_subject", None)
+        course_subject = getattr(
+            getattr(canonical, "lesson_detail", None), "course_subject", None
+        )
         if course_subject and scheduled_lesson.course_subject_id != course_subject.id:
             scheduled_lesson.course_subject = course_subject
             updated = True

@@ -3,8 +3,8 @@ from io import StringIO
 from unittest import skip
 
 from django.contrib.auth.models import User
-from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -18,18 +18,19 @@ from courses.models import (
     GlobalAssignmentType,
 )
 from curriculum.models import Lesson
+from planning import services as planning_services
 from planning.models import (
+    ActivityPlanDetail,
     ActivityProgress,
     ActivityProgressAttachment,
-    ActivityPlanDetail,
     AssignmentPlanDetail,
+    AssignmentPlanItem,
+    CourseAssignmentTemplate,
     LessonPlanDetail,
     PlanItem,
     StudentAssignment,
 )
-from scheduler.models import Child, EnrolledSubject, ScheduledLesson
-from scheduler.models import Vacation
-from planning import services as planning_services
+from scheduler.models import Child, EnrolledSubject, ScheduledLesson, Vacation
 
 
 class StudentAssignmentSelectionTests(TestCase):
@@ -466,6 +467,7 @@ class StudentAssignmentSelectionTests(TestCase):
             order=0,
         )
         from planning.models import AssignmentPlanDetail
+
         AssignmentPlanDetail.objects.create(
             plan_item=bridged_plan_item,
             assignment_type=assignment_type,
@@ -489,6 +491,7 @@ class StudentAssignmentSelectionTests(TestCase):
             order=0,
         )
         from planning.models import ActivityPlanDetail
+
         ActivityPlanDetail.objects.create(
             plan_item=new_only_plan_item,
             due_offset_days=0,
@@ -588,7 +591,11 @@ class StudentAssignmentSelectionTests(TestCase):
                 lessons_per_week=subject.lessons_per_week,
                 days_of_week=subject.days_of_week,
                 colour_hex=subject.colour_hex,
-                source="csv" if (subject.source_year or subject.source_subject_name) else "oak",
+                source=(
+                    "csv"
+                    if (subject.source_year or subject.source_subject_name)
+                    else "oak"
+                ),
                 source_subject_name=subject.source_subject_name or subject.subject_name,
                 source_year=subject.source_year,
             )
@@ -685,7 +692,9 @@ class StudentAssignmentSelectionTests(TestCase):
 
 class PlanItemServiceTests(TestCase):
     def setUp(self):
-        self.parent = User.objects.create_user(username="plan-item-parent", password="x")
+        self.parent = User.objects.create_user(
+            username="plan-item-parent", password="x"
+        )
         UserProfile.objects.create(user=self.parent, role="parent")
 
         self.course = Course.objects.create(parent=self.parent, name="Test Course")
@@ -755,7 +764,9 @@ class PlanItemServiceTests(TestCase):
 
         self.assertIsNotNone(plan_item.pk)
         self.assertEqual(plan_item.item_type, PlanItem.ITEM_TYPE_ASSIGNMENT)
-        self.assertEqual(plan_item.assignment_detail.assignment_type, self.assignment_type)
+        self.assertEqual(
+            plan_item.assignment_detail.assignment_type, self.assignment_type
+        )
         self.assertTrue(plan_item.assignment_detail.is_graded)
 
         planning_services.update_plan_item(
@@ -878,6 +889,7 @@ class GeneratePlanGridTests(TestCase):
 
     def setUp(self):
         from accounts.models import UserProfile
+
         self.parent = User.objects.create_user(username="grid-parent", password="pw")
         UserProfile.objects.create(user=self.parent, role="parent")
 
@@ -923,7 +935,9 @@ class GeneratePlanGridTests(TestCase):
             ],
         )
         self.assertEqual(len(configs), 1)
-        self.assertEqual(CourseSubjectConfig.objects.filter(course=self.course).count(), 1)
+        self.assertEqual(
+            CourseSubjectConfig.objects.filter(course=self.course).count(), 1
+        )
         cfg = configs[0]
         self.assertEqual(cfg.subject_name, "Maths")
         self.assertEqual(cfg.lessons_per_week, 3)
@@ -932,16 +946,34 @@ class GeneratePlanGridTests(TestCase):
         # Create once
         self.create_configs(
             self.course,
-            [{"subject_name": "Maths", "year": "3", "lessons_per_week": 3, "days_of_week": []}],
+            [
+                {
+                    "subject_name": "Maths",
+                    "year": "3",
+                    "lessons_per_week": 3,
+                    "days_of_week": [],
+                }
+            ],
         )
         # Update lessons_per_week
         self.create_configs(
             self.course,
-            [{"subject_name": "Maths", "year": "3", "lessons_per_week": 5, "days_of_week": []}],
+            [
+                {
+                    "subject_name": "Maths",
+                    "year": "3",
+                    "lessons_per_week": 5,
+                    "days_of_week": [],
+                }
+            ],
         )
-        self.assertEqual(CourseSubjectConfig.objects.filter(course=self.course).count(), 1)
         self.assertEqual(
-            CourseSubjectConfig.objects.get(course=self.course, subject_name="Maths").lessons_per_week,
+            CourseSubjectConfig.objects.filter(course=self.course).count(), 1
+        )
+        self.assertEqual(
+            CourseSubjectConfig.objects.get(
+                course=self.course, subject_name="Maths"
+            ).lessons_per_week,
             5,
         )
 
@@ -959,7 +991,9 @@ class GeneratePlanGridTests(TestCase):
         # 3 lessons available, 1/week over 4 weeks = 3 (queue exhausted at 3)
         self.assertEqual(count, 3)
         self.assertEqual(PlanItem.objects.filter(course=self.course).count(), 3)
-        self.assertEqual(LessonPlanDetail.objects.filter(plan_item__course=self.course).count(), 3)
+        self.assertEqual(
+            LessonPlanDetail.objects.filter(plan_item__course=self.course).count(), 3
+        )
 
     def test_generate_plan_grid_respects_days_of_week(self):
         sc = CourseSubjectConfig.objects.create(
@@ -970,7 +1004,11 @@ class GeneratePlanGridTests(TestCase):
             days_of_week=[0, 2],  # Mon=day1, Wed=day3
         )
         self.generate_grid(self.course, [sc])
-        items = list(PlanItem.objects.filter(course=self.course).order_by("week_number", "day_number"))
+        items = list(
+            PlanItem.objects.filter(course=self.course).order_by(
+                "week_number", "day_number"
+            )
+        )
         day_numbers_used = {item.day_number for item in items}
         # All items should only land on day_number 1 (Mon) or day_number 3 (Wed)
         self.assertTrue(day_numbers_used.issubset({1, 3}))
@@ -1017,15 +1055,19 @@ class GeneratePlanGridTests(TestCase):
             days_of_week=[0],
         )
         self.generate_grid(self.course, [sc])
-        details = LessonPlanDetail.objects.filter(
-            plan_item__course=self.course
-        ).select_related("curriculum_lesson").order_by("plan_item__week_number")
+        details = (
+            LessonPlanDetail.objects.filter(plan_item__course=self.course)
+            .select_related("curriculum_lesson")
+            .order_by("plan_item__week_number")
+        )
         lesson_titles = [d.curriculum_lesson.lesson_title for d in details]
         # Should be in curriculum order: Addition 1, Addition 2, Subtraction 1
         self.assertEqual(lesson_titles, ["Addition 1", "Addition 2", "Subtraction 1"])
 
 
-@skip("Legacy migration command test - references removed models (AssignmentPlanItem, CourseAssignmentTemplate)")
+@skip(
+    "Legacy migration command test - references removed models (AssignmentPlanItem, CourseAssignmentTemplate)"
+)
 class PlanItemMigrationCommandTests(TestCase):
     def setUp(self):
         self.parent = User.objects.create_user(username="migrate-parent", password="pw")
@@ -1093,7 +1135,9 @@ class PlanItemMigrationCommandTests(TestCase):
         first_plan_item_id = StudentAssignment.objects.get().new_plan_item_id
         call_command("migrate_to_plan_items")
         self.assertEqual(PlanItem.objects.count(), 1)
-        self.assertEqual(StudentAssignment.objects.get().new_plan_item_id, first_plan_item_id)
+        self.assertEqual(
+            StudentAssignment.objects.get().new_plan_item_id, first_plan_item_id
+        )
 
 
 class PlanningVacationConflictTests(TestCase):
@@ -1144,7 +1188,9 @@ class PlanningVacationConflictTests(TestCase):
         )
 
     def test_plan_course_renders_vacation_conflict_warning(self):
-        response = self.client.get(reverse("planning:plan_course", args=[self.course.pk]))
+        response = self.client.get(
+            reverse("planning:plan_course", args=[self.course.pk])
+        )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Vacation conflicts detected")
         self.assertContains(response, "Winter trip")

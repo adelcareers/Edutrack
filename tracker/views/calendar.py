@@ -90,13 +90,10 @@ def _build_calendar_context(
     # Activities: compute calendar date from enrollment.start_date + grid position
     activities_by_date: dict = {}
     if child is not None:
-        activity_qs = (
-            ActivityProgress.objects.filter(
-                enrollment__child=child,
-                enrollment__status="active",
-            )
-            .select_related("enrollment", "new_plan_item")
-        )
+        activity_qs = ActivityProgress.objects.filter(
+            enrollment__child=child,
+            enrollment__status="active",
+        ).select_related("enrollment", "new_plan_item")
         for act in activity_qs:
             _hydrate_activity_display(act)
             act_date = act.display_date or _grid_calendar_date(

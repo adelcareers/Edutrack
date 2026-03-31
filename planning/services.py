@@ -15,18 +15,17 @@ from curriculum.models import Lesson
 from scheduler.models import EnrolledSubject, ScheduledLesson, Vacation
 
 from .models import (
+    ActivityPlanDetail,
     ActivityProgress,
     ActivityProgressAttachment,
     AssignmentAttachment,
+    AssignmentPlanDetail,
     AssignmentPlanItem,
     CourseAssignmentTemplate,
-    StudentAssignment,
-    PlanItem,
     LessonPlanDetail,
-    AssignmentPlanDetail,
-    ActivityPlanDetail,
+    PlanItem,
+    StudentAssignment,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -191,7 +190,9 @@ def _create_or_update_scheduled_lesson(
 # ---------------------------------------------------------------------------
 
 
-def _parse_enrollment_selection(post_data, presence_key, ids_key, active_enrollment_ids):
+def _parse_enrollment_selection(
+    post_data, presence_key, ids_key, active_enrollment_ids
+):
     """Parse enrollment selection checkboxes from POST data."""
     if post_data.get(presence_key) == "1":
         raw_ids = {_safe_int(v, -1) for v in post_data.getlist(ids_key)}
@@ -210,8 +211,14 @@ def _save_attachments(plan_item, files):
 
 
 def _sync_student_assignments(
-    plan_item, active_enrollments, selected_ids,
-    week_number, day_number, due_in_days, post_data, is_create=True
+    plan_item,
+    active_enrollments,
+    selected_ids,
+    week_number,
+    day_number,
+    due_in_days,
+    post_data,
+    is_create=True,
 ):
     """Create, update, or remove StudentAssignment rows for a plan item."""
     for enrollment in active_enrollments:
@@ -286,9 +293,7 @@ def _sync_activity_progress(
             )
             progress.save()
 
-            external_url = post_data.get(
-                f"activity_link_{enrollment.id}", ""
-            ).strip()
+            external_url = post_data.get(f"activity_link_{enrollment.id}", "").strip()
             if external_url:
                 ActivityProgressAttachment.objects.create(
                     progress=progress,
@@ -312,7 +317,9 @@ def _sync_activity_progress(
 # ---------------------------------------------------------------------------
 
 
-def compute_enrollment_calendar_date(enrollment, week_number, day_number, due_offset_days=0):
+def compute_enrollment_calendar_date(
+    enrollment, week_number, day_number, due_offset_days=0
+):
     """Compute a calendar date from an enrollment's start date + grid position."""
     return enrollment.start_date + datetime.timedelta(
         days=(week_number - 1) * 7 + (day_number - 1) + due_offset_days
@@ -446,7 +453,10 @@ def update_plan_item(plan_item, **fields):
                     due_offset_days=fields.get("due_offset_days", 0),
                 )
         else:
-            if "assignment_type" in fields and fields.get("assignment_type") is not None:
+            if (
+                "assignment_type" in fields
+                and fields.get("assignment_type") is not None
+            ):
                 detail.assignment_type = fields.get("assignment_type")
             if "is_graded" in fields:
                 detail.is_graded = fields.get("is_graded")
@@ -538,16 +548,26 @@ def save_plan_item_from_post(
         if err:
             return plan_item, err
         selected_enrollment = next(
-            (enrollment for enrollment in active_enrollments if enrollment.child_id == selected_child.id),
+            (
+                enrollment
+                for enrollment in active_enrollments
+                if enrollment.child_id == selected_child.id
+            ),
             None,
         )
         if selected_enrollment is None:
             return plan_item, "Please select a valid student for this lesson."
-        source_name = selected_subject.source_subject_name or selected_subject.subject_name
-        course_subject = CourseSubjectConfig.objects.filter(course=course).filter(
-            models.Q(subject_name__iexact=selected_subject.subject_name)
-            | models.Q(source_subject_name__iexact=source_name)
-        ).first()
+        source_name = (
+            selected_subject.source_subject_name or selected_subject.subject_name
+        )
+        course_subject = (
+            CourseSubjectConfig.objects.filter(course=course)
+            .filter(
+                models.Q(subject_name__iexact=selected_subject.subject_name)
+                | models.Q(source_subject_name__iexact=source_name)
+            )
+            .first()
+        )
         if course_subject is None:
             course_subject = CourseSubjectConfig.objects.create(
                 course=course,
@@ -555,11 +575,17 @@ def save_plan_item_from_post(
                 key_stage=selected_subject.key_stage,
                 year=selected_subject.source_year or selected_child.school_year,
                 lessons_per_week=selected_subject.lessons_per_week,
-                days_of_week=selected_subject.days_of_week or _normalized_course_weekdays(course),
+                days_of_week=selected_subject.days_of_week
+                or _normalized_course_weekdays(course),
                 colour_hex=selected_subject.colour_hex,
-                source="csv"
-                if (selected_subject.source_year or selected_subject.source_subject_name)
-                else "oak",
+                source=(
+                    "csv"
+                    if (
+                        selected_subject.source_year
+                        or selected_subject.source_subject_name
+                    )
+                    else "oak"
+                ),
                 source_subject_name=source_name,
                 source_year=selected_subject.source_year,
                 is_active=True,
@@ -655,7 +681,9 @@ def save_plan_item_from_post(
             for enrollment in active_enrollments:
                 if enrollment.id not in selected_ids:
                     continue
-                progress = materialize_plan_item_for_enrollment(plan_item, enrollment)[0]
+                progress = materialize_plan_item_for_enrollment(plan_item, enrollment)[
+                    0
+                ]
                 status_value = post_data.get(
                     f"activity_status_{enrollment.id}",
                     progress.status,
@@ -689,9 +717,13 @@ def save_plan_item_from_post(
             ActivityProgress.objects.filter(new_plan_item=plan_item).delete()
 
         if item_type == PlanItem.ITEM_TYPE_LESSON:
-            current_lesson = getattr(getattr(plan_item, "lesson_detail", None), "curriculum_lesson", None)
+            current_lesson = getattr(
+                getattr(plan_item, "lesson_detail", None), "curriculum_lesson", None
+            )
             if current_lesson is None:
-                current_lesson = next_unscheduled_lesson(selected_child, selected_subject)
+                current_lesson = next_unscheduled_lesson(
+                    selected_child, selected_subject
+                )
                 if current_lesson is not None:
                     update_plan_item(plan_item, curriculum_lesson=current_lesson)
             ScheduledLesson.objects.filter(plan_item=plan_item).exclude(
@@ -733,7 +765,11 @@ def delete_plan_item(plan_item):
 
     templates_to_check = []
     for bridge_id in legacy_bridge_ids:
-        bridge_item = AssignmentPlanItem.objects.filter(pk=bridge_id).select_related("template").first()
+        bridge_item = (
+            AssignmentPlanItem.objects.filter(pk=bridge_id)
+            .select_related("template")
+            .first()
+        )
         if bridge_item is None:
             continue
         templates_to_check.append(bridge_item.template_id)
@@ -761,7 +797,10 @@ def materialize_plan_item_for_enrollment(plan_item, enrollment):
         source_key = (course_subject.source_subject_name or "").strip().lower()
         target_name = (course_subject.subject_name or "").strip().lower()
         for es in enrolled_qs:
-            if source_key and (es.source_subject_name or "").strip().lower() == source_key:
+            if (
+                source_key
+                and (es.source_subject_name or "").strip().lower() == source_key
+            ):
                 matched = es
                 break
             if (es.subject_name or "").strip().lower() == target_name:
@@ -948,7 +987,9 @@ def generate_plan_grid(course, subject_configs=None):
             course.subject_configs.filter(is_active=True).order_by("subject_name", "pk")
         )
     else:
-        subject_configs = sorted(subject_configs, key=lambda cfg: (cfg.subject_name, cfg.pk))
+        subject_configs = sorted(
+            subject_configs, key=lambda cfg: (cfg.subject_name, cfg.pk)
+        )
 
     if not subject_configs:
         return 0
@@ -1057,7 +1098,6 @@ def generate_plan_grid(course, subject_configs=None):
         LessonPlanDetail.objects.bulk_create(batch, batch_size=500)
 
     return created_count
-
 
 
 def check_vacation_conflicts(child, plan_items, enrollment):

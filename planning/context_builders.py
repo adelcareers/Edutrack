@@ -45,7 +45,9 @@ def normalize_scope(raw_scope):
 
 
 def normalize_workflow(raw_workflow):
-    return raw_workflow if raw_workflow in WORKFLOW_TO_ITEM_KIND else WORKFLOW_ASSIGNMENTS
+    return (
+        raw_workflow if raw_workflow in WORKFLOW_TO_ITEM_KIND else WORKFLOW_ASSIGNMENTS
+    )
 
 
 def course_weeks(course):
@@ -249,8 +251,7 @@ def build_plan_course_context(course, request_params, active_enrollments):
         .order_by("week_number", "day_number", "order", "id")
     )
     merged_plan_items = [
-        _serialize_canonical_plan_item(plan_item, None)
-        for plan_item in new_plan_items
+        _serialize_canonical_plan_item(plan_item, None) for plan_item in new_plan_items
     ]
 
     # Editing state
@@ -262,9 +263,7 @@ def build_plan_course_context(course, request_params, active_enrollments):
     activity_progress_items = []
 
     if edit_id:
-        editing_item = get_object_or_404(
-            PlanItem, pk=edit_id, course=course
-        )
+        editing_item = get_object_or_404(PlanItem, pk=edit_id, course=course)
         selected_week = editing_item.week_number
         selected_day = editing_item.day_number
         workflow = {
@@ -275,14 +274,14 @@ def build_plan_course_context(course, request_params, active_enrollments):
         editing_attachments = []
         editing_item = _serialize_canonical_plan_item(editing_item, None)
         student_assignments = list(
-            StudentAssignment.objects.filter(new_plan_item_id=editing_item.plan_item_id).select_related(
-                "enrollment__child"
-            )
+            StudentAssignment.objects.filter(
+                new_plan_item_id=editing_item.plan_item_id
+            ).select_related("enrollment__child")
         )
         activity_progress_items = list(
-            ActivityProgress.objects.filter(new_plan_item_id=editing_item.plan_item_id).select_related(
-                "enrollment__child"
-            ).prefetch_related("attachments")
+            ActivityProgress.objects.filter(new_plan_item_id=editing_item.plan_item_id)
+            .select_related("enrollment__child")
+            .prefetch_related("attachments")
         )
 
     # Build enrollment rows
@@ -334,13 +333,19 @@ def build_plan_course_context(course, request_params, active_enrollments):
     # Workflow counts and filtering
     workflow_counts = {
         WORKFLOW_ASSIGNMENTS: sum(
-            1 for item in merged_plan_items if _workflow_for_item(item) == WORKFLOW_ASSIGNMENTS
+            1
+            for item in merged_plan_items
+            if _workflow_for_item(item) == WORKFLOW_ASSIGNMENTS
         ),
         WORKFLOW_LESSONS: sum(
-            1 for item in merged_plan_items if _workflow_for_item(item) == WORKFLOW_LESSONS
+            1
+            for item in merged_plan_items
+            if _workflow_for_item(item) == WORKFLOW_LESSONS
         ),
         WORKFLOW_ACTIVITIES: sum(
-            1 for item in merged_plan_items if _workflow_for_item(item) == WORKFLOW_ACTIVITIES
+            1
+            for item in merged_plan_items
+            if _workflow_for_item(item) == WORKFLOW_ACTIVITIES
         ),
     }
 
@@ -424,6 +429,7 @@ def build_plan_course_context(course, request_params, active_enrollments):
         "lesson_subject_options": lesson_subject_options,
     }
 
+
 def _status_from_assignment_values(values_rows, today):
     plan_status_map = {}
     for row in values_rows:
@@ -455,9 +461,9 @@ def _build_plan_status_map(legacy_plan_items, new_plan_items):
             "status": row["status"],
             "due_date": row["due_date"],
         }
-        for row in StudentAssignment.objects.filter(new_plan_item_id__in=new_ids).values(
-            "new_plan_item_id", "status", "due_date"
-        )
+        for row in StudentAssignment.objects.filter(
+            new_plan_item_id__in=new_ids
+        ).values("new_plan_item_id", "status", "due_date")
         if row["new_plan_item_id"]
     ]
     plan_status_map.update(_status_from_assignment_values(new_assignment_rows, today))

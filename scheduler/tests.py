@@ -340,7 +340,9 @@ class AddChildFormTests(TestCase):
 
     def test_valid_post_redirects_to_oak_wizard(self):
         response = self.client.post(self.url, VALID_CHILD_DATA)
-        course = Course.objects.get(parent=self.parent, name=VALID_CHILD_DATA["school_year"])
+        course = Course.objects.get(
+            parent=self.parent, name=VALID_CHILD_DATA["school_year"]
+        )
         self.assertRedirects(
             response,
             reverse("planning:oak_wizard", args=[course.pk]),
@@ -924,7 +926,9 @@ class PlanningLedSubjectFlowTests(TestCase):
             reverse("planning:oak_wizard", kwargs={"course_id": self.course.pk}),
             fetch_redirect_response=False,
         )
-        config = CourseSubjectConfig.objects.get(course=self.course, subject_name="Maths")
+        config = CourseSubjectConfig.objects.get(
+            course=self.course, subject_name="Maths"
+        )
         self.assertEqual(config.lessons_per_week, 2)
         self.assertEqual(config.days_of_week, [0, 2])
 

@@ -350,7 +350,6 @@ class ActivityProgress(models.Model):
 
     def __str__(self):
         return f"{self.enrollment.child.first_name} - {self.plan_item}"
-    
 
 
 class ActivityProgressAttachment(models.Model):

@@ -127,11 +127,19 @@ def _sync_course_subject_configs(child, enrolled_subjects):
 
     for enrollment in active_enrollments:
         course = enrollment.course
-        fallback_days = list(course.default_days or []) or list(range(max(course.frequency_days, 1)))
+        fallback_days = list(course.default_days or []) or list(
+            range(max(course.frequency_days, 1))
+        )
         valid_days = set(range(max(course.frequency_days, 1)))
 
         for subject in enrolled_subjects:
-            days = sorted({day for day in (subject.days_of_week or fallback_days) if day in valid_days})
+            days = sorted(
+                {
+                    day
+                    for day in (subject.days_of_week or fallback_days)
+                    if day in valid_days
+                }
+            )
             if not days:
                 days = fallback_days
             CourseSubjectConfig.objects.update_or_create(
@@ -143,8 +151,13 @@ def _sync_course_subject_configs(child, enrolled_subjects):
                     "lessons_per_week": max(1, min(10, subject.lessons_per_week or 3)),
                     "days_of_week": days,
                     "colour_hex": subject.colour_hex,
-                    "source": "csv" if (subject.source_year or subject.source_subject_name) else "oak",
-                    "source_subject_name": subject.source_subject_name or subject.subject_name,
+                    "source": (
+                        "csv"
+                        if (subject.source_year or subject.source_subject_name)
+                        else "oak"
+                    ),
+                    "source_subject_name": subject.source_subject_name
+                    or subject.subject_name,
                     "source_year": subject.source_year,
                     "is_active": True,
                 },
@@ -288,7 +301,9 @@ def schedule_days_view(request, child_id):
 
         active_enrollments = _active_course_enrollments_for_child(child)
         if active_enrollments:
-            return redirect("planning:oak_wizard", course_id=active_enrollments[0].course_id)
+            return redirect(
+                "planning:oak_wizard", course_id=active_enrollments[0].course_id
+            )
         return redirect("scheduler:generate_schedule", child_id=child.pk)
 
     day_choices = [(0, "Mon"), (1, "Tue"), (2, "Wed"), (3, "Thu"), (4, "Fri")]

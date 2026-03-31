@@ -174,12 +174,20 @@ def recalculate_enrollment_grade(enrollment):
                 for bucket in by_assignment_type.values()
                 for pct in bucket["percents"]
             ]
-            final_percent = (sum(all_percents, ZERO) / Decimal(len(all_percents))) if all_percents else ZERO
+            final_percent = (
+                (sum(all_percents, ZERO) / Decimal(len(all_percents)))
+                if all_percents
+                else ZERO
+            )
     else:
         all_percents = [
             pct for bucket in by_assignment_type.values() for pct in bucket["percents"]
         ]
-        final_percent = (sum(all_percents, ZERO) / Decimal(len(all_percents))) if all_percents else ZERO
+        final_percent = (
+            (sum(all_percents, ZERO) / Decimal(len(all_percents)))
+            if all_percents
+            else ZERO
+        )
 
     final_percent = _round2(final_percent)
     letter, gpa = map_percent_to_letter_and_gpa(

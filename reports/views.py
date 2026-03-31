@@ -31,10 +31,10 @@ from reports.services_gradebook import (
 )
 from scheduler.models import Child
 from tracker.models import LessonLog
+from tracker.views.utils import _hydrate_assignment_display
 
 from .forms import ReportForm
 from .services import generate_pdf
-from tracker.views.utils import _hydrate_assignment_display
 
 
 def _user_role(user):
@@ -361,7 +361,11 @@ def gradebook_detail_view(request, enrollment_id):
             assignment.display_status = "pending"
         assignment.effective_percent = get_assignment_percent(assignment)
         # Build edit URL using new_plan_item for unified model
-        plan_item_for_url = assignment.new_plan_item_id if assignment.new_plan_item_id else assignment.plan_item_id
+        plan_item_for_url = (
+            assignment.new_plan_item_id
+            if assignment.new_plan_item_id
+            else assignment.plan_item_id
+        )
         assignment.edit_url = (
             f"{reverse('planning:plan_course', args=[enrollment.course.id])}"
             f"?edit={plan_item_for_url}"
@@ -415,7 +419,9 @@ def gradebook_detail_view(request, enrollment_id):
                 return assignment_type.name.lower()
         legacy_plan_item = getattr(item, "plan_item", None)
         if legacy_plan_item and getattr(legacy_plan_item, "template", None):
-            assignment_type = getattr(legacy_plan_item.template, "assignment_type", None)
+            assignment_type = getattr(
+                legacy_plan_item.template, "assignment_type", None
+            )
             if assignment_type:
                 return assignment_type.name.lower()
         return ""
@@ -435,9 +441,7 @@ def gradebook_detail_view(request, enrollment_id):
             )
         )
     elif sort_by == "type":
-        assignments.sort(
-            key=lambda item: (_assignment_sort_type(item), item.due_date)
-        )
+        assignments.sort(key=lambda item: (_assignment_sort_type(item), item.due_date))
     elif sort_by == "name":
         assignments.sort(key=lambda item: (_assignment_sort_name(item), item.due_date))
     elif sort_by == "percent":
@@ -708,13 +712,17 @@ def tracking_overview_view(request):
 
     course_summaries = []
     for course in courses:
-        active_enrollments = [e for e in course.enrollments.all() if e.status == "active"]
+        active_enrollments = [
+            e for e in course.enrollments.all() if e.status == "active"
+        ]
         active_child_ids = [enrollment.child_id for enrollment in active_enrollments]
 
         # Lessons: ScheduledLesson with LessonLog.status=complete
-        total_lessons = ScheduledLesson.objects.filter(
-            child_id__in=active_child_ids
-        ).distinct().count()
+        total_lessons = (
+            ScheduledLesson.objects.filter(child_id__in=active_child_ids)
+            .distinct()
+            .count()
+        )
         complete_lessons = ScheduledLesson.objects.filter(
             child_id__in=active_child_ids, log__status="complete"
         ).count()
@@ -738,41 +746,70 @@ def tracking_overview_view(request):
         # Per-subject breakdown (CourseSubjectConfig)
         subject_rows = []
         for sc in course.subject_configs.filter(is_active=True):
-            s_total = ScheduledLesson.objects.filter(
-                child_id__in=active_child_ids,
-            ).filter(
-                models.Q(course_subject=sc)
-                | models.Q(enrolled_subject__subject_name=sc.subject_name)
-            ).distinct().count()
-            s_complete = ScheduledLesson.objects.filter(
-                child_id__in=active_child_ids,
-                log__status="complete",
-            ).filter(
-                models.Q(course_subject=sc)
-                | models.Q(enrolled_subject__subject_name=sc.subject_name)
-            ).count()
-            subject_rows.append({
-                "subject_name": sc.subject_name,
-                "total": s_total,
-                "complete": s_complete,
-                "pct": round(s_complete / s_total * 100) if s_total else 0,
-            })
+            s_total = (
+                ScheduledLesson.objects.filter(
+                    child_id__in=active_child_ids,
+                )
+                .filter(
+                    models.Q(course_subject=sc)
+                    | models.Q(enrolled_subject__subject_name=sc.subject_name)
+                )
+                .distinct()
+                .count()
+            )
+            s_complete = (
+                ScheduledLesson.objects.filter(
+                    child_id__in=active_child_ids,
+                    log__status="complete",
+                )
+                .filter(
+                    models.Q(course_subject=sc)
+                    | models.Q(enrolled_subject__subject_name=sc.subject_name)
+                )
+                .count()
+            )
+            subject_rows.append(
+                {
+                    "subject_name": sc.subject_name,
+                    "total": s_total,
+                    "complete": s_complete,
+                    "pct": round(s_complete / s_total * 100) if s_total else 0,
+                }
+            )
 
-        course_summaries.append({
-            "course": course,
-            "active_enrollment_count": len(active_enrollments),
-            "total_lessons": total_lessons,
-            "complete_lessons": complete_lessons,
-            "lesson_pct": round(complete_lessons / total_lessons * 100) if total_lessons else 0,
-            "total_assignments": total_assignments,
-            "complete_assignments": complete_assignments,
-            "assignment_pct": round(complete_assignments / total_assignments * 100) if total_assignments else 0,
-            "total_activities": total_activities,
-            "complete_activities": complete_activities,
-            "activity_pct": round(complete_activities / total_activities * 100) if total_activities else 0,
-            "subject_rows": subject_rows,
-        })
+        course_summaries.append(
+            {
+                "course": course,
+                "active_enrollment_count": len(active_enrollments),
+                "total_lessons": total_lessons,
+                "complete_lessons": complete_lessons,
+                "lesson_pct": (
+                    round(complete_lessons / total_lessons * 100)
+                    if total_lessons
+                    else 0
+                ),
+                "total_assignments": total_assignments,
+                "complete_assignments": complete_assignments,
+                "assignment_pct": (
+                    round(complete_assignments / total_assignments * 100)
+                    if total_assignments
+                    else 0
+                ),
+                "total_activities": total_activities,
+                "complete_activities": complete_activities,
+                "activity_pct": (
+                    round(complete_activities / total_activities * 100)
+                    if total_activities
+                    else 0
+                ),
+                "subject_rows": subject_rows,
+            }
+        )
 
-    return render(request, "reports/tracking_overview.html", {
-        "course_summaries": course_summaries,
-    })
+    return render(
+        request,
+        "reports/tracking_overview.html",
+        {
+            "course_summaries": course_summaries,
+        },
+    )

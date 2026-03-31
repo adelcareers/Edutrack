@@ -164,7 +164,9 @@ def _archive_course_snapshot(course, remark="course deleted"):
                 "due_in_days": due_in_days,
                 "plan_notes": plan_item.notes,
                 "template_name": (
-                    plan_item.name if assignment_detail is not None else plan_item.template.name
+                    plan_item.name
+                    if assignment_detail is not None
+                    else plan_item.template.name
                 ),
                 "template_description": (
                     plan_item.description
@@ -879,7 +881,9 @@ def subject_config_hard_delete_view(request, config_id):
         )
     )
     related_plan_item_ids = [plan_item.id for plan_item in related_plan_items]
-    StudentAssignment.objects.filter(new_plan_item_id__in=related_plan_item_ids).delete()
+    StudentAssignment.objects.filter(
+        new_plan_item_id__in=related_plan_item_ids
+    ).delete()
     ActivityProgress.objects.filter(new_plan_item_id__in=related_plan_item_ids).delete()
     PlanItem.objects.filter(id__in=related_plan_item_ids).delete()
     config.delete()

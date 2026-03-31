@@ -11,6 +11,7 @@ from courses.models import Course
 from curriculum.models import Lesson
 from scheduler.services import generate_schedule
 
+from . import services as planning_services
 from .context_builders import (
     ITEM_KIND_TO_WORKFLOW,
     WORKFLOW_ASSIGNMENTS,
@@ -23,7 +24,6 @@ from .context_builders import (
     normalize_workflow,
     safe_int,
 )
-from . import services as planning_services
 from .services import create_subject_configs_from_selection, generate_plan_grid
 
 logger = logging.getLogger(__name__)
@@ -122,7 +122,9 @@ def plan_course_view(request, course_id):
             )
             planning_services.delete_plan_item(canonical_item)
         return redirect(
-            build_plan_url(request.path, week_number, day_number, post_workflow, post_scope)
+            build_plan_url(
+                request.path, week_number, day_number, post_workflow, post_scope
+            )
         )
 
     # ── CREATE / UPDATE handler ─────────────────────────────────────
@@ -171,27 +173,43 @@ def plan_course_view(request, course_id):
             messages.error(request, error)
             return redirect(
                 build_plan_url(
-                    request.path, week_number, day_number,
-                    post_workflow, post_scope, create=True,
+                    request.path,
+                    week_number,
+                    day_number,
+                    post_workflow,
+                    post_scope,
+                    create=True,
                 )
             )
 
         if plan_item_id and template_name:
             return redirect(
                 build_plan_url(
-                    request.path, week_number, day_number,
-                    post_workflow, post_scope, create=True, edit_id=plan_item_id,
+                    request.path,
+                    week_number,
+                    day_number,
+                    post_workflow,
+                    post_scope,
+                    create=True,
+                    edit_id=plan_item_id,
                 )
             )
         if template_name and plan_item is not None:
             return redirect(
                 build_plan_url(
-                    request.path, week_number, day_number,
-                    post_workflow, post_scope, create=True, edit_id=plan_item.id,
+                    request.path,
+                    week_number,
+                    day_number,
+                    post_workflow,
+                    post_scope,
+                    create=True,
+                    edit_id=plan_item.id,
                 )
             )
         return redirect(
-            build_plan_url(request.path, week_number, day_number, post_workflow, post_scope)
+            build_plan_url(
+                request.path, week_number, day_number, post_workflow, post_scope
+            )
         )
 
     # ── GET handler ─────────────────────────────────────────────────
@@ -225,7 +243,7 @@ def oak_wizard_view(request, course_id):
         for key in request.POST:
             if key.startswith("subject_"):
                 # key format: subject_{subject_name}__{year}
-                parts = key[len("subject_"):].split("__", 1)
+                parts = key[len("subject_") :].split("__", 1)
                 if len(parts) == 2:
                     subject_name, year = parts
                     selected.append({"subject_name": subject_name, "year": year})
@@ -247,8 +265,13 @@ def oak_wizard_view(request, course_id):
                 "selected_subjects": selected,
                 "available_subjects": available_subjects,
                 "day_choices": [
-                    (0, "Mon"), (1, "Tue"), (2, "Wed"), (3, "Thu"),
-                    (4, "Fri"), (5, "Sat"), (6, "Sun"),
+                    (0, "Mon"),
+                    (1, "Tue"),
+                    (2, "Wed"),
+                    (3, "Thu"),
+                    (4, "Fri"),
+                    (5, "Sat"),
+                    (6, "Sun"),
                 ],
             },
         )
@@ -287,16 +310,18 @@ def oak_wizard_view(request, course_id):
                     f"{subject_name} must have between 1 and 10 lessons per week.",
                 )
                 return redirect(reverse("planning:oak_wizard", args=[course_id]))
-            subject_configs_data.append({
-                "subject_name": subject_name,
-                "year": year,
-                "lessons_per_week": lessons_per_week,
-                "days_of_week": days_of_week,
-                "colour_hex": colour_hex,
-                "source": "oak",
-                "source_subject_name": subject_name,
-                "source_year": year,
-            })
+            subject_configs_data.append(
+                {
+                    "subject_name": subject_name,
+                    "year": year,
+                    "lessons_per_week": lessons_per_week,
+                    "days_of_week": days_of_week,
+                    "colour_hex": colour_hex,
+                    "source": "oak",
+                    "source_subject_name": subject_name,
+                    "source_year": year,
+                }
+            )
             idx += 1
 
         if not subject_configs_data:
@@ -304,14 +329,18 @@ def oak_wizard_view(request, course_id):
             return redirect(reverse("planning:oak_wizard", args=[course_id]))
 
         try:
-            configs = create_subject_configs_from_selection(course, subject_configs_data)
+            configs = create_subject_configs_from_selection(
+                course, subject_configs_data
+            )
             created_count = generate_plan_grid(course, configs)
             messages.success(
                 request,
                 f"Oak lesson plan generated: {created_count} lesson slots added to the planning grid.",
             )
         except Exception:
-            logger.exception("Oak wizard grid generation failed for course_id=%s", course_id)
+            logger.exception(
+                "Oak wizard grid generation failed for course_id=%s", course_id
+            )
             messages.error(request, "An error occurred while generating the plan grid.")
 
         return redirect(reverse("planning:plan_course", args=[course_id]))
