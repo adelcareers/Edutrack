@@ -52,6 +52,17 @@ SUBJECT_COLOUR_PALETTE = [
     "#06D6A0",
 ]
 
+TEACHING_PERIOD_CHOICES = list(range(1, 9))
+
+
+def _timetable_rows():
+    rows = []
+    for period in TEACHING_PERIOD_CHOICES:
+        rows.append({"kind": "period", "period": period, "label": str(period)})
+        if period in {3, 6}:
+            rows.append({"kind": "break", "label": "Break"})
+    return rows
+
 
 def _sorted_years():
     raw_years = Lesson.objects.values_list("year", flat=True).distinct()
@@ -83,6 +94,7 @@ def _subject_rows_for_year(school_year):
         row["preview_colour"] = SUBJECT_COLOUR_PALETTE[
             index % len(SUBJECT_COLOUR_PALETTE)
         ]
+        row["key_stage_display"] = (row.get("key_stage") or "").upper()
     return rows
 
 
@@ -187,8 +199,8 @@ def _parse_slots(raw_value, valid_subject_names):
             period = int(row.get("period"))
         except (TypeError, ValueError):
             return None, "Timetable includes an invalid day or period."
-        if weekday < 0 or weekday > 6 or period < 0 or period > 12:
-            return None, "Timetable slots must stay within Mon-Sun and periods 0-12."
+        if weekday < 0 or weekday > 6 or period < 1 or period > 8:
+            return None, "Timetable slots must stay within Mon-Sun and rows 1-8."
         if (weekday, period) in occupied:
             return None, "Only one subject can occupy each timetable slot."
         occupied.add((weekday, period))
@@ -265,7 +277,8 @@ def _build_context(request, child):
         "credentials_form": credentials_form,
         "selected_subjects": selected_subjects,
         "weekday_choices": WEEKDAY_CHOICES,
-        "period_choices": list(range(13)),
+        "period_choices": TEACHING_PERIOD_CHOICES,
+        "timetable_rows": _timetable_rows(),
         "slot_subjects": slot_subjects,
         "slot_payload_json": json.dumps(slot_payload),
         "generation_summary": _current_generation_summary(request, child) if child else [],

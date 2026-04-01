@@ -7,7 +7,7 @@
 {% block extra_css %}
 <style>
   body { background: #f7f7f3; }
-  .setup-shell { max-width: 1120px; margin: 2rem auto 3rem; }
+  .setup-shell { max-width: 1320px; margin: 2rem auto 3rem; }
   .setup-header {
     display: flex;
     justify-content: space-between;
@@ -39,13 +39,25 @@
     align-items: center;
     padding: 1rem 1.2rem;
     background: #fcfcfb;
+    width: 100%;
+    border: 0;
+    text-align: left;
   }
+  .setup-section-head:disabled { cursor: not-allowed; }
+  .setup-section-head:not(:disabled) { cursor: pointer; }
   .setup-section-title {
     display: flex;
     align-items: center;
     gap: 0.8rem;
     font-weight: 700;
     color: #1f2937;
+  }
+  .setup-head-chevron {
+    color: #78716c;
+    transition: transform .18s ease;
+  }
+  .setup-section-head[aria-expanded="true"] .setup-head-chevron {
+    transform: rotate(180deg);
   }
   .setup-step {
     width: 2rem;
@@ -68,6 +80,63 @@
   .setup-state.complete { color: #0f766e; }
   .setup-state.pending { color: #b45309; }
   .setup-section-body { padding: 1.2rem; }
+  .setup-body-shell { padding: 0 1.2rem 1.2rem; }
+  .setup-hero {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .setup-hero-copy { min-width: 0; }
+  .avatar-wrap {
+    position: relative;
+    width: 96px;
+    height: 96px;
+    flex-shrink: 0;
+  }
+  .avatar-circle {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4f46e5, #2563eb);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    color: #fff;
+    font-size: 2rem;
+    font-weight: 700;
+  }
+  .avatar-circle img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .avatar-edit-label {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    width: 30px;
+    height: 30px;
+    background: #fff;
+    border: 1.5px solid #dee2e6;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,.15);
+  }
+  .avatar-edit-label:hover { background: #f0f4ff; }
+  .avatar-fallback-hidden { display: none; }
+  .student-info-layout {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .student-info-fields {
+    flex: 1 1 520px;
+  }
   .subject-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -93,7 +162,7 @@
   }
   .subject-colour-row {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     gap: 0.75rem;
     margin-top: 0.65rem;
@@ -109,6 +178,7 @@
     background: #fcfcfb;
     padding: 0.9rem;
   }
+  .timetable-grid-shell { overflow-x: auto; }
   .palette-button {
     width: 100%;
     border: 1px solid #d6d3d1;
@@ -134,9 +204,10 @@
   }
   .timetable-grid {
     display: grid;
-    grid-template-columns: 70px repeat(7, minmax(96px, 1fr));
+    grid-template-columns: 62px repeat(7, minmax(110px, 1fr));
     gap: 0.5rem;
     align-items: stretch;
+    min-width: 940px;
   }
   .timetable-head,
   .timetable-period {
@@ -157,6 +228,11 @@
     border-radius: 12px;
     background: #fafaf9;
   }
+  .timetable-period.break-row {
+    background: linear-gradient(135deg, #fff7ed, #fffbeb);
+    min-height: 54px;
+    color: #b45309;
+  }
   .slot-cell {
     min-height: 70px;
     border: 1px dashed #d6d3d1;
@@ -168,6 +244,7 @@
   }
   .slot-cell.break-cell {
     background: linear-gradient(135deg, #fff7ed, #fffbeb);
+    cursor: default;
   }
   .slot-card {
     height: 100%;
@@ -217,7 +294,9 @@
     .subject-grid,
     .summary-grid,
     .timetable-shell { grid-template-columns: 1fr; }
-    .timetable-grid { grid-template-columns: 64px repeat(7, minmax(82px, 1fr)); }
+    .setup-hero,
+    .student-info-layout { align-items: flex-start; }
+    .timetable-grid { grid-template-columns: 56px repeat(7, minmax(92px, 1fr)); }
   }
 </style>
 {% endblock %}
@@ -240,286 +319,347 @@
     </div>
   {% endfor %}
 
-  <div class="setup-card">
+  <div class="setup-card" id="setup-accordion">
     <section class="setup-section">
-      <div class="setup-section-head">
-        <div class="setup-section-title">
+      <button class="setup-section-head" type="button" data-bs-toggle="collapse" data-bs-target="#setup-info" aria-expanded="{% if open_section == 'info' %}true{% else %}false{% endif %}" aria-controls="setup-info">
+        <span class="setup-section-title">
           <span class="setup-step {% if completion.info %}complete{% endif %}">1</span>
           <span>Student Info</span>
+        </span>
+        <span class="d-flex align-items-center gap-3">
+          <span class="setup-state {% if completion.info %}complete{% else %}pending{% endif %}">{% if completion.info %}Complete{% else %}Pending{% endif %}</span>
+          <i class="bi bi-chevron-down setup-head-chevron"></i>
+        </span>
+      </button>
+      <div id="setup-info" class="collapse {% if open_section == 'info' %}show{% endif %}" data-bs-parent="#setup-accordion">
+        <div class="setup-body-shell">
+          <div class="setup-section-body">
+            <form method="post" enctype="multipart/form-data">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="save_info">
+              <div class="student-info-layout">
+                <div class="avatar-wrap">
+                  <div class="avatar-circle">
+                    <span id="setup-avatar-initial" class="{% if child and child.photo %}avatar-fallback-hidden{% endif %}">{% if child and child.first_name %}{{ child.first_name|first|upper }}{% else %}<i class="bi bi-person-fill"></i>{% endif %}</span>
+                    <img
+                      id="setup-avatar-img"
+                      src="{% if child and child.photo %}{{ child.photo.url }}{% endif %}"
+                      alt="{% if child %}{{ child.first_name }}{% else %}Student{% endif %}"
+                      {% if not child or not child.photo %}style="display:none;"{% endif %}
+                    >
+                  </div>
+                  <label class="avatar-edit-label" for="id_photo_info" title="Change photo">
+                    <i class="bi bi-pencil-fill" style="font-size: 0.7rem; color: #555;"></i>
+                  </label>
+                  <input type="file" id="id_photo_info" name="photo" accept="image/*" class="d-none">
+                </div>
+                <div class="student-info-fields row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold">Student Name</label>
+                    <input
+                      type="text"
+                      name="first_name"
+                      class="form-control{% if info_errors.first_name %} is-invalid{% endif %}"
+                      value="{% if info_form_data.first_name %}{{ info_form_data.first_name }}{% elif child %}{{ child.first_name }}{% endif %}"
+                      required
+                    >
+                    {% if info_errors.first_name %}<div class="invalid-feedback">{{ info_errors.first_name }}</div>{% endif %}
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold">Date of Birth</label>
+                    <input
+                      type="date"
+                      name="date_of_birth"
+                      class="form-control{% if info_errors.date_of_birth %} is-invalid{% endif %}"
+                      value="{% if info_form_data.date_of_birth %}{{ info_form_data.date_of_birth }}{% elif child and child.date_of_birth %}{{ child.date_of_birth|date:'Y-m-d' }}{% endif %}"
+                      required
+                    >
+                    {% if info_errors.date_of_birth %}<div class="invalid-feedback">{{ info_errors.date_of_birth }}</div>{% endif %}
+                  </div>
+                  <div class="col-md-2 d-flex align-items-end justify-content-end">
+                    <button type="submit" class="btn btn-primary w-100">Save Student Info</button>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
         </div>
-        <span class="setup-state {% if completion.info %}complete{% else %}pending{% endif %}">{% if completion.info %}Complete{% else %}Pending{% endif %}</span>
-      </div>
-      <div class="setup-section-body">
-        <form method="post" enctype="multipart/form-data" class="row g-3">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="save_info">
-          <div class="col-md-6">
-            <label class="form-label fw-semibold">Student Name</label>
-            <input
-              type="text"
-              name="first_name"
-              class="form-control{% if info_errors.first_name %} is-invalid{% endif %}"
-              value="{% if info_form_data.first_name %}{{ info_form_data.first_name }}{% elif child %}{{ child.first_name }}{% endif %}"
-              required
-            >
-            {% if info_errors.first_name %}<div class="invalid-feedback">{{ info_errors.first_name }}</div>{% endif %}
-          </div>
-          <div class="col-md-3">
-            <label class="form-label fw-semibold">Date of Birth</label>
-            <input
-              type="date"
-              name="date_of_birth"
-              class="form-control{% if info_errors.date_of_birth %} is-invalid{% endif %}"
-              value="{% if info_form_data.date_of_birth %}{{ info_form_data.date_of_birth }}{% elif child and child.date_of_birth %}{{ child.date_of_birth|date:'Y-m-d' }}{% endif %}"
-              required
-            >
-            {% if info_errors.date_of_birth %}<div class="invalid-feedback">{{ info_errors.date_of_birth }}</div>{% endif %}
-          </div>
-          <div class="col-md-3">
-            <label class="form-label fw-semibold">Photo</label>
-            <input type="file" name="photo" accept="image/*" class="form-control">
-          </div>
-          <div class="col-12 d-flex justify-content-end">
-            <button type="submit" class="btn btn-primary">Save Student Info</button>
-          </div>
-        </form>
       </div>
     </section>
 
     <section class="setup-section {% if not completion.info %}is-locked{% endif %}">
-      <div class="setup-section-head">
-        <div class="setup-section-title">
+      <button class="setup-section-head" type="button" data-bs-toggle="collapse" data-bs-target="#setup-credentials" aria-expanded="{% if open_section == 'credentials' %}true{% else %}false{% endif %}" aria-controls="setup-credentials" {% if not completion.info %}disabled{% endif %}>
+        <span class="setup-section-title">
           <span class="setup-step {% if completion.credentials %}complete{% endif %}">2</span>
           <span>Student Credentials</span>
+        </span>
+        <span class="d-flex align-items-center gap-3">
+          <span class="setup-state {% if completion.credentials %}complete{% else %}pending{% endif %}">{% if completion.credentials %}Complete{% else %}Pending{% endif %}</span>
+          <i class="bi bi-chevron-down setup-head-chevron"></i>
+        </span>
+      </button>
+      <div id="setup-credentials" class="collapse {% if open_section == 'credentials' %}show{% endif %}" data-bs-parent="#setup-accordion">
+        <div class="setup-body-shell">
+          <div class="setup-section-body">
+            {% if not completion.info %}
+              <div class="locked-hint">Save the student info section before setting login credentials.</div>
+            {% else %}
+              <form method="post" class="row g-3">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_credentials">
+                <div class="col-md-5">
+                  <label class="form-label fw-semibold">Student Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    class="form-control{% if credentials_form.email.errors %} is-invalid{% endif %}"
+                    value="{{ credentials_form.email.value|default:'' }}"
+                    placeholder="student@example.com"
+                    required
+                  >
+                  {% if credentials_form.email.errors %}<div class="invalid-feedback">{{ credentials_form.email.errors|join:', ' }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Password</label>
+                  <input type="password" name="password1" class="form-control{% if credentials_form.password1.errors %} is-invalid{% endif %}" required>
+                  {% if credentials_form.password1.errors %}<div class="invalid-feedback">{{ credentials_form.password1.errors|join:', ' }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Confirm Password</label>
+                  <input type="password" name="password2" class="form-control{% if credentials_form.password2.errors %} is-invalid{% endif %}" required>
+                  {% if credentials_form.password2.errors %}<div class="invalid-feedback">{{ credentials_form.password2.errors|join:', ' }}</div>{% endif %}
+                </div>
+                <div class="col-md-1 d-flex align-items-end">
+                  <button type="submit" class="btn btn-primary w-100">{% if child.student_user_id %}Update{% else %}Save{% endif %}</button>
+                </div>
+              </form>
+            {% endif %}
+          </div>
         </div>
-        <span class="setup-state {% if completion.credentials %}complete{% else %}pending{% endif %}">{% if completion.credentials %}Complete{% else %}Pending{% endif %}</span>
-      </div>
-      <div class="setup-section-body">
-        {% if not completion.info %}
-          <div class="locked-hint">Save the student info section before setting login credentials.</div>
-        {% else %}
-          <form method="post" class="row g-3">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="save_credentials">
-            <div class="col-md-5">
-              <label class="form-label fw-semibold">Student Email</label>
-              <input
-                type="email"
-                name="email"
-                class="form-control{% if credentials_form.email.errors %} is-invalid{% endif %}"
-                value="{{ credentials_form.email.value|default:'' }}"
-                placeholder="student@example.com"
-                required
-              >
-              {% if credentials_form.email.errors %}<div class="invalid-feedback">{{ credentials_form.email.errors|join:', ' }}</div>{% endif %}
-            </div>
-            <div class="col-md-3">
-              <label class="form-label fw-semibold">Password</label>
-              <input type="password" name="password1" class="form-control{% if credentials_form.password1.errors %} is-invalid{% endif %}" required>
-              {% if credentials_form.password1.errors %}<div class="invalid-feedback">{{ credentials_form.password1.errors|join:', ' }}</div>{% endif %}
-            </div>
-            <div class="col-md-3">
-              <label class="form-label fw-semibold">Confirm Password</label>
-              <input type="password" name="password2" class="form-control{% if credentials_form.password2.errors %} is-invalid{% endif %}" required>
-              {% if credentials_form.password2.errors %}<div class="invalid-feedback">{{ credentials_form.password2.errors|join:', ' }}</div>{% endif %}
-            </div>
-            <div class="col-md-1 d-flex align-items-end">
-              <button type="submit" class="btn btn-primary w-100">{% if child.student_user_id %}Update{% else %}Save{% endif %}</button>
-            </div>
-          </form>
-        {% endif %}
       </div>
     </section>
 
     <section class="setup-section {% if not completion.credentials %}is-locked{% endif %}">
-      <div class="setup-section-head">
-        <div class="setup-section-title">
+      <button class="setup-section-head" type="button" data-bs-toggle="collapse" data-bs-target="#setup-school-year" aria-expanded="{% if open_section == 'school_year' %}true{% else %}false{% endif %}" aria-controls="setup-school-year" {% if not completion.credentials %}disabled{% endif %}>
+        <span class="setup-section-title">
           <span class="setup-step {% if completion.school_year %}complete{% endif %}">3</span>
           <span>School Year</span>
+        </span>
+        <span class="d-flex align-items-center gap-3">
+          <span class="setup-state {% if completion.school_year %}complete{% else %}pending{% endif %}">{% if completion.school_year %}Complete{% else %}Pending{% endif %}</span>
+          <i class="bi bi-chevron-down setup-head-chevron"></i>
+        </span>
+      </button>
+      <div id="setup-school-year" class="collapse {% if open_section == 'school_year' %}show{% endif %}" data-bs-parent="#setup-accordion">
+        <div class="setup-body-shell">
+          <div class="setup-section-body">
+            {% if not completion.credentials %}
+              <div class="locked-hint">Save student credentials before choosing the school year.</div>
+            {% else %}
+              <form method="post" class="row g-3">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_school_year">
+                <div class="col-md-5">
+                  <label class="form-label fw-semibold">School Year</label>
+                  <select name="school_year" class="form-select{% if school_year_error %} is-invalid{% endif %}">
+                    <option value="">Select a school year</option>
+                    {% for year in school_years %}
+                      <option value="{{ year }}" {% if child.school_year == year %}selected{% endif %}>{{ year }}</option>
+                    {% endfor %}
+                  </select>
+                  {% if school_year_error %}<div class="invalid-feedback">{{ school_year_error }}</div>{% endif %}
+                </div>
+                <div class="col-md-4 d-flex align-items-end text-muted small">
+                  This creates or updates the student’s dedicated workspace course.
+                </div>
+                <div class="col-md-3 d-flex align-items-end justify-content-end">
+                  <button type="submit" class="btn btn-primary">Save School Year</button>
+                </div>
+              </form>
+            {% endif %}
+          </div>
         </div>
-        <span class="setup-state {% if completion.school_year %}complete{% else %}pending{% endif %}">{% if completion.school_year %}Complete{% else %}Pending{% endif %}</span>
-      </div>
-      <div class="setup-section-body">
-        {% if not completion.credentials %}
-          <div class="locked-hint">Save student credentials before choosing the school year.</div>
-        {% else %}
-          <form method="post" class="row g-3">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="save_school_year">
-            <div class="col-md-5">
-              <label class="form-label fw-semibold">School Year</label>
-              <select name="school_year" class="form-select{% if school_year_error %} is-invalid{% endif %}">
-                <option value="">Select a school year</option>
-                {% for year in school_years %}
-                  <option value="{{ year }}" {% if child.school_year == year %}selected{% endif %}>{{ year }}</option>
-                {% endfor %}
-              </select>
-              {% if school_year_error %}<div class="invalid-feedback">{{ school_year_error }}</div>{% endif %}
-            </div>
-            <div class="col-md-4 d-flex align-items-end text-muted small">
-              This creates or updates the student’s dedicated workspace course.
-            </div>
-            <div class="col-md-3 d-flex align-items-end justify-content-end">
-              <button type="submit" class="btn btn-primary">Save School Year</button>
-            </div>
-          </form>
-        {% endif %}
       </div>
     </section>
 
     <section class="setup-section {% if not completion.school_year %}is-locked{% endif %}">
-      <div class="setup-section-head">
-        <div class="setup-section-title">
+      <button class="setup-section-head" type="button" data-bs-toggle="collapse" data-bs-target="#setup-subjects" aria-expanded="{% if open_section == 'subjects' %}true{% else %}false{% endif %}" aria-controls="setup-subjects" {% if not completion.school_year %}disabled{% endif %}>
+        <span class="setup-section-title">
           <span class="setup-step {% if completion.subjects %}complete{% endif %}">4</span>
           <span>Subjects</span>
+        </span>
+        <span class="d-flex align-items-center gap-3">
+          <span class="setup-state {% if completion.subjects %}complete{% else %}pending{% endif %}">{% if completion.subjects %}Complete{% else %}Pending{% endif %}</span>
+          <i class="bi bi-chevron-down setup-head-chevron"></i>
+        </span>
+      </button>
+      <div id="setup-subjects" class="collapse {% if open_section == 'subjects' %}show{% endif %}" data-bs-parent="#setup-accordion">
+        <div class="setup-body-shell">
+          <div class="setup-section-body">
+            {% if not completion.school_year %}
+              <div class="locked-hint">Save the school year before selecting subjects.</div>
+            {% else %}
+              {% if subjects_error %}<div class="alert alert-warning">{{ subjects_error }}</div>{% endif %}
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_subjects">
+                <div class="subject-grid">
+                  {% for row in subject_rows %}
+                    <label class="subject-option {% if row.subject_name in selected_names %}selected{% endif %}">
+                      <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div class="form-check">
+                          <input class="form-check-input subject-checkbox" type="checkbox" name="subjects" value="{{ row.subject_name }}" {% if row.subject_name in selected_names %}checked{% endif %}>
+                          <span class="fw-semibold">{{ row.subject_name }}</span>
+                        </div>
+                        <span class="badge text-bg-light">{{ row.key_stage_display }}</span>
+                      </div>
+                      <div class="subject-meta">
+                        <span>{{ row.total_units }} units</span>
+                        <span>{{ row.total_lessons }} lessons</span>
+                        <span>{{ child.school_year }}</span>
+                      </div>
+                      <div class="subject-colour-row">
+                        <input type="color" name="colour_{{ row.subject_name }}" value="{{ row.current_colour }}" class="form-control form-control-color">
+                      </div>
+                    </label>
+                  {% empty %}
+                    <div class="locked-hint">No Oak subjects were found for the selected school year.</div>
+                  {% endfor %}
+                </div>
+                <div class="d-flex justify-content-end mt-3">
+                  <button type="submit" class="btn btn-primary">Save Subjects</button>
+                </div>
+              </form>
+            {% endif %}
+          </div>
         </div>
-        <span class="setup-state {% if completion.subjects %}complete{% else %}pending{% endif %}">{% if completion.subjects %}Complete{% else %}Pending{% endif %}</span>
-      </div>
-      <div class="setup-section-body">
-        {% if not completion.school_year %}
-          <div class="locked-hint">Save the school year before selecting subjects.</div>
-        {% else %}
-          {% if subjects_error %}<div class="alert alert-warning">{{ subjects_error }}</div>{% endif %}
-          <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="save_subjects">
-            <div class="subject-grid">
-              {% for row in subject_rows %}
-                <label class="subject-option {% if row.subject_name in selected_names %}selected{% endif %}">
-                  <div class="d-flex justify-content-between align-items-start gap-2">
-                    <div class="form-check">
-                      <input class="form-check-input subject-checkbox" type="checkbox" name="subjects" value="{{ row.subject_name }}" {% if row.subject_name in selected_names %}checked{% endif %}>
-                      <span class="fw-semibold">{{ row.subject_name }}</span>
-                    </div>
-                    <span class="badge text-bg-light">{{ row.key_stage }}</span>
-                  </div>
-                  <div class="subject-meta">
-                    <span>{{ row.total_units }} units</span>
-                    <span>{{ row.total_lessons }} lessons</span>
-                    <span>{{ child.school_year }}</span>
-                  </div>
-                  <div class="subject-colour-row">
-                    <span class="text-muted small">Subject colour</span>
-                    <input type="color" name="colour_{{ row.subject_name }}" value="{{ row.current_colour }}" class="form-control form-control-color">
-                  </div>
-                </label>
-              {% empty %}
-                <div class="locked-hint">No Oak subjects were found for the selected school year.</div>
-              {% endfor %}
-            </div>
-            <div class="d-flex justify-content-end mt-3">
-              <button type="submit" class="btn btn-primary">Save Subjects</button>
-            </div>
-          </form>
-        {% endif %}
       </div>
     </section>
 
     <section class="setup-section {% if not completion.subjects %}is-locked{% endif %}">
-      <div class="setup-section-head">
-        <div class="setup-section-title">
+      <button class="setup-section-head" type="button" data-bs-toggle="collapse" data-bs-target="#setup-timetable" aria-expanded="{% if open_section == 'timetable' %}true{% else %}false{% endif %}" aria-controls="setup-timetable" {% if not completion.subjects %}disabled{% endif %}>
+        <span class="setup-section-title">
           <span class="setup-step {% if completion.timetable %}complete{% endif %}">5</span>
-          <span>Draft Timetable</span>
-        </div>
-        <span class="setup-state {% if completion.timetable %}complete{% else %}pending{% endif %}">{% if completion.timetable %}Complete{% else %}Pending{% endif %}</span>
-      </div>
-      <div class="setup-section-body">
-        {% if not completion.subjects %}
-          <div class="locked-hint">Save subjects before building the timetable.</div>
-        {% else %}
-          {% if timetable_error %}<div class="alert alert-warning">{{ timetable_error }}</div>{% endif %}
-          <form method="post" id="timetable-form">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="save_timetable">
-            <input type="hidden" name="slots_json" id="slots-json" value="{{ slot_payload_json|escape }}">
-            <div class="timetable-shell">
-              <div class="subject-palette">
-                <div class="fw-semibold mb-2">Subjects</div>
-                <p class="text-muted small mb-3">Select a subject, then click or drag it into the weekly grid. Break slots are visual hints only.</p>
-                {% for subject in slot_subjects %}
-                  <button class="palette-button" type="button" data-subject-name="{{ subject.subject_name }}" data-colour="{{ subject.colour_hex }}">
-                    <span class="d-flex align-items-center gap-2">
-                      <span class="palette-chip" style="background: {{ subject.colour_hex }};"></span>
-                      <span>{{ subject.subject_name }}</span>
-                    </span>
-                    <span class="badge text-bg-light">{{ subject.slot_count }}</span>
-                  </button>
-                {% endfor %}
-                <button class="btn btn-outline-secondary w-100 mt-2" type="button" id="clear-selection-btn">Clear active subject</button>
-              </div>
-              <div class="timetable-grid-shell">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                  <div>
-                    <div class="fw-semibold">Weekly Template</div>
-                    <div class="text-muted small">Periods 0-12. Drag a scheduled slot onto another cell to move it within the week.</div>
-                  </div>
-                  <div class="text-muted small">Break hints: period 4 and 8</div>
-                </div>
-                <div class="timetable-grid" id="timetable-grid">
-                  <div></div>
-                  {% for weekday, label in weekday_choices %}
-                    <div class="timetable-head">{{ label }}</div>
-                  {% endfor %}
-                  {% for period in period_choices %}
-                    <div class="timetable-period">{{ period }}</div>
-                    {% for weekday, label in weekday_choices %}
-                      <div
-                        class="slot-cell {% if period == 4 or period == 8 %}break-cell{% endif %}"
-                        data-weekday="{{ weekday }}"
-                        data-period="{{ period }}"
-                      >
-                        <div class="slot-empty">{% if period == 4 or period == 8 %}Break{% else %}Empty{% endif %}</div>
-                      </div>
+          <span>Timetable</span>
+        </span>
+        <span class="d-flex align-items-center gap-3">
+          <span class="setup-state {% if completion.timetable %}complete{% else %}pending{% endif %}">{% if completion.timetable %}Complete{% else %}Pending{% endif %}</span>
+          <i class="bi bi-chevron-down setup-head-chevron"></i>
+        </span>
+      </button>
+      <div id="setup-timetable" class="collapse {% if open_section == 'timetable' %}show{% endif %}" data-bs-parent="#setup-accordion">
+        <div class="setup-body-shell">
+          <div class="setup-section-body">
+            {% if not completion.subjects %}
+              <div class="locked-hint">Save subjects before building the timetable.</div>
+            {% else %}
+              {% if timetable_error %}<div class="alert alert-warning">{{ timetable_error }}</div>{% endif %}
+              <form method="post" id="timetable-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_timetable">
+                <input type="hidden" name="slots_json" id="slots-json" value="{{ slot_payload_json|escape }}">
+                <div class="timetable-shell">
+                  <div class="subject-palette">
+                    <div class="fw-semibold mb-2">Subjects</div>
+                    <p class="text-muted small mb-3">Select a subject, then click or drag it into the weekly grid. Teaching rows run from 1 to 8, with visual breaks after 3 and 6.</p>
+                    {% for subject in slot_subjects %}
+                      <button class="palette-button" type="button" data-subject-name="{{ subject.subject_name }}" data-colour="{{ subject.colour_hex }}">
+                        <span class="d-flex align-items-center gap-2">
+                          <span class="palette-chip" style="background: {{ subject.colour_hex }};"></span>
+                          <span>{{ subject.subject_name }}</span>
+                        </span>
+                        <span class="badge text-bg-light">{{ subject.slot_count }}</span>
+                      </button>
                     {% endfor %}
-                  {% endfor %}
+                    <button class="btn btn-outline-secondary w-100 mt-2" type="button" id="clear-selection-btn">Clear active subject</button>
+                  </div>
+                  <div class="timetable-grid-shell">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                      <div>
+                        <div class="fw-semibold">Weekly Template</div>
+                        <div class="text-muted small">Rows 1-8 represent teaching slots. Drag a scheduled slot onto another cell to move it within the week.</div>
+                      </div>
+                    </div>
+                    <div class="timetable-grid" id="timetable-grid">
+                      <div></div>
+                      {% for weekday, label in weekday_choices %}
+                        <div class="timetable-head">{{ label }}</div>
+                      {% endfor %}
+                      {% for row in timetable_rows %}
+                        <div class="timetable-period {% if row.kind == 'break' %}break-row{% endif %}">{{ row.label }}</div>
+                        {% for weekday, label in weekday_choices %}
+                          {% if row.kind == "break" %}
+                            <div class="slot-cell break-cell" aria-hidden="true">
+                              <div class="slot-empty">Break</div>
+                            </div>
+                          {% else %}
+                            <div
+                              class="slot-cell"
+                              data-weekday="{{ weekday }}"
+                              data-period="{{ row.period }}"
+                            >
+                              <div class="slot-empty">Empty</div>
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      {% endfor %}
+                    </div>
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                      <button class="btn btn-outline-secondary" type="button" id="clear-grid-btn">Clear Timetable</button>
+                      <button class="btn btn-primary" type="submit">Save Timetable</button>
+                    </div>
+                  </div>
                 </div>
-                <div class="d-flex justify-content-end gap-2 mt-3">
-                  <button class="btn btn-outline-secondary" type="button" id="clear-grid-btn">Clear Timetable</button>
-                  <button class="btn btn-primary" type="submit">Save Timetable</button>
-                </div>
-              </div>
-            </div>
-          </form>
-        {% endif %}
+              </form>
+            {% endif %}
+          </div>
+        </div>
       </div>
     </section>
 
     <section class="setup-section {% if not completion.timetable %}is-locked{% endif %}">
-      <div class="setup-section-head">
-        <div class="setup-section-title">
+      <button class="setup-section-head" type="button" data-bs-toggle="collapse" data-bs-target="#setup-generate" aria-expanded="{% if open_section == 'generated' %}true{% else %}false{% endif %}" aria-controls="setup-generate" {% if not completion.timetable %}disabled{% endif %}>
+        <span class="setup-section-title">
           <span class="setup-step {% if completion.generated %}complete{% endif %}">6</span>
           <span>Generate Lesson Cards</span>
-        </div>
-        <span class="setup-state {% if completion.generated %}complete{% else %}pending{% endif %}">{% if completion.generated %}Ready{% else %}Pending{% endif %}</span>
-      </div>
-      <div class="setup-section-body">
-        {% if not completion.timetable %}
-          <div class="locked-hint">Save the timetable before generating lesson cards.</div>
-        {% else %}
-          {% if generation_summary %}
-            <div class="alert alert-success">
-              Lesson cards were scheduled successfully. Review the per-subject totals below, then check Home and Calendar.
-            </div>
-            <div class="summary-grid mb-3">
-              {% for row in generation_summary %}
-                <div class="summary-card">
-                  <div class="fw-semibold">{{ row.subject_name }}</div>
-                  <div class="text-muted small mt-1">{{ row.generated_count }} lessons generated</div>
-                  <div class="text-muted small">{{ row.requested_count }} requested over 40 weeks</div>
-                  {% if row.shortfall_count %}
-                    <div class="text-danger small mt-2">Shortfall: {{ row.shortfall_count }} slots could not be filled.</div>
-                  {% endif %}
+        </span>
+        <span class="d-flex align-items-center gap-3">
+          <span class="setup-state {% if completion.generated %}complete{% else %}pending{% endif %}">{% if completion.generated %}Ready{% else %}Pending{% endif %}</span>
+          <i class="bi bi-chevron-down setup-head-chevron"></i>
+        </span>
+      </button>
+      <div id="setup-generate" class="collapse {% if open_section == 'generated' %}show{% endif %}" data-bs-parent="#setup-accordion">
+        <div class="setup-body-shell">
+          <div class="setup-section-body">
+            {% if not completion.timetable %}
+              <div class="locked-hint">Save the timetable before generating lesson cards.</div>
+            {% else %}
+              {% if generation_summary %}
+                <div class="alert alert-success">
+                  Lesson cards were scheduled successfully. Review the per-subject totals below, then check Home and Calendar.
                 </div>
-              {% endfor %}
-            </div>
-          {% endif %}
-          <form method="post" class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="generate_lessons">
-            <div class="text-muted small">This creates dated lesson cards on Home and Calendar using the saved weekly timetable template.</div>
-            <button type="submit" class="btn btn-primary">Generate Lessons</button>
-          </form>
-        {% endif %}
+                <div class="summary-grid mb-3">
+                  {% for row in generation_summary %}
+                    <div class="summary-card">
+                      <div class="fw-semibold">{{ row.subject_name }}</div>
+                      <div class="text-muted small mt-1">{{ row.generated_count }} lessons generated</div>
+                      <div class="text-muted small">{{ row.requested_count }} requested over 40 weeks</div>
+                      {% if row.shortfall_count %}
+                        <div class="text-danger small mt-2">Shortfall: {{ row.shortfall_count }} slots could not be filled.</div>
+                      {% endif %}
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+              <form method="post" class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="generate_lessons">
+                <div class="text-muted small">This creates dated lesson cards on Home and Calendar using the saved weekly timetable template.</div>
+                <button type="submit" class="btn btn-primary">Generate Lessons</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
       </div>
     </section>
   </div>
@@ -529,6 +669,46 @@
 {% block extra_js %}
 <script>
   (function () {
+    const photoInput = document.getElementById('id_photo_info');
+    const avatarImg = document.getElementById('setup-avatar-img');
+    const avatarInitial = document.getElementById('setup-avatar-initial');
+
+    function showAvatarFallback() {
+      if (avatarImg) avatarImg.style.display = 'none';
+      if (avatarInitial) avatarInitial.classList.remove('avatar-fallback-hidden');
+    }
+
+    function showAvatarImage(src) {
+      if (!avatarImg || !src) {
+        showAvatarFallback();
+        return;
+      }
+      avatarImg.src = src;
+      avatarImg.style.display = 'block';
+      if (avatarInitial) avatarInitial.classList.add('avatar-fallback-hidden');
+    }
+
+    if (avatarImg) {
+      avatarImg.addEventListener('error', showAvatarFallback);
+      if (avatarImg.getAttribute('src')) {
+        avatarImg.style.display = 'block';
+      } else {
+        showAvatarFallback();
+      }
+    }
+
+    if (photoInput) {
+      photoInput.addEventListener('change', function () {
+        const file = this.files && this.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function (event) {
+          showAvatarImage(event.target.result);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
     const grid = document.getElementById('timetable-grid');
     const slotsField = document.getElementById('slots-json');
     if (!grid || !slotsField) return;
@@ -606,7 +786,7 @@
     }
 
     function renderGrid() {
-      grid.querySelectorAll('.slot-cell').forEach(renderCell);
+      grid.querySelectorAll('.slot-cell[data-weekday][data-period]').forEach(renderCell);
       saveSlots();
     }
 
@@ -646,7 +826,7 @@
       });
     }
 
-    grid.querySelectorAll('.slot-cell').forEach((cell) => {
+    grid.querySelectorAll('.slot-cell[data-weekday][data-period]').forEach((cell) => {
       cell.addEventListener('click', () => {
         const weekday = Number(cell.dataset.weekday);
         const period = Number(cell.dataset.period);

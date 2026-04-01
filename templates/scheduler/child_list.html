@@ -54,7 +54,25 @@
     object-fit: cover;
     background: #e8eefe;
     display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    position: relative;
   }
+  .student-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .student-avatar-fallback {
+    display: none;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    color: #2563eb;
+    font-size: 1.45rem;
+    font-weight: 700;
+  }
+  .student-avatar.no-image .student-avatar-fallback { display: flex; }
   .photo-edit-btn {
     width: 30px; height: 30px;
     display: flex; align-items: center; justify-content: center;
@@ -148,12 +166,13 @@
 
               <!-- Avatar + info -->
               <div class="d-flex align-items: center gap-3 mb-3">
-                <div class="student-avatar flex-shrink-0">
+                <div class="student-avatar flex-shrink-0 {% if not child.photo %}no-image{% endif %}">
                   {% if child.photo %}
-                    <img src="{{ child.photo.url }}" alt="{{ child.first_name }}" class="student-avatar" style="border-radius:50%;">
-                  {% else %}
-                    <i class="bi bi-person-fill text-primary fs-3"></i>
+                    <img src="{{ child.photo.url }}" alt="{{ child.first_name }}" onerror="this.parentElement.classList.add('no-image'); this.remove();">
                   {% endif %}
+                  <span class="student-avatar-fallback">
+                    {% if child.first_name %}{{ child.first_name|first|upper }}{% else %}<i class="bi bi-person-fill text-primary fs-3"></i>{% endif %}
+                  </span>
                 </div>
                 <div>
                   <h5 class="fw-bold mb-0">

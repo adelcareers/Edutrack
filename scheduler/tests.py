@@ -399,7 +399,7 @@ class StudentOnboardingFlowTests(TestCase):
             for lesson_number in range(1, 46):
                 lessons.append(
                     Lesson(
-                        key_stage="KS2",
+                        key_stage="ks2",
                         subject_name=subject_name,
                         programme_slug=f"{subject_name.lower()}-prog",
                         year="Year 5",
@@ -416,6 +416,42 @@ class StudentOnboardingFlowTests(TestCase):
         response = self.client.get(self.new_url)
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "scheduler/student_onboarding.html")
+
+    def test_onboarding_renders_updated_labels_and_uppercase_key_stage(self):
+        child = Child.objects.create(
+            parent=self.parent,
+            first_name="Nora",
+            date_of_birth=datetime.date(2015, 3, 14),
+            birth_month=3,
+            birth_year=2015,
+            school_year="Year 5",
+            academic_year_start=datetime.date(2025, 9, 1),
+            is_setup_complete=False,
+        )
+        resume_url = reverse(
+            "scheduler:student_onboarding_resume", kwargs={"child_id": child.pk}
+        )
+        self.client.post(
+            resume_url,
+            {
+                "action": "save_credentials",
+                "email": "nora.student@example.com",
+                "password1": "SecurePass99!",
+                "password2": "SecurePass99!",
+            },
+        )
+        response = self.client.post(
+            resume_url,
+            {
+                "action": "save_school_year",
+                "school_year": "Year 5",
+            },
+            follow=True,
+        )
+        self.assertContains(response, "Timetable")
+        self.assertNotContains(response, "Draft Timetable")
+        self.assertContains(response, "KS2")
+        self.assertNotContains(response, "Subject colour")
 
     def test_full_onboarding_flow_creates_workspace_subjects_slots_and_lessons(self):
         today = timezone.localdate()
@@ -490,8 +526,8 @@ class StudentOnboardingFlowTests(TestCase):
                 "action": "save_timetable",
                 "slots_json": json.dumps(
                     [
-                        {"subject_name": "Maths", "weekday": today_weekday, "period": 0},
-                        {"subject_name": "English", "weekday": next_weekday, "period": 1},
+                        {"subject_name": "Maths", "weekday": today_weekday, "period": 1},
+                        {"subject_name": "English", "weekday": next_weekday, "period": 2},
                     ]
                 ),
             },
@@ -522,7 +558,7 @@ class StudentOnboardingFlowTests(TestCase):
                 child=child,
                 plan_item__course=workspace,
                 plan_item__day_number=today_weekday + 1,
-                plan_item__order=0,
+                plan_item__order=1,
             ).count(),
             40,
         )
@@ -531,22 +567,22 @@ class StudentOnboardingFlowTests(TestCase):
             plan_item__course=workspace,
             plan_item__week_number=1,
             plan_item__day_number=today_weekday + 1,
-            plan_item__order=0,
+            plan_item__order=1,
         )
         first_english = ScheduledLesson.objects.get(
             child=child,
             plan_item__course=workspace,
             plan_item__week_number=1,
             plan_item__day_number=next_weekday + 1,
-            plan_item__order=1,
+            plan_item__order=2,
         )
         self.assertEqual(first_maths.scheduled_date, today)
         self.assertEqual(
             first_english.scheduled_date,
             today + datetime.timedelta(days=1),
         )
-        self.assertEqual(first_maths.order_on_day, 0)
-        self.assertEqual(first_english.order_on_day, 1)
+        self.assertEqual(first_maths.order_on_day, 1)
+        self.assertEqual(first_english.order_on_day, 2)
         self.assertContains(response, "Lesson cards were scheduled successfully.")
         self.assertEqual(enrollment.days_of_week, [0, 1, 2, 3, 4])
 
@@ -615,6 +651,58 @@ class StudentOnboardingFlowTests(TestCase):
         self.assertEqual(enrollment.start_date, enrollment.enrolled_at.date())
         self.assertEqual(first_scheduled.scheduled_date, enrollment.start_date)
         self.assertEqual(first_scheduled.order_on_day, 2)
+
+    def test_timetable_rejects_rows_outside_one_to_eight(self):
+        child = Child.objects.create(
+            parent=self.parent,
+            first_name="Rows",
+            date_of_birth=datetime.date(2015, 3, 14),
+            birth_month=3,
+            birth_year=2015,
+            school_year="Year 5",
+            academic_year_start=datetime.date(2025, 9, 1),
+            is_setup_complete=False,
+        )
+        resume_url = reverse(
+            "scheduler:student_onboarding_resume", kwargs={"child_id": child.pk}
+        )
+        self.client.post(
+            resume_url,
+            {
+                "action": "save_credentials",
+                "email": "rows.student@example.com",
+                "password1": "SecurePass99!",
+                "password2": "SecurePass99!",
+            },
+        )
+        self.client.post(
+            resume_url,
+            {
+                "action": "save_school_year",
+                "school_year": "Year 5",
+            },
+        )
+        self.client.post(
+            resume_url,
+            {
+                "action": "save_subjects",
+                "subjects": ["Maths"],
+                "colour_Maths": "#E63946",
+            },
+        )
+        response = self.client.post(
+            resume_url,
+            {
+                "action": "save_timetable",
+                "slots_json": json.dumps(
+                    [
+                        {"subject_name": "Maths", "weekday": 0, "period": 0},
+                    ]
+                ),
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Timetable slots must stay within Mon-Sun and rows 1-8.")
 
 
 class ChildListTests(TestCase):
