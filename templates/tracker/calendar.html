@@ -111,20 +111,24 @@
   .vacation-card .vac-name { font-weight: 600; }
   .vacation-card .vac-child { opacity: 0.7; font-size: 0.72rem; }
 
-  /* ── Lesson cards (unchanged visuals) ───── */
+  /* ── Lesson cards ───────────────────────── */
   .lesson-card {
     --subject-colour: #6c757d;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    margin-bottom: 0.45rem;
+    border: 1px solid #d4d4d8;
+    border-radius: 12px;
+    margin-bottom: 0.55rem;
     font-size: 0.82rem;
     overflow: hidden;
     background: #fff;
     cursor: pointer;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-    transition: box-shadow 0.15s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    transition: box-shadow 0.15s, border-color 0.15s, transform 0.15s;
   }
-  .lesson-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.12); }
+  .lesson-card:hover {
+    border-color: #a1a1aa;
+    box-shadow: 0 8px 18px rgba(39, 39, 42, 0.12);
+    transform: translateY(-1px);
+  }
 
   .assignment-card {
     border: 1px solid #e2e8f0;
@@ -145,26 +149,30 @@
   .lesson-card .card-header {
     background-color: var(--subject-colour);
     color: #fff;
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 0.28rem 0.7rem;
+    letter-spacing: 0.07em;
+    padding: 0.45rem 0.85rem;
     border-bottom: none;
   }
   .lesson-card .card-body {
-    padding: 0.35rem 0.7rem 0.3rem;
-    color: #1e293b;
-    line-height: 1.35;
+    padding: 0.62rem 0.85rem 0.5rem;
+    color: #27272a;
+    font-size: 0.92rem;
+    font-weight: 600;
+    line-height: 1.4;
+    min-height: 3rem;
   }
   .lesson-card .card-footer {
-    padding: 0.2rem 0.7rem 0.3rem;
+    padding: 0 0.85rem 0.7rem;
     background: transparent;
     border-top: none;
     display: flex;
     align-items: center;
-    gap: 0.35rem;
-    min-height: 1.4rem;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+    min-height: 2rem;
   }
 
   /* ── Mastery buttons in modal ─────────── */
@@ -176,79 +184,117 @@
   .mastery-btn[data-mastery="red"].mastery-active  { background: #DC2626; color: #fff; }
 
   .lesson-modal-shell .modal-dialog {
-    max-width: 860px;
+    max-width: 1020px;
+  }
+  .lesson-modal-shell .modal-content {
+    border: 1px solid #e4e4e7;
+    border-radius: 16px;
+    overflow: hidden;
   }
   .lesson-modal-head {
-    display: flex;
     align-items: center;
-    justify-content: flex-start;
-    gap: 0.75rem;
-    padding: 0.95rem 1.2rem;
-    border-bottom: 1px solid #e5e7eb;
-    background: #f8fbff;
-  }
-  .lesson-head-actions {
-    margin-left: auto;
+    background: #f4f4f5;
+    border-bottom: 1px solid #e4e4e7;
     display: flex;
-    gap: 0.5rem;
+    gap: 1rem;
+    justify-content: space-between;
+    padding: 0.95rem 1.2rem;
+  }
+  .lesson-modal-status-wrap {
+    align-items: center;
+    color: #8f8f93;
+    display: inline-flex;
+    gap: 0.6rem;
   }
   .lesson-status-chip {
-    display: inline-flex;
     align-items: center;
-    gap: 0.45rem;
-    border-radius: 999px;
-    padding: 0.3rem 0.72rem;
-    font-size: 0.84rem;
+    background: transparent;
+    color: #3f3f46;
+    display: inline-flex;
+    font-size: 2rem;
     font-weight: 700;
+    gap: 0.6rem;
+    padding: 0;
   }
   .lesson-status-chip.is-clickable {
     cursor: pointer;
   }
-  .lesson-status-chip.status-success { background: #dcfce7; color: #166534; }
-  .lesson-status-chip.status-danger { background: #fee2e2; color: #b91c1c; }
-  .lesson-status-chip.status-secondary { background: #e5e7eb; color: #374151; }
-  .lesson-status-chip.status-dark { background: #e2e8f0; color: #1f2937; }
+  .lesson-status-chip i {
+    font-size: 2rem;
+  }
+  .lesson-status-chip.status-success { color: #16a34a; }
+  .lesson-status-chip.status-danger { color: #dc2626; }
+  .lesson-status-chip.status-secondary { color: #8f8f93; }
+  .lesson-status-chip.status-dark { color: #3f3f46; }
   .lesson-head-actions {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: nowrap;
-    margin-left: auto;
-    flex: 1 1 auto;
-    justify-content: flex-end;
-    min-width: 0;
+    align-items: center;
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
   }
   .lesson-head-actions .btn {
-    border-radius: 999px;
-    font-weight: 700;
-    font-size: 0.82rem;
-    padding: 0.36rem 0.8rem;
+    align-items: center;
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    color: #3f3f46;
+    display: inline-flex;
+    font-size: 1.1rem;
+    font-weight: 500;
+    gap: 0.45rem;
+    padding: 0.3rem 0.55rem;
   }
-  .action-complete {
-    color: #166534;
-    border-color: #86efac;
-    background: #f0fdf4;
+  .lesson-head-actions .btn:hover {
+    background: #e7e7ea;
+    color: #27272a;
   }
-  .action-reschedule {
-    color: #92400e;
-    border-color: #fde68a;
-    background: #fffbeb;
-  }
+  .action-complete,
+  .action-reschedule,
   .action-edit {
-    color: #1d4ed8;
-    border-color: #bfdbfe;
-    background: #eff6ff;
+    color: #3f3f46;
   }
   .action-delete {
-    color: #b91c1c;
-    border-color: #fecaca;
-    background: #fef2f2;
+    color: #71717a;
+  }
+  .lesson-modal-main {
+    padding: 1.7rem 1.95rem 1.25rem;
+  }
+  .lesson-modal-title {
+    color: #27272a;
+    font-size: 2.1rem;
+    font-weight: 700;
+    line-height: 1.1;
+    margin: 0 0 1rem;
+  }
+  .lesson-modal-title a {
+    color: inherit;
+    text-decoration: none;
+  }
+  .lesson-modal-title a:hover {
+    text-decoration: underline;
+  }
+  .lesson-modal-meta {
+    align-items: center;
+    color: #3f3f46;
+    display: flex;
+    font-size: 1.05rem;
+    gap: 1rem;
+    justify-content: space-between;
+    margin-bottom: 0.9rem;
+  }
+  .lesson-modal-description {
+    color: #3f3f46;
+    font-size: 1.1rem;
+    margin-bottom: 1.35rem;
+  }
+  .lesson-modal-description .lesson-link-panel {
+    margin-bottom: 0;
   }
   .lesson-link-panel {
     border: 1px solid #bfdbfe;
     border-radius: 12px;
     background: #eff6ff;
     padding: 0.7rem 0.8rem;
-    margin-bottom: 0.9rem;
   }
   .lesson-link-label {
     font-size: 0.73rem;
@@ -275,6 +321,18 @@
     align-items: center;
     gap: 0.55rem;
     margin-bottom: 0.35rem;
+  }
+  .lesson-modal-student {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.95rem;
+  }
+  .lesson-modal-student-left {
+    align-items: center;
+    display: inline-flex;
+    gap: 0.75rem;
   }
   .meta-info-panel {
     display: flex;
@@ -305,21 +363,47 @@
     gap: 0.55rem;
   }
   .lesson-avatar {
-    width: 34px;
-    height: 34px;
+    width: 44px;
+    height: 44px;
     border-radius: 999px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
-    color: #1e3a8a;
-    background: #dbeafe;
+    font-size: 1.2rem;
+    font-weight: 500;
+    color: #fff;
+    background: #5b7be6;
     overflow: hidden;
   }
   .lesson-avatar img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+  }
+  .lesson-student-name {
+    color: #3f3f46;
+    font-size: 1.95rem;
+    font-weight: 500;
+    line-height: 1.1;
+  }
+  .lesson-pill-group {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+  .lesson-pill {
+    border-radius: 999px;
+    font-size: 1.7rem;
+    font-weight: 700;
+    padding: 0.5rem 1.05rem;
+  }
+  .lesson-pill-course {
+    background: #35359c;
+    color: #fff;
+  }
+  .lesson-pill-type {
+    background: #c7f3f2;
+    color: #0694a2;
   }
   .mastery-pills {
     display: grid;
@@ -396,7 +480,7 @@
     color: #334155;
   }
   .reschedule-picker-panel {
-    border: 1px solid #cbd5e1;
+    border: 1px solid #d4d4d8;
     border-radius: 10px;
     background: #fff;
     padding: 0.7rem;
@@ -464,47 +548,33 @@
     align-items: center;
     margin-top: 0.6rem;
   }
-  @media (max-width: 767px) {
-    .lesson-modal-head {
-      flex-wrap: wrap;
-      justify-content: flex-start;
-    }
-    .lesson-head-actions {
-      flex-wrap: wrap;
-      justify-content: flex-start;
-      width: auto;
-      margin-left: auto;
-    }
-    }
-    .mastery-pills {
-      grid-template-columns: 1fr;
-    }
-    .reschedule-picker-months {
-      grid-template-columns: 1fr;
-    }
-  }
   .lesson-tabs {
+    border-bottom: 1px solid #d4d4d8;
     display: flex;
-    gap: 1rem;
-    border-bottom: 1px solid #e5e7eb;
-    margin-top: 1rem;
+    gap: 0.2rem;
+    margin-top: 0.85rem;
+    overflow-x: auto;
   }
   .lesson-tab-btn {
     border: none;
+    border-bottom: 3px solid transparent;
     background: transparent;
-    padding: 0.45rem 0;
-    color: #6b7280;
-    font-weight: 600;
-    font-size: 0.86rem;
-    border-bottom: 2px solid transparent;
+    padding: 0.95rem 1.05rem;
+    color: #7a7a83;
+    font-weight: 700;
+    font-size: 1rem;
+    white-space: nowrap;
   }
   .lesson-tab-btn.active {
-    color: #4f46e5;
+    color: #27272a;
     border-bottom-color: #4f46e5;
   }
   .lesson-tab-pane {
+    border-top: 1px solid #d4d4d8;
     display: none;
-    padding-top: 0.8rem;
+    margin-top: -1px;
+    min-height: 165px;
+    padding: 1.55rem 0 0.5rem;
   }
   .lesson-tab-pane.active {
     display: block;
@@ -530,6 +600,39 @@
     color: #6b7280;
     font-size: 0.75rem;
     margin-bottom: 0.15rem;
+  }
+  @media (max-width: 767px) {
+    .lesson-modal-head {
+      align-items: flex-start;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
+    .lesson-head-actions {
+      justify-content: flex-start;
+      width: 100%;
+    }
+    .lesson-modal-main {
+      padding: 1.2rem;
+    }
+    .lesson-modal-title,
+    .lesson-student-name,
+    .lesson-status-chip,
+    .lesson-status-chip i,
+    .lesson-pill,
+    .lesson-head-actions .btn {
+      font-size: 1.1rem;
+    }
+    .lesson-modal-meta,
+    .lesson-modal-student {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+    .mastery-pills {
+      grid-template-columns: 1fr;
+    }
+    .reschedule-picker-months {
+      grid-template-columns: 1fr;
+    }
   }
 
   /* ── Filter badge ──────────────────────── */
@@ -780,9 +883,11 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="lesson-modal-head" id="modal-header">
-        <div id="modal-status-chip" class="lesson-status-chip status-secondary {% if can_edit_lessons %}is-clickable{% endif %}">
-          <i id="modal-status-icon" class="bi bi-dash-circle"></i>
-          <span id="modal-status-label">Incomplete</span>
+        <div class="lesson-modal-status-wrap">
+          <div id="modal-status-chip" class="lesson-status-chip status-secondary {% if can_edit_lessons %}is-clickable{% endif %}">
+            <i id="modal-status-icon" class="bi bi-dash-circle"></i>
+            <span id="modal-status-label">Incomplete</span>
+          </div>
         </div>
         {% if can_edit_lessons %}
         <div class="lesson-head-actions">
@@ -802,9 +907,35 @@
         {% endif %}
       </div>
 
-      <div class="modal-body">
-        <div class="lesson-link-panel">
-          <a id="modal-lesson-access-link" class="lesson-link-main" href="#" target="_blank" rel="noopener noreferrer">KS, Year, Subject, Unit: Lesson</a>
+      <div class="modal-body lesson-modal-main">
+        <h2 class="lesson-modal-title">
+          <a id="modal-title-link" href="#" target="_blank" rel="noopener noreferrer">Lesson Detail</a>
+        </h2>
+
+        <div class="lesson-modal-meta">
+          <div>
+            <strong id="modal-date">Date</strong>
+            <span class="ms-2 text-muted" id="modal-subject"></span>
+          </div>
+          <div class="text-muted" id="modal-weekday">Week 0, Day 0</div>
+        </div>
+
+        <div class="lesson-modal-description">
+          <div class="lesson-link-panel">
+            <div class="lesson-link-label">Lesson Access</div>
+            <a id="modal-lesson-access-link" class="lesson-link-main" href="#" target="_blank" rel="noopener noreferrer">KS, Year, Subject, Unit: Lesson</a>
+          </div>
+        </div>
+
+        <div class="lesson-modal-student">
+          <div class="lesson-modal-student-left">
+            <span class="lesson-avatar" id="modal-student-avatar">S</span>
+            <div class="lesson-student-name" id="modal-student-name">Student</div>
+          </div>
+          <div class="lesson-pill-group">
+            <span class="lesson-pill lesson-pill-course" id="modal-course-pill">Subject</span>
+            <span class="lesson-pill lesson-pill-type">Lesson</span>
+          </div>
         </div>
 
         <div class="receipt-panel mb-3">
@@ -844,17 +975,6 @@
               <span class="mastery-hint-icon" aria-hidden="true">i</span>
             </button>
           </div>
-        </div>
-
-        <div class="meta-info-panel">
-          <div class="lesson-student">
-            <span class="lesson-avatar" id="modal-student-avatar">S</span>
-            <div>
-              <div class="fw-semibold" id="modal-student-name">Student</div>
-              <div class="text-muted small" id="modal-date">Date</div>
-            </div>
-          </div>
-          <div class="text-muted small" id="modal-weekday">Week 0, Day 0</div>
         </div>
 
         <div id="reschedule-picker-panel" class="reschedule-picker-panel" hidden>

@@ -315,17 +315,17 @@ class CalendarNavigationTests(TestCase):
     # ---------- week_display string ----------
 
     def test_week_display_same_month(self):
-        # Week 10 2026: Mon 2 Mar – Sat 7 Mar 2026 → "Mar 02, 2026 — Mar 07, 2026"
+        # Week 10 2026: Mon 2 Mar – Sun 8 Mar 2026 → "Mar 02, 2026 — Mar 08, 2026"
         response = self._get_week(2026, 10)
         self.assertEqual(
-            response.context["week_display"], "Mar 02, 2026 — Mar 07, 2026"
+            response.context["week_display"], "Mar 02, 2026 — Mar 08, 2026"
         )
 
     def test_week_display_cross_month(self):
-        # Week 14 2026: Mon 30 Mar – Sat 4 Apr 2026 → "Mar 30, 2026 — Apr 04, 2026"
+        # Week 14 2026: Mon 30 Mar – Sun 5 Apr 2026 → "Mar 30, 2026 — Apr 05, 2026"
         response = self._get_week(2026, 14)
         self.assertEqual(
-            response.context["week_display"], "Mar 30, 2026 — Apr 04, 2026"
+            response.context["week_display"], "Mar 30, 2026 — Apr 05, 2026"
         )
 
     # ---------- nav links rendered in template ----------

@@ -13,6 +13,7 @@
   const modalStudentName = document.getElementById('modal-student-name');
   const modalStudentAvatar = document.getElementById('modal-student-avatar');
   const modalWeekday = document.getElementById('modal-weekday');
+  const modalCoursePill = document.getElementById('modal-course-pill');
   const modalStatusChip = document.getElementById('modal-status-chip');
   const modalStatusIcon = document.getElementById('modal-status-icon');
   const modalStatusLabel = document.getElementById('modal-status-label');
@@ -407,6 +408,7 @@
         modalLessonAccessLink.href = data.lesson_url || '#';
       }
       if (modalSubj) modalSubj.textContent = data.subject_name || '';
+      if (modalCoursePill) modalCoursePill.textContent = data.subject_name || 'Subject';
       if (modalDate) modalDate.textContent = data.scheduled_date || '';
       currentLessonDateIso = data.scheduled_date_iso || null;
 
