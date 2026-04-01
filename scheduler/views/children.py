@@ -13,7 +13,7 @@ from django.utils import timezone
 from accounts.decorators import role_required
 from accounts.forms import StudentCreationForm
 from accounts.models import UserProfile
-from courses.models import CourseEnrollment
+from courses.models import Course, CourseEnrollment
 from curriculum.models import Lesson
 from scheduler.models import Child
 from scheduler.onboarding import (

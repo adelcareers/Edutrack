@@ -179,6 +179,12 @@
     </div>
   {% endfor %}
 
+  <div class="d-flex justify-content-end mb-3">
+    <a href="{% url 'scheduler:student_onboarding_resume' child_id=child.pk %}" class="btn btn-outline-primary">
+      Open Onboarding Flow
+    </a>
+  </div>
+
   <!-- ── Student Information card ── -->
   <div class="detail-card">
     <div class="detail-card-header">

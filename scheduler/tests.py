@@ -220,6 +220,11 @@ class ChildDetailStudentCredentialManagementTests(TestCase):
         self.assertTrue(self.student.check_password("BetterPass123!"))
         self.assertFalse(self.student.check_password("OldPass123!"))
 
+    def test_child_detail_get_returns_200(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Open Onboarding Flow")
+
 
 class ChildDetailCourseEnrollmentTests(TestCase):
     """Parent can enroll a student into one or more courses from child detail."""
@@ -1266,6 +1271,24 @@ class ParentDashboardTests(TestCase):
         self.client.force_login(self.parent)
         response = self.client.get(self.url)
         self.assertContains(response, "Zara")
+
+    def test_primary_student_link_targets_onboarding_resume(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self.url)
+        onboarding_url = reverse(
+            "scheduler:student_onboarding_resume",
+            kwargs={"child_id": self.child.pk},
+        )
+        legacy_url = reverse(
+            "scheduler:child_detail",
+            kwargs={"child_id": self.child.pk},
+        )
+        self.assertContains(response, onboarding_url)
+        self.assertNotContains(
+            response,
+            f"onclick=\"window.location='{legacy_url}'\"",
+            html=False,
+        )
 
     def test_context_has_summaries(self):
         self.client.force_login(self.parent)
