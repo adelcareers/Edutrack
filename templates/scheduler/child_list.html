@@ -130,26 +130,21 @@
                     <i class="bi bi-three-dots-vertical fs-5"></i>
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                    {% if not child.is_setup_complete %}
                     <li>
                       <a class="dropdown-item" href="{% url 'scheduler:student_onboarding_resume' child_id=child.pk %}">
-                        <i class="bi bi-arrow-repeat me-2 text-secondary"></i>Resume Setup
+                        <i class="bi bi-arrow-repeat me-2 text-secondary"></i>{% if child.is_setup_complete %}Open Setup{% else %}Resume Setup{% endif %}
                       </a>
                     </li>
-                    <li><hr class="dropdown-divider"></li>
-                    {% endif %}
                     <li>
-                      <a class="dropdown-item" href="{% url 'scheduler:subject_selection' child_id=child.pk %}">
-                        <i class="bi bi-book me-2 text-secondary"></i>Manage Subjects
+                      <a class="dropdown-item" href="{% url 'tracker:parent_calendar' child_id=child.pk %}">
+                        <i class="bi bi-calendar3 me-2 text-secondary"></i>View Calendar
                       </a>
                     </li>
-                    {% if not child.student_user %}
                     <li>
-                      <a class="dropdown-item" href="{% url 'scheduler:create_student_login' child_id=child.pk %}">
-                        <i class="bi bi-key me-2 text-secondary"></i>Create Student Login
+                      <a class="dropdown-item" href="{% url 'scheduler:child_detail' child_id=child.pk %}">
+                        <i class="bi bi-card-text me-2 text-secondary"></i>Open Legacy Details
                       </a>
                     </li>
-                    {% endif %}
                     <li><hr class="dropdown-divider"></li>
                     <li>
                       <button class="dropdown-item text-danger"
@@ -231,19 +226,13 @@
 
               <!-- Action buttons -->
               <div class="d-flex gap-2 flex-wrap mt-2">
-                {% if not child.is_setup_complete %}
                 <a href="{% url 'scheduler:student_onboarding_resume' child_id=child.pk %}"
                    class="btn btn-sm btn-primary">
-                  <i class="bi bi-arrow-repeat me-1"></i>Resume Setup
+                  <i class="bi bi-arrow-repeat me-1"></i>{% if child.is_setup_complete %}Open Setup{% else %}Resume Setup{% endif %}
                 </a>
-                {% endif %}
-                <a href="{% url 'scheduler:subject_selection' child_id=child.pk %}"
-                   class="btn btn-sm btn-outline-primary">
-                  <i class="bi bi-book me-1"></i>Subjects
-                </a>
-                <a href="{% url 'scheduler:generate_schedule' child_id=child.pk %}"
+                <a href="{% url 'scheduler:child_detail' child_id=child.pk %}"
                    class="btn btn-sm btn-outline-secondary">
-                  <i class="bi bi-lightning me-1"></i>Schedule
+                  <i class="bi bi-card-text me-1"></i>Legacy Details
                 </a>
                 <a href="{% url 'tracker:parent_calendar' child_id=child.pk %}"
                    class="btn btn-sm btn-outline-info">

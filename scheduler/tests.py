@@ -225,6 +225,22 @@ class ChildDetailStudentCredentialManagementTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Open Onboarding Flow")
 
+    def test_child_detail_promotes_onboarding_not_legacy_scheduler_steps(self):
+        response = self.client.get(self.url)
+        onboarding_url = reverse(
+            "scheduler:student_onboarding_resume",
+            kwargs={"child_id": self.child.pk},
+        )
+        self.assertContains(response, onboarding_url)
+        self.assertNotContains(
+            response,
+            reverse("scheduler:subject_selection", kwargs={"child_id": self.child.pk}),
+        )
+        self.assertNotContains(
+            response,
+            reverse("scheduler:generate_schedule", kwargs={"child_id": self.child.pk}),
+        )
+
 
 class ChildDetailCourseEnrollmentTests(TestCase):
     """Parent can enroll a student into one or more courses from child detail."""
@@ -1376,6 +1392,26 @@ class ParentDashboardTests(TestCase):
             response,
             f"onclick=\"window.location='{legacy_url}'\"",
             html=False,
+        )
+
+    def test_dashboard_actions_do_not_expose_retired_scheduler_steps(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self.url)
+        self.assertNotContains(
+            response,
+            reverse("scheduler:subject_selection", kwargs={"child_id": self.child.pk}),
+        )
+        self.assertNotContains(
+            response,
+            reverse("scheduler:generate_schedule", kwargs={"child_id": self.child.pk}),
+        )
+        self.assertNotContains(
+            response,
+            reverse("scheduler:create_student_login", kwargs={"child_id": self.child.pk}),
+        )
+        self.assertContains(
+            response,
+            reverse("scheduler:child_detail", kwargs={"child_id": self.child.pk}),
         )
 
     def test_context_has_summaries(self):

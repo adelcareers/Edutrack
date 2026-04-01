@@ -24,9 +24,9 @@
 {% block content %}
 <div class="container py-4" style="max-width:960px;">
 
-  <a href="{% url 'scheduler:child_detail' child_id=child.pk %}"
+  <a href="{% url 'scheduler:student_onboarding_resume' child_id=child.pk %}"
      class="text-decoration-none text-muted small d-inline-flex align-items-center gap-1 mb-3">
-    <i class="bi bi-arrow-left"></i> Back to {{ child.first_name }}'s profile
+    <i class="bi bi-arrow-left"></i> Back to setup
   </a>
 
   <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">

@@ -195,18 +195,13 @@
         </button>
         <ul class="dropdown-menu dropdown-menu-end shadow-sm">
           <li>
-            <a class="dropdown-item" href="{% url 'scheduler:subject_selection' child_id=child.pk %}">
-              <i class="bi bi-book me-2 text-secondary"></i>Manage Subjects
+            <a class="dropdown-item" href="{% url 'scheduler:student_onboarding_resume' child_id=child.pk %}">
+              <i class="bi bi-arrow-repeat me-2 text-secondary"></i>Open Setup
             </a>
           </li>
           <li>
-            <a class="dropdown-item" href="{% url 'scheduler:generate_schedule' child_id=child.pk %}">
-              <i class="bi bi-lightning me-2 text-secondary"></i>Generate Schedule
-            </a>
-          </li>
-          <li>
-            <a class="dropdown-item" href="{% url 'scheduler:schedule_edit' child_id=child.pk %}">
-              <i class="bi bi-calendar3-week me-2 text-secondary"></i>Edit Schedule
+            <a class="dropdown-item" href="{% url 'scheduler:manage_vacations' child_id=child.pk %}">
+              <i class="bi bi-sun me-2 text-secondary"></i>Manage Vacations
             </a>
           </li>
           <li>
@@ -428,13 +423,13 @@
             </button>
             <ul class="dropdown-menu dropdown-menu-end shadow-sm">
               <li>
-                <a class="dropdown-item" href="{% url 'scheduler:generate_schedule' child_id=child.pk %}">
-                  <i class="bi bi-lightning me-2 text-secondary"></i>Generate Schedule
+                <a class="dropdown-item" href="{% url 'scheduler:student_onboarding_resume' child_id=child.pk %}">
+                  <i class="bi bi-arrow-repeat me-2 text-secondary"></i>Open Setup
                 </a>
               </li>
               <li>
-                <a class="dropdown-item" href="{% url 'scheduler:schedule_edit' child_id=child.pk %}">
-                  <i class="bi bi-calendar3-week me-2 text-secondary"></i>Edit Schedule
+                <a class="dropdown-item" href="{% url 'scheduler:manage_vacations' child_id=child.pk %}">
+                  <i class="bi bi-sun me-2 text-secondary"></i>Manage Vacations
                 </a>
               </li>
               <li>
