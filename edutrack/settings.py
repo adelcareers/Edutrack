@@ -198,21 +198,26 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
-if DEBUG:
-    STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
-else:
-    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-
-# Cloudinary media storage
-# All user-uploaded files go to Cloudinary in both dev and production.
-# CLOUDINARY_URL must be set in .env (dev) or Heroku Config Vars (prod).
-DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
 _cloudinary_url = config("CLOUDINARY_URL", default="cloudinary://key:secret@cloud")
 CLOUDINARY_STORAGE = {"CLOUDINARY_URL": _cloudinary_url}
 # Export to os.environ so the cloudinary SDK can read it directly
 import os as _os
 
 _os.environ.setdefault("CLOUDINARY_URL", _cloudinary_url)
+
+if DEBUG:
+    _staticfiles_backend = "django.contrib.staticfiles.storage.StaticFilesStorage"
+else:
+    _staticfiles_backend = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+STORAGES = {
+    "default": {
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+    },
+    "staticfiles": {
+        "BACKEND": _staticfiles_backend,
+    },
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
