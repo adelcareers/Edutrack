@@ -26,6 +26,12 @@
           <strong>{{ row.child.first_name }}</strong>
           <div class="d-flex align-items-center gap-2">
             <span class="text-muted small">{{ row.enrollments|length }} course{{ row.enrollments|length|pluralize }}</span>
+            <a
+              href="{% url 'reports:gradebook_child_detail' row.child.id %}"
+              class="btn btn-sm btn-primary"
+            >
+              Open Dashboard
+            </a>
             {% if can_export %}
             <a
               href="{% url 'reports:gradebook_transcript' row.child.id %}"
@@ -58,7 +64,7 @@
                 </td>
                 <td class="text-end">
                   <a href="{% url 'reports:gradebook_detail' item.enrollment.id %}" class="btn btn-sm btn-outline-secondary">
-                    Open
+                    Open Course Gradebook
                   </a>
                 </td>
               </tr>

@@ -1,0 +1,975 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ child.first_name }} Gradebook | EduTrack{% endblock %}
+{% block nav_gradebooks %}active{% endblock %}
+
+{% block extra_css %}
+{% include 'reports/_gradebook_assignment_styles.html' %}
+<style>
+  :root {
+    --gb-shell: #ffffff;
+    --gb-line: #e4e4e7;
+    --gb-line-soft: #eef0f3;
+    --gb-text: #27272a;
+    --gb-muted: #6b7280;
+    --gb-muted-strong: #3f3f46;
+    --gb-brand: #4f46e5;
+    --gb-brand-soft: #eef2ff;
+    --gb-success: #16a34a;
+    --gb-success-soft: #ecfdf5;
+    --gb-warn: #d97706;
+    --gb-warn-soft: #fffbeb;
+    --gb-danger: #dc2626;
+    --gb-danger-soft: #fef2f2;
+  }
+
+  .gradebook-dashboard {
+    display: grid;
+    gap: 1.5rem;
+  }
+
+  .dashboard-shell {
+    background: var(--gb-shell);
+    border: 1px solid var(--gb-line);
+    border-radius: 24px;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+  }
+
+  .dashboard-toolbar {
+    align-items: center;
+    background: #f4f4f5;
+    border-bottom: 1px solid var(--gb-line);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+  }
+
+  .dashboard-toolbar-title {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .dashboard-overline {
+    color: #71717a;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .dashboard-child-name {
+    color: var(--gb-text);
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    margin: 0;
+  }
+
+  .dashboard-subtitle {
+    color: var(--gb-muted);
+    font-size: 0.95rem;
+    margin: 0;
+  }
+
+  .dashboard-toolbar-actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+  }
+
+  .scope-switcher {
+    background: #fff;
+    border: 1px solid var(--gb-line);
+    border-radius: 999px;
+    display: inline-flex;
+    overflow: hidden;
+  }
+
+  .scope-link {
+    color: var(--gb-muted-strong);
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0.48rem 0.95rem;
+    text-decoration: none;
+  }
+
+  .scope-link + .scope-link {
+    border-left: 1px solid var(--gb-line);
+  }
+
+  .scope-link.is-active {
+    background: #111827;
+    color: #fff;
+  }
+
+  .dashboard-body {
+    padding: 1.4rem;
+  }
+
+  .stream-card-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-bottom: 1.4rem;
+  }
+
+  .stream-card {
+    background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+    border: 1px solid var(--gb-line);
+    border-radius: 22px;
+    color: inherit;
+    display: block;
+    min-height: 180px;
+    padding: 1.1rem 1.15rem;
+    position: relative;
+    text-decoration: none;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+  }
+
+  .stream-card:hover {
+    border-color: #c7d2fe;
+    box-shadow: 0 14px 28px rgba(79, 70, 229, 0.08);
+    transform: translateY(-2px);
+  }
+
+  .stream-card.is-active {
+    border-color: #a5b4fc;
+    box-shadow: 0 18px 34px rgba(79, 70, 229, 0.1);
+  }
+
+  .stream-card-label {
+    color: #6b7280;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .stream-card-value {
+    color: var(--gb-text);
+    font-size: 2.35rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    margin: 0.65rem 0 0.3rem;
+  }
+
+  .stream-card-copy {
+    color: var(--gb-muted);
+    font-size: 0.94rem;
+    margin-bottom: 0.8rem;
+  }
+
+  .stream-progress {
+    background: #eceff3;
+    border-radius: 999px;
+    height: 12px;
+    overflow: hidden;
+  }
+
+  .stream-progress > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+  }
+
+  .stream-progress-lessons > span {
+    background: linear-gradient(90deg, #16a34a 0%, #4ade80 100%);
+  }
+
+  .stream-progress-assignments > span {
+    background: linear-gradient(90deg, #4338ca 0%, #6366f1 100%);
+  }
+
+  .stream-progress-activities > span {
+    background: linear-gradient(90deg, #0891b2 0%, #67e8f9 100%);
+  }
+
+  .stream-card-meta {
+    color: var(--gb-muted-strong);
+    display: flex;
+    font-size: 0.86rem;
+    font-weight: 700;
+    justify-content: space-between;
+    margin-top: 0.6rem;
+  }
+
+  .dashboard-layout {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+
+  .section-nav {
+    background: #fafafa;
+    border: 1px solid var(--gb-line);
+    border-radius: 22px;
+    padding: 0.75rem;
+  }
+
+  .section-nav-label {
+    color: #71717a;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.55rem;
+    padding: 0 0.35rem;
+    text-transform: uppercase;
+  }
+
+  .section-nav-link {
+    align-items: center;
+    border-radius: 16px;
+    color: var(--gb-muted-strong);
+    display: flex;
+    font-size: 1rem;
+    font-weight: 700;
+    gap: 0.7rem;
+    justify-content: space-between;
+    padding: 0.85rem 0.95rem;
+    text-decoration: none;
+  }
+
+  .section-nav-link + .section-nav-link {
+    margin-top: 0.35rem;
+  }
+
+  .section-nav-link.is-active {
+    background: #111827;
+    color: #fff;
+  }
+
+  .section-panel {
+    background: #fff;
+    border: 1px solid var(--gb-line);
+    border-radius: 22px;
+    min-width: 0;
+    padding: 1.1rem;
+  }
+
+  .section-heading {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    gap: 0.8rem;
+    margin-bottom: 1rem;
+  }
+
+  .section-heading h2 {
+    color: var(--gb-text);
+    font-size: 1.55rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin: 0;
+  }
+
+  .section-heading p {
+    color: var(--gb-muted);
+    margin: 0.2rem 0 0;
+  }
+
+  .metrics-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .report-card {
+    background: linear-gradient(180deg, #ffffff 0%, #fbfbfc 100%);
+    border: 1px solid var(--gb-line);
+    border-radius: 20px;
+    padding: 1rem;
+  }
+
+  .report-card-full {
+    grid-column: 1 / -1;
+  }
+
+  .report-card-label {
+    color: #71717a;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.35rem;
+    text-transform: uppercase;
+  }
+
+  .report-card-title {
+    color: var(--gb-text);
+    font-size: 1.2rem;
+    font-weight: 800;
+    margin: 0 0 0.4rem;
+  }
+
+  .report-card-copy {
+    color: var(--gb-muted);
+    font-size: 0.92rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .metric-hero {
+    align-items: end;
+    display: flex;
+    gap: 0.45rem;
+    margin-bottom: 0.65rem;
+  }
+
+  .metric-hero strong {
+    color: var(--gb-text);
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1;
+  }
+
+  .metric-hero span {
+    color: var(--gb-muted);
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.18rem;
+  }
+
+  .subject-progress-list {
+    display: grid;
+    gap: 0.8rem;
+  }
+
+  .subject-progress-row {
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .subject-progress-head {
+    align-items: center;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: space-between;
+  }
+
+  .subject-progress-head strong {
+    color: var(--gb-text);
+    font-size: 0.98rem;
+  }
+
+  .subject-progress-head span {
+    color: var(--gb-muted);
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  .subject-progress-bar {
+    background: #edf0f3;
+    border-radius: 999px;
+    height: 14px;
+    overflow: hidden;
+  }
+
+  .subject-progress-bar > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+  }
+
+  .mastery-layout {
+    align-items: center;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+
+  .mastery-chart {
+    align-items: center;
+    display: flex;
+    justify-content: center;
+  }
+
+  .mastery-donut {
+    align-items: center;
+    border-radius: 999px;
+    display: inline-flex;
+    height: 150px;
+    justify-content: center;
+    position: relative;
+    width: 150px;
+  }
+
+  .mastery-donut::after {
+    background: #fff;
+    border-radius: inherit;
+    content: "";
+    height: 88px;
+    position: absolute;
+    width: 88px;
+  }
+
+  .mastery-total {
+    color: var(--gb-text);
+    font-size: 1.4rem;
+    font-weight: 800;
+    position: relative;
+    z-index: 1;
+  }
+
+  .mastery-legend {
+    display: grid;
+    gap: 0.65rem;
+  }
+
+  .mastery-legend-row {
+    align-items: center;
+    background: #fafafa;
+    border: 1px solid var(--gb-line-soft);
+    border-radius: 14px;
+    display: flex;
+    justify-content: space-between;
+    padding: 0.7rem 0.8rem;
+  }
+
+  .mastery-legend-left {
+    align-items: center;
+    display: inline-flex;
+    gap: 0.55rem;
+  }
+
+  .mastery-dot {
+    border-radius: 999px;
+    height: 12px;
+    width: 12px;
+  }
+
+  .mastery-dot.green { background: #16a34a; }
+  .mastery-dot.amber { background: #d97706; }
+  .mastery-dot.red { background: #dc2626; }
+
+  .attention-card {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .attention-number {
+    color: var(--gb-danger);
+    display: inline-flex;
+    font-size: 3rem;
+    font-weight: 800;
+    letter-spacing: -0.05em;
+    line-height: 1;
+  }
+
+  .attention-link {
+    color: var(--gb-danger);
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .attention-link:hover {
+    text-decoration: underline;
+  }
+
+  .evidence-badge {
+    align-items: center;
+    background: var(--gb-brand-soft);
+    border-radius: 999px;
+    color: var(--gb-brand);
+    display: inline-flex;
+    font-size: 1.3rem;
+    font-weight: 800;
+    padding: 0.5rem 0.95rem;
+  }
+
+  .evidence-breakdown {
+    display: grid;
+    gap: 0.7rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 0.9rem;
+  }
+
+  .evidence-pill {
+    background: #fafafa;
+    border: 1px solid var(--gb-line-soft);
+    border-radius: 16px;
+    padding: 0.75rem 0.8rem;
+  }
+
+  .evidence-pill-label {
+    color: var(--gb-muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+
+  .evidence-pill-value {
+    color: var(--gb-text);
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1;
+  }
+
+  .section-placeholder {
+    align-items: center;
+    background: linear-gradient(180deg, #fff 0%, #fbfbfd 100%);
+    border: 1px dashed #d4d4d8;
+    border-radius: 20px;
+    display: flex;
+    justify-content: center;
+    min-height: 280px;
+    padding: 1.5rem;
+    text-align: center;
+  }
+
+  .section-placeholder h3 {
+    color: var(--gb-text);
+    font-size: 1.45rem;
+    font-weight: 800;
+    margin-bottom: 0.45rem;
+  }
+
+  .section-placeholder p {
+    color: var(--gb-muted);
+    margin: 0;
+  }
+
+  .assignment-switcher {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .assignment-switcher form {
+    align-items: center;
+    display: inline-flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+
+  .assignment-switcher label {
+    color: var(--gb-muted);
+    font-size: 0.86rem;
+    font-weight: 700;
+  }
+
+  .assignment-switcher select {
+    min-width: 260px;
+  }
+
+  .empty-inline {
+    color: var(--gb-muted);
+    font-size: 0.95rem;
+    margin: 0;
+  }
+
+  .lesson-snapshot-table {
+    width: 100%;
+  }
+
+  .lesson-snapshot-table th {
+    color: #71717a;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .lesson-snapshot-table td {
+    color: var(--gb-muted-strong);
+    vertical-align: middle;
+  }
+
+  .mini-status-pill {
+    border-radius: 999px;
+    display: inline-flex;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.28rem 0.6rem;
+  }
+
+  .mini-status-pill.green {
+    background: var(--gb-success-soft);
+    color: var(--gb-success);
+  }
+
+  .mini-status-pill.amber {
+    background: var(--gb-warn-soft);
+    color: var(--gb-warn);
+  }
+
+  .mini-status-pill.red {
+    background: var(--gb-danger-soft);
+    color: var(--gb-danger);
+  }
+
+  .mini-status-pill.unset {
+    background: #f4f4f5;
+    color: #52525b;
+  }
+
+  @media (max-width: 1199px) {
+    .stream-card-grid,
+    .metrics-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .dashboard-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .section-nav {
+      display: grid;
+      gap: 0.5rem;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .section-nav-label {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .dashboard-body {
+      padding: 1rem;
+    }
+
+    .dashboard-child-name {
+      font-size: 1.6rem;
+    }
+
+    .section-nav {
+      grid-template-columns: 1fr;
+    }
+
+    .mastery-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .evidence-breakdown {
+      grid-template-columns: 1fr;
+    }
+
+    .assignment-switcher form,
+    .dashboard-toolbar-actions {
+      width: 100%;
+    }
+
+    .assignment-switcher select {
+      min-width: 0;
+      width: 100%;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-lg-4 py-4">
+  <div class="gradebook-dashboard">
+    <section class="dashboard-shell">
+      <div class="dashboard-toolbar">
+        <div class="dashboard-toolbar-title">
+          <div class="dashboard-overline">Gradebook Dashboard</div>
+          <h1 class="dashboard-child-name">{{ child.first_name }}</h1>
+          <p class="dashboard-subtitle">
+            {{ enrollments|length }} enrollment{{ enrollments|length|pluralize }} in scope
+          </p>
+        </div>
+        <div class="dashboard-toolbar-actions">
+          <div class="scope-switcher" aria-label="Gradebook scope">
+            <a href="{% url 'reports:gradebook_child_detail' child.id %}?scope=current&section={{ section }}{% if selected_enrollment %}&enrollment={{ selected_enrollment.id }}{% endif %}"
+               class="scope-link {% if scope == 'current' %}is-active{% endif %}">
+              Current
+            </a>
+            <a href="{% url 'reports:gradebook_child_detail' child.id %}?scope=completed&section={{ section }}{% if selected_enrollment %}&enrollment={{ selected_enrollment.id }}{% endif %}"
+               class="scope-link {% if scope == 'completed' %}is-active{% endif %}">
+              Completed
+            </a>
+            <a href="{% url 'reports:gradebook_child_detail' child.id %}?scope=all&section={{ section }}{% if selected_enrollment %}&enrollment={{ selected_enrollment.id }}{% endif %}"
+               class="scope-link {% if scope == 'all' %}is-active{% endif %}">
+              All
+            </a>
+          </div>
+          {% if can_export %}
+          <a href="{% url 'reports:gradebook_transcript' child.id %}" class="btn btn-outline-dark btn-sm">
+            Generate Transcript
+          </a>
+          {% endif %}
+          <a href="{% url 'reports:gradebook_list' %}" class="btn btn-outline-secondary btn-sm">Back</a>
+        </div>
+      </div>
+
+      <div class="dashboard-body">
+        <div class="stream-card-grid">
+          <a href="{% url 'reports:gradebook_child_detail' child.id %}?scope={{ scope }}&section=lessons"
+             class="stream-card {% if section == 'lessons' %}is-active{% endif %}">
+            <div class="stream-card-label">Lessons</div>
+            <div class="stream-card-value">{{ lesson_card.complete }}/{{ lesson_card.total }}</div>
+            <div class="stream-card-copy">Completed lessons across the selected scope.</div>
+            <div class="stream-progress stream-progress-lessons"><span style="width: {{ lesson_card.percent }}%"></span></div>
+            <div class="stream-card-meta">
+              <span>{{ lesson_card.percent }}% complete</span>
+              <span>{{ lesson_attention_count }} red</span>
+            </div>
+          </a>
+
+          <a href="{% url 'reports:gradebook_child_detail' child.id %}?scope={{ scope }}&section=assignments{% if selected_enrollment %}&enrollment={{ selected_enrollment.id }}{% endif %}"
+             class="stream-card {% if section == 'assignments' %}is-active{% endif %}">
+            <div class="stream-card-label">Assignments</div>
+            <div class="stream-card-value">{{ assignment_card.complete }}/{{ assignment_card.total }}</div>
+            <div class="stream-card-copy">Submitted or graded assignments in the visible enrollments.</div>
+            <div class="stream-progress stream-progress-assignments"><span style="width: {{ assignment_card.percent }}%"></span></div>
+            <div class="stream-card-meta">
+              <span>{{ assignment_card.percent }}% complete</span>
+              <span>{{ assignment_card.average_percent|floatformat:2 }}% avg</span>
+            </div>
+          </a>
+
+          <a href="{% url 'reports:gradebook_child_detail' child.id %}?scope={{ scope }}&section=activities"
+             class="stream-card {% if section == 'activities' %}is-active{% endif %}">
+            <div class="stream-card-label">Activities</div>
+            <div class="stream-card-value">{{ activity_card.complete }}/{{ activity_card.total }}</div>
+            <div class="stream-card-copy">Tracked activity items completed in this scope.</div>
+            <div class="stream-progress stream-progress-activities"><span style="width: {{ activity_card.percent }}%"></span></div>
+            <div class="stream-card-meta">
+              <span>{{ activity_card.percent }}% complete</span>
+              <span>Phase 1 summary</span>
+            </div>
+          </a>
+        </div>
+
+        <div class="dashboard-layout">
+          <nav class="section-nav" aria-label="Gradebook sections">
+            <div class="section-nav-label">Streams</div>
+            <a href="{% url 'reports:gradebook_child_detail' child.id %}?scope={{ scope }}&section=lessons"
+               class="section-nav-link {% if section == 'lessons' %}is-active{% endif %}">
+              <span>Lessons</span>
+              <span>{{ lesson_card.percent }}%</span>
+            </a>
+            <a href="{% url 'reports:gradebook_child_detail' child.id %}?scope={{ scope }}&section=assignments{% if selected_enrollment %}&enrollment={{ selected_enrollment.id }}{% endif %}"
+               class="section-nav-link {% if section == 'assignments' %}is-active{% endif %}">
+              <span>Assignments</span>
+              <span>{{ assignment_card.percent }}%</span>
+            </a>
+            <a href="{% url 'reports:gradebook_child_detail' child.id %}?scope={{ scope }}&section=activities"
+               class="section-nav-link {% if section == 'activities' %}is-active{% endif %}">
+              <span>Activities</span>
+              <span>{{ activity_card.percent }}%</span>
+            </a>
+          </nav>
+
+          <section class="section-panel">
+            {% if section == 'lessons' %}
+            <div class="section-heading">
+              <div>
+                <h2>Lesson Reports</h2>
+                <p>Completion, mastery, and evidence readiness pulled from the lesson update data.</p>
+              </div>
+            </div>
+
+            <div class="metrics-grid">
+              <article class="report-card">
+                <div class="report-card-label">Completion Status Summary</div>
+                <h3 class="report-card-title">Completed versus scheduled lessons</h3>
+                <div class="metric-hero">
+                  <strong>{{ lesson_card.complete }}</strong>
+                  <span>of {{ lesson_card.total }}</span>
+                </div>
+                <div class="stream-progress stream-progress-lessons"><span style="width: {{ lesson_card.percent }}%"></span></div>
+                <div class="stream-card-meta">
+                  <span>{{ lesson_card.percent }}% complete</span>
+                  <span>{{ lesson_card.total|default:0 }} scheduled</span>
+                </div>
+              </article>
+
+              <article class="report-card">
+                <div class="report-card-label">Lessons Needing Attention</div>
+                <h3 class="report-card-title">Red mastery follow-up</h3>
+                <div class="attention-card">
+                  <div>
+                    <span class="attention-number">{{ lesson_attention_count }}</span>
+                    <div class="report-card-copy mb-0">Lessons currently marked Red for mastery.</div>
+                  </div>
+                  <a href="{{ lesson_attention_url }}" class="attention-link">Open lessons drilldown</a>
+                </div>
+              </article>
+
+              <article class="report-card report-card-full">
+                <div class="report-card-label">Per-Subject Progress Bars</div>
+                <h3 class="report-card-title">Completion grouped by subject</h3>
+                {% if lesson_subject_rows %}
+                <div class="subject-progress-list">
+                  {% for row in lesson_subject_rows %}
+                  <div class="subject-progress-row">
+                    <div class="subject-progress-head">
+                      <strong>{{ row.subject_name }}</strong>
+                      <span>{{ row.complete }}/{{ row.total }} completed</span>
+                    </div>
+                    <div class="subject-progress-bar">
+                      <span style="width: {{ row.pct }}%; background: {{ row.colour_hex }};"></span>
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+                {% else %}
+                <p class="empty-inline">No lesson subjects are available for this scope yet.</p>
+                {% endif %}
+              </article>
+
+              <article class="report-card">
+                <div class="report-card-label">Mastery Distribution</div>
+                <h3 class="report-card-title">Green / Amber / Red mastery</h3>
+                <div class="mastery-layout">
+                  <div class="mastery-chart">
+                    <div class="mastery-donut" style="{{ lesson_mastery_chart_style }}">
+                      <span class="mastery-total">{{ lesson_mastery_total }}</span>
+                    </div>
+                  </div>
+                  <div class="mastery-legend">
+                    <div class="mastery-legend-row">
+                      <div class="mastery-legend-left">
+                        <span class="mastery-dot green"></span>
+                        <strong>Green</strong>
+                      </div>
+                      <span>{{ lesson_mastery_counts.green }}</span>
+                    </div>
+                    <div class="mastery-legend-row">
+                      <div class="mastery-legend-left">
+                        <span class="mastery-dot amber"></span>
+                        <strong>Amber</strong>
+                      </div>
+                      <span>{{ lesson_mastery_counts.amber }}</span>
+                    </div>
+                    <div class="mastery-legend-row">
+                      <div class="mastery-legend-left">
+                        <span class="mastery-dot red"></span>
+                        <strong>Red</strong>
+                      </div>
+                      <span>{{ lesson_mastery_counts.red }}</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="report-card">
+                <div class="report-card-label">Evidence Readiness Score</div>
+                <h3 class="report-card-title">Receipts, submissions, and notes</h3>
+                <div class="evidence-badge">{{ lesson_evidence.percent }}%</div>
+                <div class="report-card-copy mt-2">
+                  Based on {{ lesson_evidence.completed_lessons }} completed lesson{{ lesson_evidence.completed_lessons|pluralize }}.
+                </div>
+                <div class="evidence-breakdown">
+                  <div class="evidence-pill">
+                    <div class="evidence-pill-label">Receipt URLs</div>
+                    <div class="evidence-pill-value">{{ lesson_evidence.receipt_count }}</div>
+                  </div>
+                  <div class="evidence-pill">
+                    <div class="evidence-pill-label">Submissions</div>
+                    <div class="evidence-pill-value">{{ lesson_evidence.submission_count }}</div>
+                  </div>
+                  <div class="evidence-pill">
+                    <div class="evidence-pill-label">Notes</div>
+                    <div class="evidence-pill-value">{{ lesson_evidence.notes_count }}</div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="report-card report-card-full">
+                <div class="report-card-label">Lesson Snapshot</div>
+                <h3 class="report-card-title">Recent lessons in this scope</h3>
+                {% if lesson_rows %}
+                <div class="table-responsive">
+                  <table class="table lesson-snapshot-table mb-0">
+                    <thead>
+                      <tr>
+                        <th>Lesson</th>
+                        <th>Subject</th>
+                        <th>Date</th>
+                        <th>Mastery</th>
+                        <th>Student Note</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for row in lesson_rows %}
+                      <tr>
+                        <td><strong>{{ row.title }}</strong></td>
+                        <td>{{ row.subject_name }}</td>
+                        <td>{{ row.scheduled_date|date:"M j, Y" }}</td>
+                        <td>
+                          <span class="mini-status-pill {{ row.mastery }}">{{ row.mastery|title }}</span>
+                        </td>
+                        <td>{{ row.student_notes|default:"-" }}</td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+                {% else %}
+                <p class="empty-inline">No lesson rows are available for this scope yet.</p>
+                {% endif %}
+              </article>
+            </div>
+
+            {% elif section == 'assignments' %}
+            <div class="section-heading">
+              <div>
+                <h2>Assignment Reports</h2>
+                <p>The existing assignment gradebook remains unchanged and is embedded here by enrollment.</p>
+              </div>
+            </div>
+
+            {% if enrollments %}
+            <div class="assignment-switcher mb-4">
+              <form method="get" action="{% url 'reports:gradebook_child_detail' child.id %}">
+                <input type="hidden" name="scope" value="{{ scope }}">
+                <input type="hidden" name="section" value="assignments">
+                <label for="assignment-enrollment-switcher">Course</label>
+                <select id="assignment-enrollment-switcher" name="enrollment" class="form-select" onchange="this.form.submit()">
+                  {% for enrollment, enrollment_summary in enrollments_with_summary %}
+                  <option value="{{ enrollment.id }}" {% if selected_enrollment and enrollment.id == selected_enrollment.id %}selected{% endif %}>
+                    {{ enrollment.course.name }} · {{ enrollment_summary.final_percent }}%
+                  </option>
+                  {% endfor %}
+                </select>
+              </form>
+            </div>
+
+            {% if assignment_panel %}
+              {% include 'reports/_gradebook_assignment_panel.html' with enrollment=assignment_panel.enrollment summary=assignment_panel.summary assignments=assignment_panel.assignments sort_by=assignment_panel.sort_by sort_order=assignment_panel.sort_order user_role=assignment_panel.user_role can_grade=assignment_panel.can_grade can_respond=assignment_panel.can_respond progress_done=assignment_panel.progress_done progress_total=assignment_panel.progress_total progress_percent=assignment_panel.progress_percent next_url=assignment_panel.next_url gradebook_sort_action=assignment_panel.gradebook_sort_action gradebook_sort_hidden_params=assignment_panel.gradebook_sort_hidden_params gradebook_form_action=assignment_panel.gradebook_form_action %}
+            {% endif %}
+            {% else %}
+            <p class="empty-inline">No enrollments are available for this child in the selected scope.</p>
+            {% endif %}
+
+            {% else %}
+            <div class="section-heading">
+              <div>
+                <h2>Activity Reports</h2>
+                <p>The activity header card is live now. Detailed reporting is reserved for the next phase.</p>
+              </div>
+            </div>
+
+            <div class="section-placeholder">
+              <div>
+                <h3>Detailed activity reporting is coming soon</h3>
+                <p>{{ activity_card.complete }} of {{ activity_card.total }} activities are complete in the selected scope.</p>
+              </div>
+            </div>
+            {% endif %}
+          </section>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/gradebook.js' %}"></script>
+{% endblock %}

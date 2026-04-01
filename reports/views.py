@@ -2,6 +2,7 @@ import datetime
 import io
 from collections import defaultdict
 from decimal import Decimal, InvalidOperation
+from urllib.parse import urlencode
 
 import cloudinary.utils
 from django.contrib import messages
@@ -18,6 +19,7 @@ from xhtml2pdf import pisa
 from accounts.decorators import role_required
 from courses.models import CourseEnrollment
 from planning.models import (
+    ActivityProgress,
     AssignmentAttachment,
     AssignmentComment,
     AssignmentSubmission,
@@ -30,7 +32,8 @@ from reports.services_gradebook import (
     recalculate_enrollment_grade,
 )
 from scheduler.models import Child
-from tracker.models import LessonLog
+from tracker.models import EvidenceFile, LessonLog
+from scheduler.models import ScheduledLesson
 from tracker.views.utils import _hydrate_assignment_display
 
 from .forms import ReportForm
@@ -57,6 +60,520 @@ def _assignment_next_url(request, assignment):
     if next_url.startswith("/"):
         return next_url
     return reverse("reports:gradebook_detail", args=[assignment.enrollment_id])
+
+
+def _safe_redirect_target(request, default_url):
+    next_url = (request.POST.get("next") or "").strip()
+    if next_url.startswith("/"):
+        return next_url
+    return default_url
+
+
+def _gradebook_child_queryset(user, role):
+    if role == "parent":
+        return Child.objects.filter(parent=user, is_active=True)
+    if role == "teacher":
+        return Child.objects.filter(
+            course_enrollments__course__parent=user,
+            course_enrollments__status__in=["active", "completed"],
+            is_active=True,
+        ).distinct()
+    if role == "student":
+        child = getattr(user, "child_profile", None)
+        if child is None:
+            return Child.objects.none()
+        return Child.objects.filter(pk=child.pk, is_active=True)
+    return Child.objects.none()
+
+
+def _gradebook_enrollment_statuses(scope):
+    if scope == "completed":
+        return ["completed"]
+    if scope == "all":
+        return ["active", "completed"]
+    return ["active"]
+
+
+def _visible_gradebook_enrollments(user, role, child, scope):
+    enrollment_qs = CourseEnrollment.objects.select_related("child", "course").filter(
+        child=child,
+        status__in=_gradebook_enrollment_statuses(scope),
+    )
+    if _is_gradebook_owner_role(role):
+        enrollment_qs = enrollment_qs.filter(course__parent=user)
+    else:
+        enrollment_qs = enrollment_qs.filter(child=child)
+    return list(enrollment_qs.order_by("course__name", "id"))
+
+
+def _parse_gradebook_sort_params(request):
+    sort_by = request.GET.get("sort", "due")
+    sort_order = request.GET.get("order", "asc")
+    if sort_by not in {"due", "status", "type", "name", "percent"}:
+        sort_by = "due"
+    if sort_order not in {"asc", "desc"}:
+        sort_order = "asc"
+    return sort_by, sort_order
+
+
+def _handle_gradebook_assignment_save(request, enrollment, role, redirect_url):
+    if not _is_gradebook_owner_role(role):
+        return HttpResponseForbidden()
+
+    action = request.POST.get("action", "save_grade")
+    assignment_id = request.POST.get("assignment_id")
+    assignment = get_object_or_404(
+        StudentAssignment,
+        pk=assignment_id,
+        enrollment=enrollment,
+    )
+
+    update_fields = []
+
+    def _parse_decimal(raw_value):
+        if raw_value == "":
+            return None
+        try:
+            return Decimal(raw_value)
+        except (InvalidOperation, TypeError, ValueError):
+            return None
+
+    score_raw = (request.POST.get("score") or "").strip()
+    points_raw = (request.POST.get("points_available") or "").strip()
+    percent_raw = (request.POST.get("score_percent") or "").strip()
+    status_raw = (request.POST.get("status") or "").strip()
+    due_date_raw = (request.POST.get("due_date") or "").strip()
+    notes_raw = request.POST.get("grading_notes", "").strip()
+
+    assignment.score = _parse_decimal(score_raw)
+    assignment.points_available = _parse_decimal(points_raw)
+    assignment.score_percent = _parse_decimal(percent_raw)
+    assignment.grading_notes = notes_raw
+    assignment.graded_at = timezone.now()
+    assignment.graded_by = request.user
+    update_fields.extend(
+        [
+            "score",
+            "points_available",
+            "score_percent",
+            "grading_notes",
+            "graded_at",
+            "graded_by",
+        ]
+    )
+
+    if action == "save_modal":
+        if status_raw in {"pending", "complete", "overdue", "needs_grading"}:
+            assignment.status = status_raw
+            update_fields.append("status")
+
+        if assignment.status in {"complete", "needs_grading"} and assignment.completed_at is None:
+            assignment.completed_at = timezone.now()
+            update_fields.append("completed_at")
+        if assignment.status not in {"complete", "needs_grading"} and assignment.completed_at is not None:
+            assignment.completed_at = None
+            update_fields.append("completed_at")
+
+        if due_date_raw:
+            try:
+                due_date = datetime.date.fromisoformat(due_date_raw)
+            except ValueError:
+                due_date = None
+            if due_date is not None:
+                assignment.due_date = due_date
+                update_fields.append("due_date")
+
+    has_grading_input = any([score_raw, points_raw, percent_raw, notes_raw])
+    if has_grading_input:
+        assignment.status = "complete"
+        assignment.completed_at = assignment.completed_at or timezone.now()
+        update_fields.extend(["status", "completed_at"])
+
+    assignment.save(update_fields=sorted(set(update_fields)))
+    recalculate_enrollment_grade(enrollment)
+    messages.success(request, "Grade saved.")
+    return redirect(_safe_redirect_target(request, redirect_url))
+
+
+def _build_assignment_gradebook_context(
+    request,
+    enrollment,
+    role,
+    *,
+    next_url,
+    sort_action,
+    sort_hidden_params=None,
+    form_action=None,
+):
+    assignments = list(
+        enrollment.assignments.select_related(
+            "new_plan_item__assignment_detail__assignment_type"
+        ).order_by("due_date", "id")
+    )
+    assignment_ids = [assignment.id for assignment in assignments]
+    old_plan_item_ids = [assignment.plan_item_id for assignment in assignments]
+
+    attachments_by_plan_item = defaultdict(list)
+    for attachment in AssignmentAttachment.objects.filter(
+        plan_item_id__in=old_plan_item_ids
+    ).order_by("created_at"):
+        attachments_by_plan_item[attachment.plan_item_id].append(attachment)
+
+    comments_by_assignment = defaultdict(list)
+    for comment in (
+        AssignmentComment.objects.filter(assignment_id__in=assignment_ids)
+        .select_related("author")
+        .order_by("created_at")
+    ):
+        comments_by_assignment[comment.assignment_id].append(comment)
+
+    submissions_by_assignment = defaultdict(list)
+    for submission in (
+        AssignmentSubmission.objects.filter(assignment_id__in=assignment_ids)
+        .select_related("uploaded_by")
+        .order_by("-created_at")
+    ):
+        submissions_by_assignment[submission.assignment_id].append(submission)
+
+    today = timezone.localdate()
+    for assignment in assignments:
+        _hydrate_assignment_display(assignment)
+
+        if assignment.status == "complete":
+            assignment.display_status = "complete"
+        elif assignment.status == "needs_grading":
+            assignment.display_status = "needs_grading"
+        elif assignment.due_date < today:
+            assignment.display_status = "overdue"
+        else:
+            assignment.display_status = "pending"
+
+        assignment.effective_percent = get_assignment_percent(assignment)
+        plan_item_for_url = (
+            assignment.new_plan_item_id
+            if assignment.new_plan_item_id
+            else assignment.plan_item_id
+        )
+        assignment.edit_url = (
+            f"{reverse('planning:plan_course', args=[enrollment.course.id])}"
+            f"?edit={plan_item_for_url}"
+        )
+        assignment.attachments_for_modal = attachments_by_plan_item.get(
+            assignment.plan_item_id, []
+        )
+        assignment.comments_for_modal = comments_by_assignment.get(assignment.id, [])
+        assignment.submissions_for_modal = submissions_by_assignment.get(
+            assignment.id, []
+        )
+        assignment.attachments_count = len(assignment.attachments_for_modal)
+        assignment.comments_count = len(assignment.comments_for_modal)
+        assignment.submissions_count = len(assignment.submissions_for_modal)
+        assignment.status_action_url = reverse(
+            "reports:gradebook_assignment_status",
+            kwargs={"assignment_id": assignment.id},
+        )
+        assignment.comment_action_url = reverse(
+            "reports:gradebook_assignment_comment_create",
+            kwargs={"assignment_id": assignment.id},
+        )
+        assignment.submission_action_url = reverse(
+            "reports:gradebook_assignment_submission_upload",
+            kwargs={"assignment_id": assignment.id},
+        )
+        assignment.can_submit = _can_submit_assignment(request.user, assignment)
+
+    sort_by, sort_order = _parse_gradebook_sort_params(request)
+
+    def _assignment_sort_name(item):
+        plan_item = getattr(item, "new_plan_item", None)
+        if plan_item:
+            return plan_item.name.lower()
+        legacy_plan_item = getattr(item, "plan_item", None)
+        if legacy_plan_item and getattr(legacy_plan_item, "template", None):
+            return legacy_plan_item.template.name.lower()
+        return ""
+
+    def _assignment_sort_type(item):
+        plan_item = getattr(item, "new_plan_item", None)
+        if plan_item:
+            detail = getattr(plan_item, "assignment_detail", None)
+            assignment_type = getattr(detail, "assignment_type", None)
+            if assignment_type:
+                return assignment_type.name.lower()
+        legacy_plan_item = getattr(item, "plan_item", None)
+        if legacy_plan_item and getattr(legacy_plan_item, "template", None):
+            assignment_type = getattr(
+                legacy_plan_item.template, "assignment_type", None
+            )
+            if assignment_type:
+                return assignment_type.name.lower()
+        return ""
+
+    if sort_by == "status":
+        status_rank = {
+            "pending": 0,
+            "overdue": 1,
+            "needs_grading": 2,
+            "complete": 3,
+        }
+        assignments.sort(
+            key=lambda item: (status_rank.get(item.display_status, 99), item.due_date)
+        )
+    elif sort_by == "type":
+        assignments.sort(key=lambda item: (_assignment_sort_type(item), item.due_date))
+    elif sort_by == "name":
+        assignments.sort(key=lambda item: (_assignment_sort_name(item), item.due_date))
+    elif sort_by == "percent":
+        assignments.sort(key=lambda item: (Decimal(item.effective_percent), item.due_date))
+    else:
+        assignments.sort(key=lambda item: (item.due_date, item.id))
+
+    if sort_order == "desc":
+        assignments.reverse()
+
+    summary = lazy_backfill_enrollment_grade_summary(enrollment)
+    progress_done = len(
+        [
+            assignment
+            for assignment in assignments
+            if assignment.status in {"complete", "needs_grading"}
+        ]
+    )
+    progress_total = len(assignments)
+    progress_percent = int((progress_done / progress_total) * 100) if progress_total else 0
+
+    return {
+        "enrollment": enrollment,
+        "summary": summary,
+        "assignments": assignments,
+        "sort_by": sort_by,
+        "sort_order": sort_order,
+        "user_role": role,
+        "can_grade": _is_gradebook_owner_role(role),
+        "can_respond": role in {"parent", "teacher", "student"},
+        "progress_done": progress_done,
+        "progress_total": progress_total,
+        "progress_percent": progress_percent,
+        "next_url": next_url,
+        "gradebook_sort_action": sort_action,
+        "gradebook_sort_hidden_params": sort_hidden_params or {},
+        "gradebook_form_action": form_action or request.get_full_path(),
+    }
+
+
+def _build_child_gradebook_dashboard_context(request, child, enrollments, role, scope, section):
+    summaries = [lazy_backfill_enrollment_grade_summary(enrollment) for enrollment in enrollments]
+    enrollments_with_summary = list(zip(enrollments, summaries))
+    selected_enrollment_id = request.GET.get("enrollment")
+    selected_enrollment = None
+    if enrollments:
+        if selected_enrollment_id:
+            try:
+                selected_enrollment = next(
+                    enrollment
+                    for enrollment in enrollments
+                    if enrollment.id == int(selected_enrollment_id)
+                )
+            except (StopIteration, ValueError, TypeError):
+                selected_enrollment = enrollments[0]
+        else:
+            selected_enrollment = enrollments[0]
+
+    enrollment_ids = [enrollment.id for enrollment in enrollments]
+    course_ids = [enrollment.course_id for enrollment in enrollments]
+
+    assignment_qs = StudentAssignment.objects.filter(enrollment_id__in=enrollment_ids)
+    assignment_complete_count = assignment_qs.filter(
+        status__in=["complete", "needs_grading"]
+    ).count()
+    assignment_total_count = assignment_qs.count()
+    assignment_avg_percent = (
+        sum(Decimal(str(summary.final_percent or 0)) for summary in summaries)
+        / Decimal(len(summaries))
+        if summaries
+        else Decimal("0")
+    )
+
+    activity_qs = ActivityProgress.objects.filter(enrollment_id__in=enrollment_ids)
+    activity_total_count = activity_qs.count()
+    activity_complete_count = activity_qs.filter(status="complete").count()
+
+    lesson_qs = ScheduledLesson.objects.filter(child=child)
+    if course_ids:
+        lesson_qs = lesson_qs.filter(
+            models.Q(plan_item__course_id__in=course_ids)
+            | models.Q(course_subject__course_id__in=course_ids)
+        ).distinct()
+    else:
+        lesson_qs = ScheduledLesson.objects.none()
+
+    lesson_total_count = lesson_qs.count()
+    lesson_complete_count = lesson_qs.filter(log__status="complete").count()
+    lesson_rows = []
+    for scheduled_lesson in (
+        lesson_qs.select_related("lesson", "enrolled_subject", "log")
+        .order_by("-scheduled_date", "-id")[:6]
+    ):
+        lesson_log = getattr(scheduled_lesson, "log", None)
+        lesson_rows.append(
+            {
+                "title": scheduled_lesson.lesson.lesson_title,
+                "subject_name": scheduled_lesson.enrolled_subject.subject_name,
+                "scheduled_date": scheduled_lesson.scheduled_date,
+                "mastery": lesson_log.mastery if lesson_log and lesson_log.mastery else "unset",
+                "student_notes": lesson_log.student_notes if lesson_log else "",
+            }
+        )
+
+    subject_rows = []
+    for row in (
+        lesson_qs.values("enrolled_subject__subject_name", "enrolled_subject__colour_hex")
+        .annotate(
+            total=models.Count("id"),
+            complete=models.Count("id", filter=models.Q(log__status="complete")),
+        )
+        .order_by("enrolled_subject__subject_name")
+    ):
+        total = row["total"] or 0
+        complete = row["complete"] or 0
+        subject_rows.append(
+            {
+                "subject_name": row["enrolled_subject__subject_name"] or "Subject",
+                "colour_hex": row["enrolled_subject__colour_hex"] or "#6c757d",
+                "total": total,
+                "complete": complete,
+                "pct": round((complete / total) * 100) if total else 0,
+            }
+        )
+
+    mastery_qs = LessonLog.objects.filter(
+        scheduled_lesson__in=lesson_qs,
+        mastery__in=["green", "amber", "red"],
+    )
+    mastery_counts = {
+        "green": mastery_qs.filter(mastery="green").count(),
+        "amber": mastery_qs.filter(mastery="amber").count(),
+        "red": mastery_qs.filter(mastery="red").count(),
+    }
+    mastery_total = sum(mastery_counts.values())
+    if mastery_total:
+        green_angle = round((mastery_counts["green"] / mastery_total) * 360, 2)
+        amber_angle = round((mastery_counts["amber"] / mastery_total) * 360, 2)
+        mastery_chart_style = (
+            "background: conic-gradient("
+            f"#16a34a 0deg {green_angle}deg, "
+            f"#d97706 {green_angle}deg {green_angle + amber_angle}deg, "
+            f"#dc2626 {green_angle + amber_angle}deg 360deg);"
+        )
+    else:
+        mastery_chart_style = "background: #e5e7eb;"
+
+    completed_logs = list(
+        LessonLog.objects.filter(scheduled_lesson__in=lesson_qs, status="complete")
+        .annotate(
+            has_receipt=models.Case(
+                models.When(completion_receipt_url__gt="", then=models.Value(1)),
+                default=models.Value(0),
+                output_field=models.IntegerField(),
+            ),
+            has_submission=models.Case(
+                models.When(
+                    models.Exists(
+                        EvidenceFile.objects.filter(lesson_log_id=models.OuterRef("pk"))
+                    ),
+                    then=models.Value(1),
+                ),
+                default=models.Value(0),
+                output_field=models.IntegerField(),
+            ),
+            has_notes=models.Case(
+                models.When(student_notes__gt="", then=models.Value(1)),
+                default=models.Value(0),
+                output_field=models.IntegerField(),
+            ),
+        )
+    )
+    evidence_receipt_count = sum(log.has_receipt for log in completed_logs)
+    evidence_submission_count = sum(log.has_submission for log in completed_logs)
+    evidence_notes_count = sum(log.has_notes for log in completed_logs)
+    evidence_total_possible = len(completed_logs) * 3
+    evidence_total_present = (
+        evidence_receipt_count + evidence_submission_count + evidence_notes_count
+    )
+    evidence_readiness_percent = (
+        round((evidence_total_present / evidence_total_possible) * 100)
+        if evidence_total_possible
+        else 0
+    )
+
+    tracker_query = {"tab": "lessons", "mastery": "red", "hide_completed": "0"}
+    if role in {"parent", "teacher"}:
+        tracker_query["student"] = child.id
+    attention_url = f"{reverse('tracker:home_assignments')}?{urlencode(tracker_query)}"
+
+    assignment_panel = None
+    if selected_enrollment is not None:
+        assignment_panel = _build_assignment_gradebook_context(
+            request,
+            selected_enrollment,
+            role,
+            next_url=request.get_full_path(),
+            sort_action=reverse(
+                "reports:gradebook_child_detail", kwargs={"child_id": child.id}
+            ),
+            sort_hidden_params={
+                "scope": scope,
+                "section": "assignments",
+                "enrollment": selected_enrollment.id,
+            },
+            form_action=request.get_full_path(),
+        )
+
+    return {
+        "child": child,
+        "scope": scope,
+        "section": section,
+        "enrollments": enrollments,
+        "enrollments_with_summary": enrollments_with_summary,
+        "selected_enrollment": selected_enrollment,
+        "assignment_panel": assignment_panel,
+        "lesson_card": {
+            "complete": lesson_complete_count,
+            "total": lesson_total_count,
+            "percent": round((lesson_complete_count / lesson_total_count) * 100)
+            if lesson_total_count
+            else 0,
+        },
+        "assignment_card": {
+            "complete": assignment_complete_count,
+            "total": assignment_total_count,
+            "percent": round((assignment_complete_count / assignment_total_count) * 100)
+            if assignment_total_count
+            else 0,
+            "average_percent": assignment_avg_percent.quantize(Decimal("0.01")),
+        },
+        "activity_card": {
+            "complete": activity_complete_count,
+            "total": activity_total_count,
+            "percent": round((activity_complete_count / activity_total_count) * 100)
+            if activity_total_count
+            else 0,
+        },
+        "lesson_subject_rows": subject_rows,
+        "lesson_rows": lesson_rows,
+        "lesson_mastery_counts": mastery_counts,
+        "lesson_mastery_total": mastery_total,
+        "lesson_mastery_chart_style": mastery_chart_style,
+        "lesson_attention_count": mastery_counts["red"],
+        "lesson_attention_url": attention_url,
+        "lesson_evidence": {
+            "completed_lessons": len(completed_logs),
+            "receipt_count": evidence_receipt_count,
+            "submission_count": evidence_submission_count,
+            "notes_count": evidence_notes_count,
+            "percent": evidence_readiness_percent,
+        },
+    }
 
 
 @login_required
@@ -200,6 +717,66 @@ def gradebook_list_view(request):
 
 
 @login_required
+def gradebook_child_detail_view(request, child_id):
+    """Child-centric gradebook dashboard with stream sections."""
+    role = _user_role(request.user)
+    if role not in {"parent", "teacher", "student"}:
+        return HttpResponseForbidden()
+
+    child = get_object_or_404(_gradebook_child_queryset(request.user, role), pk=child_id)
+    scope = (request.GET.get("scope") or "current").strip().lower()
+    if scope not in {"current", "completed", "all"}:
+        scope = "current"
+    section = (request.GET.get("section") or "lessons").strip().lower()
+    if section not in {"lessons", "assignments", "activities"}:
+        section = "lessons"
+
+    enrollments = _visible_gradebook_enrollments(request.user, role, child, scope)
+
+    selected_enrollment_id = request.GET.get("enrollment")
+    if selected_enrollment_id and not any(
+        str(enrollment.id) == str(selected_enrollment_id) for enrollment in enrollments
+    ):
+        return HttpResponseForbidden()
+
+    if request.method == "POST":
+        if not selected_enrollment_id:
+            return HttpResponseForbidden()
+        selected_enrollment = get_object_or_404(
+            CourseEnrollment.objects.select_related("course", "child"),
+            pk=selected_enrollment_id,
+            child=child,
+        )
+        if _is_gradebook_owner_role(role):
+            if selected_enrollment.course.parent_id != request.user.pk:
+                return HttpResponseForbidden()
+        elif selected_enrollment.child_id != child.id:
+            return HttpResponseForbidden()
+        return _handle_gradebook_assignment_save(
+            request,
+            selected_enrollment,
+            role,
+            request.get_full_path(),
+        )
+
+    context = _build_child_gradebook_dashboard_context(
+        request,
+        child,
+        enrollments,
+        role,
+        scope,
+        section,
+    )
+    context.update(
+        {
+            "can_export": _is_gradebook_owner_role(role),
+            "user_role": role,
+        }
+    )
+    return render(request, "reports/gradebook_child_detail.html", context)
+
+
+@login_required
 def gradebook_detail_view(request, enrollment_id):
     """Gradebook details for one enrollment with modal grading updates."""
     role = _user_role(request.user)
@@ -220,273 +797,29 @@ def gradebook_detail_view(request, enrollment_id):
     enrollment = get_object_or_404(enrollment_qs)
 
     if request.method == "POST":
-        if not _is_gradebook_owner_role(role):
-            return HttpResponseForbidden()
-
-        action = request.POST.get("action", "save_grade")
-        assignment_id = request.POST.get("assignment_id")
-        assignment = get_object_or_404(
-            StudentAssignment,
-            pk=assignment_id,
-            enrollment=enrollment,
+        return _handle_gradebook_assignment_save(
+            request,
+            enrollment,
+            role,
+            reverse(
+                "reports:gradebook_detail", kwargs={"enrollment_id": enrollment.id}
+            ),
         )
 
-        update_fields = []
-
-        def _parse_decimal(raw_value):
-            if raw_value == "":
-                return None
-            try:
-                return Decimal(raw_value)
-            except (InvalidOperation, TypeError, ValueError):
-                return None
-
-        score_raw = (request.POST.get("score") or "").strip()
-        points_raw = (request.POST.get("points_available") or "").strip()
-        percent_raw = (request.POST.get("score_percent") or "").strip()
-        status_raw = (request.POST.get("status") or "").strip()
-        due_date_raw = (request.POST.get("due_date") or "").strip()
-        notes_raw = request.POST.get("grading_notes", "").strip()
-
-        score_value = _parse_decimal(score_raw)
-        points_value = _parse_decimal(points_raw)
-        percent_value = _parse_decimal(percent_raw)
-
-        assignment.score = score_value
-        assignment.points_available = points_value
-        assignment.score_percent = percent_value
-        assignment.grading_notes = notes_raw
-        assignment.graded_at = timezone.now()
-        assignment.graded_by = request.user
-        update_fields.extend(
-            [
-                "score",
-                "points_available",
-                "score_percent",
-                "grading_notes",
-                "graded_at",
-                "graded_by",
-            ]
-        )
-
-        if action == "save_modal":
-            if status_raw in {
-                "pending",
-                "complete",
-                "overdue",
-                "needs_grading",
-            }:
-                assignment.status = status_raw
-                update_fields.append("status")
-
-            if (
-                assignment.status in {"complete", "needs_grading"}
-                and assignment.completed_at is None
-            ):
-                assignment.completed_at = timezone.now()
-                update_fields.append("completed_at")
-            if (
-                assignment.status not in {"complete", "needs_grading"}
-                and assignment.completed_at is not None
-            ):
-                assignment.completed_at = None
-                update_fields.append("completed_at")
-
-            if due_date_raw:
-                try:
-                    due_date = datetime.date.fromisoformat(due_date_raw)
-                except ValueError:
-                    due_date = None
-                if due_date is not None:
-                    assignment.due_date = due_date
-                    update_fields.append("due_date")
-
-        has_grading_input = any([score_raw, points_raw, percent_raw, notes_raw])
-        if has_grading_input:
-            assignment.status = "complete"
-            assignment.completed_at = assignment.completed_at or timezone.now()
-            update_fields.extend(["status", "completed_at"])
-
-        assignment.save(update_fields=sorted(set(update_fields)))
-        recalculate_enrollment_grade(enrollment)
-        messages.success(request, "Grade saved.")
-        return redirect(
-            "reports:gradebook_detail",
-            enrollment_id=enrollment.id,
-        )
-
-    assignments = list(
-        enrollment.assignments.select_related(
-            "new_plan_item__assignment_detail__assignment_type"
-        ).order_by("due_date", "id")
+    context = _build_assignment_gradebook_context(
+        request,
+        enrollment,
+        role,
+        next_url=request.get_full_path(),
+        sort_action=reverse(
+            "reports:gradebook_detail", kwargs={"enrollment_id": enrollment.id}
+        ),
+        form_action=request.get_full_path(),
     )
-    assignment_ids = [assignment.id for assignment in assignments]
-
-    # Note: AssignmentAttachment still uses old plan_item FK during transition
-    old_plan_item_ids = [assignment.plan_item_id for assignment in assignments]
-    attachments_by_plan_item = defaultdict(list)
-    for attachment in AssignmentAttachment.objects.filter(
-        plan_item_id__in=old_plan_item_ids
-    ).order_by("created_at"):
-        attachments_by_plan_item[attachment.plan_item_id].append(attachment)
-
-    comments_by_assignment = defaultdict(list)
-    for comment in (
-        AssignmentComment.objects.filter(assignment_id__in=assignment_ids)
-        .select_related("author")
-        .order_by("created_at")
-    ):
-        comments_by_assignment[comment.assignment_id].append(comment)
-
-    submissions_by_assignment = defaultdict(list)
-    for submission in (
-        AssignmentSubmission.objects.filter(assignment_id__in=assignment_ids)
-        .select_related("uploaded_by")
-        .order_by("-created_at")
-    ):
-        submissions_by_assignment[submission.assignment_id].append(submission)
-
-    today = timezone.localdate()
-    for assignment in assignments:
-        # Hydrate display fields for template rendering
-        _hydrate_assignment_display(assignment)
-
-        if assignment.status == "complete":
-            assignment.display_status = "complete"
-        elif assignment.status == "needs_grading":
-            assignment.display_status = "needs_grading"
-        elif assignment.due_date < today:
-            assignment.display_status = "overdue"
-        else:
-            assignment.display_status = "pending"
-        assignment.effective_percent = get_assignment_percent(assignment)
-        # Build edit URL using new_plan_item for unified model
-        plan_item_for_url = (
-            assignment.new_plan_item_id
-            if assignment.new_plan_item_id
-            else assignment.plan_item_id
-        )
-        assignment.edit_url = (
-            f"{reverse('planning:plan_course', args=[enrollment.course.id])}"
-            f"?edit={plan_item_for_url}"
-        )
-        assignment.attachments_for_modal = attachments_by_plan_item.get(
-            assignment.plan_item_id, []
-        )
-        assignment.comments_for_modal = comments_by_assignment.get(assignment.id, [])
-        assignment.submissions_for_modal = submissions_by_assignment.get(
-            assignment.id, []
-        )
-        assignment.attachments_count = len(assignment.attachments_for_modal)
-        assignment.comments_count = len(assignment.comments_for_modal)
-        assignment.submissions_count = len(assignment.submissions_for_modal)
-        assignment.status_action_url = reverse(
-            "reports:gradebook_assignment_status",
-            kwargs={"assignment_id": assignment.id},
-        )
-        assignment.comment_action_url = reverse(
-            "reports:gradebook_assignment_comment_create",
-            kwargs={"assignment_id": assignment.id},
-        )
-        assignment.submission_action_url = reverse(
-            "reports:gradebook_assignment_submission_upload",
-            kwargs={"assignment_id": assignment.id},
-        )
-        assignment.can_submit = _can_submit_assignment(request.user, assignment)
-
-    sort_by = request.GET.get("sort", "due")
-    sort_order = request.GET.get("order", "asc")
-    if sort_by not in {"due", "status", "type", "name", "percent"}:
-        sort_by = "due"
-    if sort_order not in {"asc", "desc"}:
-        sort_order = "asc"
-
-    def _assignment_sort_name(item):
-        plan_item = getattr(item, "new_plan_item", None)
-        if plan_item:
-            return plan_item.name.lower()
-        legacy_plan_item = getattr(item, "plan_item", None)
-        if legacy_plan_item and getattr(legacy_plan_item, "template", None):
-            return legacy_plan_item.template.name.lower()
-        return ""
-
-    def _assignment_sort_type(item):
-        plan_item = getattr(item, "new_plan_item", None)
-        if plan_item:
-            detail = getattr(plan_item, "assignment_detail", None)
-            assignment_type = getattr(detail, "assignment_type", None)
-            if assignment_type:
-                return assignment_type.name.lower()
-        legacy_plan_item = getattr(item, "plan_item", None)
-        if legacy_plan_item and getattr(legacy_plan_item, "template", None):
-            assignment_type = getattr(
-                legacy_plan_item.template, "assignment_type", None
-            )
-            if assignment_type:
-                return assignment_type.name.lower()
-        return ""
-
-    if sort_by == "status":
-        status_rank = {
-            "pending": 0,
-            "overdue": 1,
-            "needs_grading": 2,
-            "complete": 3,
-        }
-
-        assignments.sort(
-            key=lambda item: (
-                status_rank.get(item.display_status, 99),
-                item.due_date,
-            )
-        )
-    elif sort_by == "type":
-        assignments.sort(key=lambda item: (_assignment_sort_type(item), item.due_date))
-    elif sort_by == "name":
-        assignments.sort(key=lambda item: (_assignment_sort_name(item), item.due_date))
-    elif sort_by == "percent":
-        assignments.sort(
-            key=lambda item: (
-                Decimal(item.effective_percent),
-                item.due_date,
-            )
-        )
-    else:
-        assignments.sort(key=lambda item: (item.due_date, item.id))
-
-    if sort_order == "desc":
-        assignments.reverse()
-
-    summary = lazy_backfill_enrollment_grade_summary(enrollment)
-    progress_done = len(
-        [
-            assignment
-            for assignment in assignments
-            if assignment.status in {"complete", "needs_grading"}
-        ]
-    )
-    progress_total = len(assignments)
-    progress_percent = (
-        int((progress_done / progress_total) * 100) if progress_total else 0
-    )
-
     return render(
         request,
         "reports/gradebook_detail.html",
-        {
-            "enrollment": enrollment,
-            "summary": summary,
-            "assignments": assignments,
-            "sort_by": sort_by,
-            "sort_order": sort_order,
-            "user_role": role,
-            "can_grade": _is_gradebook_owner_role(role),
-            "can_respond": role in {"parent", "teacher", "student"},
-            "progress_done": progress_done,
-            "progress_total": progress_total,
-            "progress_percent": progress_percent,
-            "next_url": request.get_full_path(),
-        },
+        context,
     )
 
 

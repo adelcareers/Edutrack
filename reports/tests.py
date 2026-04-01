@@ -31,7 +31,7 @@ from reports.models import Report
 from reports.services import generate_pdf
 from reports.services_gradebook import recalculate_enrollment_grade
 from scheduler.models import Child, EnrolledSubject, ScheduledLesson
-from tracker.models import LessonLog
+from tracker.models import EvidenceFile, LessonLog
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -622,11 +622,188 @@ class GradebookViewsAndServiceTests(TestCase):
             status="pending",
         )
 
+    def _create_lesson_dashboard_data(self, *, mastery="red"):
+        enrolled_subject = EnrolledSubject.objects.create(
+            child=self.child,
+            subject_name="Science",
+            key_stage="KS3",
+            lessons_per_week=1,
+            colour_hex="#0ea5e9",
+        )
+        course_subject = self.course.subject_configs.create(
+            subject_name="Science",
+            year=self.child.school_year,
+            lessons_per_week=1,
+            days_of_week=[0],
+            colour_hex="#0ea5e9",
+        )
+        lesson = Lesson.objects.create(
+            key_stage="KS3",
+            subject_name="Science",
+            programme_slug="science",
+            year=self.child.school_year,
+            unit_slug="biology",
+            unit_title="Biology",
+            lesson_number=1,
+            lesson_title="Cells Intro",
+            lesson_url="https://example.com/cells-intro",
+        )
+        scheduled = ScheduledLesson.objects.create(
+            child=self.child,
+            lesson=lesson,
+            enrolled_subject=enrolled_subject,
+            scheduled_date=datetime.date(2026, 1, 5),
+            order_on_day=0,
+            course_subject=course_subject,
+        )
+        lesson_log = LessonLog.objects.create(
+            scheduled_lesson=scheduled,
+            status="complete",
+            mastery=mastery,
+            completion_receipt_url="https://example.com/receipt",
+            student_notes="Student reflection",
+        )
+        EvidenceFile.objects.create(
+            lesson_log=lesson_log,
+            file="lesson-proof",
+            original_filename="lesson-proof.pdf",
+            uploaded_by=self.parent,
+        )
+        ActivityProgress.objects.create(
+            enrollment=self.enrollment,
+            plan_item=self.student_assignment.plan_item,
+            status="complete",
+        )
+        return scheduled
+
     def test_gradebook_list_loads_for_parent(self):
         response = self.client.get(reverse("reports:gradebook_list"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Gradebooks")
         self.assertContains(response, "Science")
+        self.assertContains(
+            response,
+            reverse("reports:gradebook_child_detail", kwargs={"child_id": self.child.id}),
+        )
+
+    def test_gradebook_child_detail_loads_lesson_dashboard_for_parent(self):
+        self._create_lesson_dashboard_data()
+
+        response = self.client.get(
+            reverse(
+                "reports:gradebook_child_detail", kwargs={"child_id": self.child.id}
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Lesson Reports")
+        self.assertContains(response, "Cells Intro")
+        self.assertContains(response, "Open lessons drilldown")
+        self.assertEqual(response.context["section"], "lessons")
+        self.assertEqual(response.context["lesson_card"]["complete"], 1)
+        self.assertEqual(response.context["lesson_evidence"]["percent"], 100)
+
+    def test_gradebook_child_detail_scope_filters_visible_enrollments(self):
+        completed_course = Course.objects.create(
+            parent=self.parent,
+            name="History",
+            grading_style="point_graded",
+            use_assignment_weights=True,
+            duration_weeks=12,
+            frequency_days=5,
+        )
+        completed_enrollment = completed_course.enrollments.create(
+            child=self.child,
+            start_date=datetime.date(2025, 9, 1),
+            days_of_week=[1, 3],
+            status="completed",
+        )
+
+        current_response = self.client.get(
+            reverse(
+                "reports:gradebook_child_detail", kwargs={"child_id": self.child.id}
+            ),
+            {"section": "assignments", "scope": "current"},
+        )
+        self.assertEqual(current_response.status_code, 200)
+        self.assertContains(current_response, "Science")
+        self.assertNotContains(current_response, "History")
+
+        completed_response = self.client.get(
+            reverse(
+                "reports:gradebook_child_detail", kwargs={"child_id": self.child.id}
+            ),
+            {"section": "assignments", "scope": "completed", "enrollment": completed_enrollment.id},
+        )
+        self.assertEqual(completed_response.status_code, 200)
+        self.assertContains(completed_response, "History")
+        self.assertNotContains(completed_response, "Science")
+
+        all_response = self.client.get(
+            reverse(
+                "reports:gradebook_child_detail", kwargs={"child_id": self.child.id}
+            ),
+            {"section": "assignments", "scope": "all"},
+        )
+        self.assertEqual(all_response.status_code, 200)
+        self.assertContains(all_response, "Science")
+        self.assertContains(all_response, "History")
+
+    def test_gradebook_child_detail_assignment_section_embeds_assignment_panel(self):
+        response = self.client.get(
+            reverse(
+                "reports:gradebook_child_detail", kwargs={"child_id": self.child.id}
+            ),
+            {
+                "section": "assignments",
+                "enrollment": self.enrollment.id,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Assignment Progress")
+        self.assertContains(response, "Worksheet")
+        self.assertEqual(response.context["selected_enrollment"], self.enrollment)
+
+    def test_student_can_view_own_child_gradebook_dashboard(self):
+        self._create_lesson_dashboard_data()
+        self.client.force_login(self.student_user)
+
+        response = self.client.get(
+            reverse(
+                "reports:gradebook_child_detail", kwargs={"child_id": self.child.id}
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "GradeChild")
+        self.assertNotContains(response, "Generate Transcript")
+
+    def test_student_cannot_view_other_child_gradebook_dashboard(self):
+        other_parent = _make_parent(username="gb_other_parent_dash")
+        other_student = _make_student(username="gb_other_student_dash")
+        other_child = _make_child(
+            other_parent,
+            first_name="OtherDashChild",
+            student_user=other_student,
+        )
+        self.client.force_login(self.student_user)
+
+        response = self.client.get(
+            reverse(
+                "reports:gradebook_child_detail", kwargs={"child_id": other_child.id}
+            )
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_gradebook_child_detail_attention_link_uses_mastery_filter(self):
+        self._create_lesson_dashboard_data(mastery="red")
+
+        response = self.client.get(
+            reverse(
+                "reports:gradebook_child_detail", kwargs={"child_id": self.child.id}
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("mastery=red", response.context["lesson_attention_url"])
+        self.assertIn("tab=lessons", response.context["lesson_attention_url"])
 
     def test_gradebook_detail_post_updates_assignment_grade(self):
         response = self.client.post(

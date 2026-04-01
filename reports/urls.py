@@ -7,6 +7,11 @@ app_name = "reports"
 urlpatterns = [
     path("gradebooks/", views.gradebook_list_view, name="gradebook_list"),
     path(
+        "gradebooks/child/<int:child_id>/",
+        views.gradebook_child_detail_view,
+        name="gradebook_child_detail",
+    ),
+    path(
         "gradebooks/assignments/<int:assignment_id>/status/",
         views.gradebook_assignment_status_view,
         name="gradebook_assignment_status",

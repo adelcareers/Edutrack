@@ -109,6 +109,9 @@ def home_assignments_view(request):
     selected_subject_id = _safe_int(request.GET.get("subject"))
     selected_type_id = _safe_int(request.GET.get("assignment_type"))
     selected_status = (request.GET.get("status") or "").strip().lower()
+    selected_mastery = (request.GET.get("mastery") or "").strip().lower()
+    if selected_mastery not in {"green", "amber", "red", "unset"}:
+        selected_mastery = ""
     hide_completed = request.GET.get("hide_completed", "1") in {"1", "true", "on"}
     selected_assignment_id = _safe_int(request.GET.get("selected"))
     selected_lesson_id = _safe_int(request.GET.get("selected_lesson"))
@@ -200,13 +203,17 @@ def home_assignments_view(request):
 
     lessons = []
     for sl in lesson_qs:
+        lesson_log = getattr(sl, "log", None)
         lesson_status = _effective_lesson_status(
-            getattr(sl, "log", None), sl.scheduled_date
+            lesson_log, sl.scheduled_date
         )
         if lesson_status == "skipped":
             continue
         sl.effective_status = lesson_status
         sl.effective_status_label = lesson_status.title()
+        sl.mastery = (
+            lesson_log.mastery if lesson_log and getattr(lesson_log, "mastery", "") else "unset"
+        )
         lessons.append(sl)
 
     activities = list(activity_qs)
@@ -222,6 +229,9 @@ def home_assignments_view(request):
         lessons = [
             lesson for lesson in lessons if lesson.effective_status == selected_status
         ]
+
+    if selected_mastery:
+        lessons = [lesson for lesson in lessons if lesson.mastery == selected_mastery]
 
     if selected_status in {"pending", "complete"}:
         activities = [a for a in activities if a.effective_status == selected_status]
@@ -332,9 +342,6 @@ def home_assignments_view(request):
         selected_lesson.status_label = _lesson_status_meta(
             selected_lesson.effective_status
         )["label"]
-        selected_lesson.mastery = (
-            selected_lesson_log.mastery if selected_lesson_log else "unset"
-        )
         selected_lesson.student_notes = (
             selected_lesson_log.student_notes if selected_lesson_log else ""
         )
@@ -436,6 +443,7 @@ def home_assignments_view(request):
             "selected_subject_id": selected_subject_id,
             "selected_type_id": selected_type_id,
             "selected_status": selected_status,
+            "selected_mastery": selected_mastery,
             "hide_completed": hide_completed,
             "today": today,
             "lesson_tab_url": f"?{lesson_tab_query.urlencode()}",

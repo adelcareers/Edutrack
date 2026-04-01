@@ -2060,6 +2060,41 @@ class HomeAssignmentsDashboardTests(TestCase):
         self.assertContains(response, "Lesson Details")
         self.assertContains(response, "Fractions Intro")
 
+    def test_mastery_filter_scopes_lesson_results(self):
+        other_lesson = _make_lesson(subject="Maths", title="Angles Review")
+        other_scheduled = _make_scheduled_lesson(
+            self.child,
+            other_lesson,
+            self.enrolled_subject,
+            datetime.date.today(),
+        )
+        LessonLog.objects.create(
+            scheduled_lesson=self.scheduled_lesson,
+            status="complete",
+            mastery="red",
+            student_notes="Needs support",
+        )
+        LessonLog.objects.create(
+            scheduled_lesson=other_scheduled,
+            status="complete",
+            mastery="green",
+            student_notes="Understood well",
+        )
+
+        self.client.force_login(self.parent)
+        response = self.client.get(
+            reverse(self.URL),
+            {
+                "tab": "lessons",
+                "mastery": "red",
+                "hide_completed": "0",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Fractions Intro")
+        self.assertNotContains(response, "Angles Review")
+        self.assertEqual(response.context["selected_mastery"], "red")
+
     def test_selected_assignment_renders_details_panel(self):
         self.client.force_login(self.parent)
         response = self.client.get(
