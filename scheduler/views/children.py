@@ -8,13 +8,12 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
 from django.utils import timezone
 
 from accounts.decorators import role_required
 from accounts.forms import StudentCreationForm
 from accounts.models import UserProfile
-from courses.models import Course, CourseEnrollment
+from courses.models import CourseEnrollment
 from curriculum.models import Lesson
 from scheduler.models import Child
 from scheduler.onboarding import (
@@ -68,81 +67,12 @@ def child_list_view(request):
 
 @role_required("parent")
 def child_new_view(request):
-    """Inline new-student form — same layout as child_detail but for creation."""
-    raw_years = Lesson.objects.values_list("year", flat=True).distinct()
-    school_years = sorted(
-        set(raw_years),
-        key=lambda y: int(y.split()[-1]) if y.split()[-1].isdigit() else 99,
-    )
-
-    errors = {}
-    form_data = {}
-
-    if request.method == "POST":
-        first_name = request.POST.get("first_name", "").strip()
-        school_year = request.POST.get("school_year", "").strip()
-        form_data = {"first_name": first_name, "school_year": school_year}
-
-        if not first_name:
-            errors["first_name"] = "Student name is required."
-        if not school_year:
-            errors["school_year"] = "School year is required."
-
-        if not errors:
-            today = datetime.date.today()
-            academic_start = (
-                datetime.date(today.year, 9, 1)
-                if today.month >= 9
-                else datetime.date(today.year - 1, 9, 1)
-            )
-            child = Child(
-                parent=request.user,
-                first_name=first_name,
-                school_year=school_year,
-                birth_month=today.month,
-                birth_year=today.year - 10,
-                academic_year_start=academic_start,
-            )
-            if request.FILES.get("photo"):
-                child.photo = request.FILES["photo"]
-            child.save()
-
-            # Auto-create a course named after the school year and enrol child
-            course, _ = Course.objects.get_or_create(
-                parent=request.user,
-                name=school_year,
-                defaults={
-                    "color": "#6c757d",
-                    "duration_weeks": 36,
-                    "frequency_days": 5,
-                    "default_days": [0, 1, 2, 3, 4],
-                },
-            )
-            CourseEnrollment.objects.get_or_create(
-                course=course,
-                child=child,
-                defaults={
-                    "start_date": today,
-                    "days_of_week": [0, 1, 2, 3, 4],
-                    "status": "active",
-                },
-            )
-
-            messages.success(
-                request,
-                f"{child.first_name} added! Use the Oak Wizard to schedule lessons.",
-            )
-            return redirect(reverse("planning:oak_wizard", args=[course.pk]))
-
-    return render(
+    """Legacy create-student endpoint retired in favour of onboarding."""
+    messages.info(
         request,
-        "scheduler/child_new.html",
-        {
-            "school_years": school_years,
-            "errors": errors,
-            "form_data": form_data,
-        },
+        "Student creation now starts in the new onboarding flow.",
     )
+    return redirect("scheduler:student_onboarding_new")
 
 
 @role_required("parent")

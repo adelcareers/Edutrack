@@ -319,7 +319,7 @@ VALID_CHILD_DATA = {
 
 
 class AddChildAccessTests(TestCase):
-    """Gate tests: who can reach /children/new/."""
+    """Gate tests for the retired /children/new/ endpoint."""
 
     def setUp(self):
         self.parent = _make_parent()
@@ -339,13 +339,16 @@ class AddChildAccessTests(TestCase):
 
     def test_parent_can_access_page(self):
         self.client.force_login(self.parent)
-        response = self.client.get(self.url)
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "scheduler/child_new.html")
+        response = self.client.get(self.url, follow=False)
+        self.assertRedirects(
+            response,
+            reverse("scheduler:student_onboarding_new"),
+            fetch_redirect_response=False,
+        )
 
 
 class AddChildFormTests(TestCase):
-    """Form submission and validation tests."""
+    """Retired legacy endpoint always hands off to onboarding."""
 
     def setUp(self):
         self.parent = _make_parent()
@@ -353,40 +356,32 @@ class AddChildFormTests(TestCase):
         self.url = reverse("scheduler:child_new")
         self.client.force_login(self.parent)
 
-    def test_valid_post_creates_child_linked_to_parent(self):
-        self.client.post(self.url, VALID_CHILD_DATA)
-        child = Child.objects.get(first_name="Alice")
-        self.assertEqual(child.parent, self.parent)
-
-    def test_valid_post_redirects_to_oak_wizard(self):
+    def test_post_redirects_to_onboarding_without_creating_child(self):
         response = self.client.post(self.url, VALID_CHILD_DATA)
-        course = Course.objects.get(
-            parent=self.parent, name=VALID_CHILD_DATA["school_year"]
-        )
         self.assertRedirects(
             response,
-            reverse("planning:oak_wizard", args=[course.pk]),
+            reverse("scheduler:student_onboarding_new"),
+            fetch_redirect_response=False,
+        )
+        self.assertFalse(Child.objects.filter(parent=self.parent).exists())
+
+    def test_missing_first_name_still_redirects_to_onboarding(self):
+        data = {**VALID_CHILD_DATA, "first_name": ""}
+        response = self.client.post(self.url, data, follow=False)
+        self.assertRedirects(
+            response,
+            reverse("scheduler:student_onboarding_new"),
             fetch_redirect_response=False,
         )
 
-    def test_missing_first_name_shows_error(self):
-        data = {**VALID_CHILD_DATA, "first_name": ""}
-        response = self.client.post(self.url, data)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("first_name", response.context["errors"])
-
-    def test_missing_school_year_shows_error(self):
+    def test_missing_school_year_still_redirects_to_onboarding(self):
         data = {**VALID_CHILD_DATA, "school_year": ""}
-        response = self.client.post(self.url, data)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("school_year", response.context["errors"])
-
-    def test_school_year_choices_populated_from_lesson_table(self):
-        _make_lesson(year="Year 6")
-        response = self.client.get(self.url)
-        school_years = response.context["school_years"]
-        self.assertIn("Year 5", school_years)
-        self.assertIn("Year 6", school_years)
+        response = self.client.post(self.url, data, follow=False)
+        self.assertRedirects(
+            response,
+            reverse("scheduler:student_onboarding_new"),
+            fetch_redirect_response=False,
+        )
 
 
 class StudentOnboardingFlowTests(TestCase):
