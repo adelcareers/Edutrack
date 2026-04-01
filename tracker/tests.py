@@ -1978,6 +1978,72 @@ class HomeAssignmentsDashboardTests(TestCase):
         self.assertContains(response, "Lessons")
         self.assertContains(response, "Fractions Intro")
 
+    def test_course_filter_scopes_lessons_to_the_selected_course(self):
+        primary_course_subject = self.course.subject_configs.create(
+            subject_name="Maths",
+            year=self.child.school_year,
+            lessons_per_week=1,
+            days_of_week=[datetime.date.today().weekday()],
+        )
+        primary_plan_item = PlanItem.objects.create(
+            course=self.course,
+            item_type=PlanItem.ITEM_TYPE_LESSON,
+            week_number=1,
+            day_number=datetime.date.today().weekday() + 1,
+            name="Fractions Intro",
+            order=0,
+        )
+        self.scheduled_lesson.plan_item = primary_plan_item
+        self.scheduled_lesson.course_subject = primary_course_subject
+        self.scheduled_lesson.save(update_fields=["plan_item", "course_subject"])
+
+        other_course = Course.objects.create(
+            parent=self.parent,
+            name="Science",
+            duration_weeks=10,
+            frequency_days=3,
+        )
+        other_enrollment = other_course.enrollments.create(
+            child=self.child,
+            start_date=datetime.date(2026, 1, 6),
+            days_of_week=[0, 2, 4],
+            status="active",
+        )
+        other_enrolled_subject = _make_enrolled_subject(self.child, subject_name="Science")
+        other_lesson = _make_lesson(subject="Science", title="Cells Intro")
+        other_course_subject = other_course.subject_configs.create(
+            subject_name="Science",
+            year=self.child.school_year,
+            lessons_per_week=1,
+            days_of_week=[datetime.date.today().weekday()],
+        )
+        other_plan_item = PlanItem.objects.create(
+            course=other_course,
+            item_type=PlanItem.ITEM_TYPE_LESSON,
+            week_number=1,
+            day_number=datetime.date.today().weekday() + 1,
+            name="Cells Intro",
+            order=0,
+        )
+        ScheduledLesson.objects.create(
+            child=self.child,
+            lesson=other_lesson,
+            enrolled_subject=other_enrolled_subject,
+            scheduled_date=datetime.date.today(),
+            order_on_day=0,
+            plan_item=other_plan_item,
+            course_subject=other_course_subject,
+        )
+
+        self.client.force_login(self.parent)
+        response = self.client.get(
+            reverse(self.URL),
+            {"tab": "lessons", "course": self.course.pk, "hide_completed": "0"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Fractions Intro")
+        self.assertNotContains(response, "Cells Intro")
+
         assignments_tab = self.client.get(reverse(self.URL), {"tab": "assignments"})
         self.assertContains(assignments_tab, "Algebra Quiz")
 

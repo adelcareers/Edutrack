@@ -18,8 +18,6 @@ from curriculum.models import Lesson
 from scheduler.models import Child
 from scheduler.onboarding import (
     clear_subject_timetable_data,
-    ensure_student_workspace,
-    get_student_workspace,
     mark_setup_complete,
 )
 
@@ -124,12 +122,9 @@ def child_detail_view(request, child_id):
                 if request.FILES.get("photo"):
                     child.photo = request.FILES["photo"]
                 child.save()
-                workspace = get_student_workspace(child)
-                if workspace is not None:
-                    ensure_student_workspace(child)
-                    if previous_school_year != school_year:
-                        clear_subject_timetable_data(child, workspace)
-                        mark_setup_complete(child, False)
+                if previous_school_year != school_year:
+                    clear_subject_timetable_data(child)
+                    mark_setup_complete(child, False)
                 messages.success(request, f"{child.first_name} updated successfully.")
                 return redirect("scheduler:child_detail", child_id=child.pk)
 

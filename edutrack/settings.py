@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 import sys
+import tempfile
 import warnings
 from pathlib import Path
 
@@ -218,6 +219,15 @@ STORAGES = {
         "BACKEND": _staticfiles_backend,
     },
 }
+
+if "test" in sys.argv:
+    MEDIA_ROOT = Path(tempfile.mkdtemp(prefix="edutrack-test-media-"))
+    STORAGES["default"] = {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "OPTIONS": {
+            "location": str(MEDIA_ROOT),
+        },
+    }
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

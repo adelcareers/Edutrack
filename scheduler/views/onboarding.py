@@ -21,9 +21,9 @@ from scheduler.onboarding import (
     DEFAULT_WORKSPACE_DAYS,
     clear_generated_lesson_data,
     clear_subject_timetable_data,
-    ensure_student_workspace,
-    get_student_workspace,
+    get_student_workspace_courses,
     mark_setup_complete,
+    repair_student_course_enrollment,
     save_subject_selection,
     sync_legacy_birth_fields,
 )
@@ -98,17 +98,26 @@ def _subject_rows_for_year(school_year):
     return rows
 
 
-def _selected_subjects(workspace):
-    if workspace is None:
+def _selected_subjects(subject_courses):
+    if not subject_courses:
         return []
-    return list(workspace.subject_configs.filter(is_active=True).order_by("subject_name"))
+    return sorted(
+        [
+            config
+            for course in subject_courses
+            for config in course.subject_configs.all()
+            if config.is_active
+        ],
+        key=lambda config: (config.subject_name, config.pk),
+    )
 
 
-def _slot_payload(workspace):
-    if workspace is None:
+def _slot_payload(subject_courses):
+    if not subject_courses:
         return []
+    course_ids = [course.id for course in subject_courses]
     slots = (
-        CourseSubjectScheduleSlot.objects.filter(course_subject__course=workspace)
+        CourseSubjectScheduleSlot.objects.filter(course_subject__course_id__in=course_ids)
         .select_related("course_subject")
         .order_by("weekday", "period", "course_subject__subject_name")
     )
@@ -136,13 +145,13 @@ def _save_generation_summary(request, child, summary):
     request.session.modified = True
 
 
-def _section_completion(child, workspace):
-    selected_subjects = _selected_subjects(workspace)
-    slots = _slot_payload(workspace)
+def _section_completion(child, subject_courses):
+    selected_subjects = _selected_subjects(subject_courses)
+    slots = _slot_payload(subject_courses)
     return {
         "info": bool(child and child.first_name and child.date_of_birth),
         "credentials": bool(child and child.student_user_id),
-        "school_year": bool(child and child.school_year and workspace),
+        "school_year": bool(child and child.school_year),
         "subjects": bool(selected_subjects),
         "timetable": bool(slots),
         "generated": bool(child and child.is_setup_complete),
@@ -226,8 +235,8 @@ def _parse_slots(raw_value, valid_subject_names):
 
 
 def _build_context(request, child):
-    workspace = get_student_workspace(child) if child else None
-    completion = _section_completion(child, workspace) if child else {
+    subject_courses = list(get_student_workspace_courses(child)) if child else []
+    completion = _section_completion(child, subject_courses) if child else {
         "info": False,
         "credentials": False,
         "school_year": False,
@@ -236,7 +245,7 @@ def _build_context(request, child):
         "generated": False,
     }
     subject_rows = _subject_rows_for_year(child.school_year if child else "")
-    selected_subjects = _selected_subjects(workspace)
+    selected_subjects = _selected_subjects(subject_courses)
     selected_names = {subject.subject_name for subject in selected_subjects}
     selected_colours = {
         subject.subject_name: subject.colour_hex for subject in selected_subjects
@@ -254,7 +263,7 @@ def _build_context(request, child):
             )
         }
     )
-    slot_payload = _slot_payload(workspace)
+    slot_payload = _slot_payload(subject_courses)
     slot_subjects = [
         {
             "subject_name": subject.subject_name,
@@ -267,7 +276,7 @@ def _build_context(request, child):
     ]
     return {
         "child": child,
-        "workspace": workspace,
+        "subject_courses": subject_courses,
         "completion": completion,
         "open_section": _next_open_section(completion),
         "school_years": _sorted_years(),
@@ -353,9 +362,6 @@ def _handle_onboarding_post(request, child):
         if request.FILES.get("photo"):
             child.photo = request.FILES["photo"]
         child.save()
-        workspace = get_student_workspace(child)
-        if workspace is not None:
-            ensure_student_workspace(child)
         messages.success(request, "Student information saved.")
         return redirect("scheduler:student_onboarding_resume", child_id=child.pk)
 
@@ -392,21 +398,15 @@ def _handle_onboarding_post(request, child):
         changed = child.school_year != school_year
         child.school_year = school_year
         child.save(update_fields=["school_year"])
-        workspace, _ = ensure_student_workspace(child)
         if changed:
-            clear_subject_timetable_data(child, workspace)
+            clear_subject_timetable_data(child)
             mark_setup_complete(child, False)
             messages.info(
                 request,
-                "School year updated. Subject, timetable, and generated lesson data were cleared.",
+                "School year updated. Subject courses, timetable, and generated lessons were cleared.",
             )
         else:
             messages.success(request, "School year saved.")
-        return redirect("scheduler:student_onboarding_resume", child_id=child.pk)
-
-    workspace = get_student_workspace(child)
-    if workspace is None:
-        messages.error(request, "Save the school year section first.")
         return redirect("scheduler:student_onboarding_resume", child_id=child.pk)
 
     if action == "save_subjects":
@@ -426,11 +426,6 @@ def _handle_onboarding_post(request, child):
                     "open_section": "subjects",
                 },
             )
-        existing_names = set(
-            workspace.subject_configs.filter(is_active=True).values_list(
-                "subject_name", flat=True
-            )
-        )
         selected_subjects = []
         for subject_name in selected_names:
             stats = stats_by_name[subject_name]
@@ -443,40 +438,35 @@ def _handle_onboarding_post(request, child):
                     "key_stage": stats["key_stage"],
                     "year": child.school_year,
                     "colour_hex": colour_hex,
-                    "lessons_per_week": (
-                        workspace.subject_configs.filter(subject_name=subject_name)
-                        .values_list("lessons_per_week", flat=True)
-                        .first()
-                        or 1
-                    ),
-                    "days_of_week": (
-                        workspace.subject_configs.filter(subject_name=subject_name)
-                        .values_list("days_of_week", flat=True)
-                        .first()
-                        or list(DEFAULT_WORKSPACE_DAYS)
-                    ),
+                    "lessons_per_week": 1,
+                    "days_of_week": list(DEFAULT_WORKSPACE_DAYS),
                     "source": "oak",
                     "source_subject_name": subject_name,
                     "source_year": child.school_year,
                 }
             )
-        if set(selected_names) != existing_names:
-            clear_generated_lesson_data(child, workspace)
-            CourseSubjectScheduleSlot.objects.filter(course_subject__course=workspace).delete()
-            mark_setup_complete(child, False)
+        existing_subjects = _selected_subjects(list(get_student_workspace_courses(child)))
+        existing_names = {subject.subject_name for subject in existing_subjects}
+        existing_by_name = {subject.subject_name: subject for subject in existing_subjects}
+        for subject in selected_subjects:
+            existing = existing_by_name.get(subject["subject_name"])
+            if existing is not None:
+                subject["lessons_per_week"] = existing.lessons_per_week or 1
+                subject["days_of_week"] = list(existing.days_of_week or DEFAULT_WORKSPACE_DAYS)
+        _, _, _, selection_changed = save_subject_selection(child, selected_subjects)
+        if selection_changed:
             messages.info(
                 request,
-                "Subject choices changed. Timetable and generated lessons were cleared.",
+                "Subject choices changed. Timetable and generated lessons were cleared for the affected subject courses.",
             )
-        save_subject_selection(child, workspace, selected_subjects)
-        if set(selected_names) == existing_names:
+            mark_setup_complete(child, False)
+        else:
             messages.success(request, "Subjects saved.")
         return redirect("scheduler:student_onboarding_resume", child_id=child.pk)
 
     if action == "save_timetable":
-        selected_subjects = list(
-            workspace.subject_configs.filter(is_active=True).order_by("subject_name")
-        )
+        subject_courses = list(get_student_workspace_courses(child))
+        selected_subjects = _selected_subjects(subject_courses)
         valid_subject_names = [subject.subject_name for subject in selected_subjects]
         if not valid_subject_names:
             messages.error(request, "Select subjects before saving the timetable.")
@@ -492,9 +482,14 @@ def _handle_onboarding_post(request, child):
                     "slot_payload_json": request.POST.get("slots_json") or "[]",
                 },
             )
-        clear_generated_lesson_data(child, workspace)
-        CourseSubjectScheduleSlot.objects.filter(course_subject__course=workspace).delete()
+        clear_generated_lesson_data(child)
+        course_ids = [course.id for course in subject_courses]
+        CourseSubjectScheduleSlot.objects.filter(course_subject__course_id__in=course_ids).delete()
         config_map = {subject.subject_name: subject for subject in selected_subjects}
+        course_map = {
+            subject.subject_name: subject.course
+            for subject in selected_subjects
+        }
         counts = {name: 0 for name in valid_subject_names}
         weekdays = {name: set() for name in valid_subject_names}
         to_create = []
@@ -516,6 +511,22 @@ def _handle_onboarding_post(request, child):
             config.lessons_per_week = lessons_per_week
             config.days_of_week = days_of_week
             config.save(update_fields=["lessons_per_week", "days_of_week"])
+            course = course_map[subject_name]
+            course_updates = []
+            if list(course.default_days or []) != days_of_week:
+                course.default_days = days_of_week
+                course_updates.append("default_days")
+            if course.color != config.colour_hex:
+                course.color = config.colour_hex
+                course_updates.append("color")
+            if course_updates:
+                course.save(update_fields=course_updates)
+            enrollment = (
+                course.enrollments.filter(child=child, status="active").order_by("id").first()
+            )
+            if enrollment is not None and list(enrollment.days_of_week or []) != days_of_week:
+                enrollment.days_of_week = days_of_week
+                enrollment.save(update_fields=["days_of_week"])
             enrolled = child.enrolled_subjects.filter(subject_name=subject_name).first()
             if enrolled is not None:
                 enrolled.lessons_per_week = lessons_per_week
@@ -526,11 +537,19 @@ def _handle_onboarding_post(request, child):
         return redirect("scheduler:student_onboarding_resume", child_id=child.pk)
 
     if action == "generate_lessons":
-        workspace, enrollment = ensure_student_workspace(child)
-        if enrollment is None:
-            messages.error(request, "No active workspace enrollment exists for this student.")
+        subject_courses = list(get_student_workspace_courses(child))
+        if not subject_courses:
+            messages.error(request, "No subject courses exist for this student yet.")
             return redirect("scheduler:student_onboarding_resume", child_id=child.pk)
-        summary = planning_services.generate_lessons_from_timetable(workspace, enrollment)
+        summary = []
+        for course in subject_courses:
+            enrollment = (
+                course.enrollments.filter(child=child, status="active").order_by("id").first()
+            )
+            if enrollment is None:
+                continue
+            enrollment = repair_student_course_enrollment(enrollment)
+            summary.extend(planning_services.generate_lessons_from_timetable(course, enrollment))
         mark_setup_complete(child, True)
         _save_generation_summary(request, child, summary)
         messages.success(request, "Lesson cards generated and added to the runtime calendar.")

@@ -39,6 +39,8 @@ def _base_lesson_queryset_for_role(user, role):
         "lesson",
         "enrolled_subject",
         "log",
+        "plan_item__course",
+        "course_subject__course",
     )
 
     if role == "student":

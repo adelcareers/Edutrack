@@ -162,8 +162,8 @@ def home_assignments_view(request):
     if selected_course_id:
         scoped_qs = scoped_qs.filter(enrollment__course_id=selected_course_id)
         lesson_qs = lesson_qs.filter(
-            child__course_enrollments__course_id=selected_course_id,
-            child__course_enrollments__status="active",
+            Q(plan_item__course_id=selected_course_id)
+            | Q(course_subject__course_id=selected_course_id)
         )
         activity_qs = activity_qs.filter(enrollment__course_id=selected_course_id)
 
@@ -356,7 +356,8 @@ def home_assignments_view(request):
     course_options = list(
         Course.objects.filter(
             Q(enrollments__assignments__in=base_options_qs)
-            | Q(enrollments__child__scheduled_lessons__in=base_lesson_options_qs)
+            | Q(plan_items__scheduled_lessons__in=base_lesson_options_qs)
+            | Q(subject_configs__scheduled_lessons__in=base_lesson_options_qs)
         )
         .distinct()
         .order_by("name")

@@ -1018,3 +1018,54 @@ class TrackingOverviewTests(TestCase):
         self.assertContains(response, "Tracking Course")
         self.assertContains(response, "100%")
         self.assertContains(response, "Maths")
+
+    def test_tracking_overview_counts_lessons_per_course_without_child_bleed(self):
+        second_course = Course.objects.create(parent=self.parent, name="Science Course")
+        second_enrollment = second_course.enrollments.create(
+            child=self.child,
+            start_date=datetime.date(2026, 1, 6),
+            days_of_week=[1],
+            status="active",
+        )
+        second_subject = second_course.subject_configs.create(
+            subject_name="Science",
+            year=self.child.school_year,
+            lessons_per_week=1,
+            days_of_week=[1],
+        )
+        second_enrolled_subject = EnrolledSubject.objects.create(
+            child=self.child,
+            subject_name="Science",
+            key_stage="KS2",
+            lessons_per_week=1,
+            colour_hex="#2A9D8F",
+            days_of_week=[1],
+        )
+        second_lesson = Lesson.objects.create(
+            key_stage="KS2",
+            subject_name="Science",
+            programme_slug="science",
+            year=self.child.school_year,
+            unit_slug="forces",
+            unit_title="Forces",
+            lesson_number=1,
+            lesson_title="Forces 1",
+            lesson_url="https://example.com/forces-1",
+        )
+        ScheduledLesson.objects.create(
+            child=self.child,
+            lesson=second_lesson,
+            enrolled_subject=second_enrolled_subject,
+            scheduled_date=datetime.date(2026, 1, 7),
+            order_on_day=0,
+            course_subject=second_subject,
+        )
+
+        response = self.client.get(reverse("reports:tracking_overview"))
+        self.assertEqual(response.status_code, 200)
+
+        summaries = {row["course"].name: row for row in response.context["course_summaries"]}
+        self.assertEqual(summaries["Tracking Course"]["total_lessons"], 1)
+        self.assertEqual(summaries["Tracking Course"]["complete_lessons"], 1)
+        self.assertEqual(summaries["Science Course"]["total_lessons"], 1)
+        self.assertEqual(summaries["Science Course"]["complete_lessons"], 0)

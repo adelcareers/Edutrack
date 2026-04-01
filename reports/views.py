@@ -715,17 +715,13 @@ def tracking_overview_view(request):
         active_enrollments = [
             e for e in course.enrollments.all() if e.status == "active"
         ]
-        active_child_ids = [enrollment.child_id for enrollment in active_enrollments]
+        course_lesson_qs = ScheduledLesson.objects.filter(
+            models.Q(plan_item__course=course) | models.Q(course_subject__course=course)
+        ).distinct()
 
         # Lessons: ScheduledLesson with LessonLog.status=complete
-        total_lessons = (
-            ScheduledLesson.objects.filter(child_id__in=active_child_ids)
-            .distinct()
-            .count()
-        )
-        complete_lessons = ScheduledLesson.objects.filter(
-            child_id__in=active_child_ids, log__status="complete"
-        ).count()
+        total_lessons = course_lesson_qs.count()
+        complete_lessons = course_lesson_qs.filter(log__status="complete").count()
 
         # Assignments: StudentAssignment complete vs total
         total_assignments = StudentAssignment.objects.filter(
@@ -746,28 +742,11 @@ def tracking_overview_view(request):
         # Per-subject breakdown (CourseSubjectConfig)
         subject_rows = []
         for sc in course.subject_configs.filter(is_active=True):
-            s_total = (
-                ScheduledLesson.objects.filter(
-                    child_id__in=active_child_ids,
-                )
-                .filter(
-                    models.Q(course_subject=sc)
-                    | models.Q(enrolled_subject__subject_name=sc.subject_name)
-                )
-                .distinct()
-                .count()
-            )
-            s_complete = (
-                ScheduledLesson.objects.filter(
-                    child_id__in=active_child_ids,
-                    log__status="complete",
-                )
-                .filter(
-                    models.Q(course_subject=sc)
-                    | models.Q(enrolled_subject__subject_name=sc.subject_name)
-                )
-                .count()
-            )
+            s_total = course_lesson_qs.filter(course_subject=sc).count()
+            s_complete = course_lesson_qs.filter(
+                course_subject=sc,
+                log__status="complete",
+            ).count()
             subject_rows.append(
                 {
                     "subject_name": sc.subject_name,
