@@ -157,3 +157,95 @@ Subject-specific colours for calendar lesson cards are assigned dynamically from
 | **Role badges** | Parent/Student role badges use `<span class="badge">` inside labelled nav text — not standalone icon-only elements. |
 | **Mobile responsive** | Bootstrap 5 grid and responsive utilities ensure the calendar, dashboard, and forms reflow correctly on screens from 320 px upward. |
 | **CSRF protection** | Every POST form includes `{% csrf_token %}`, preventing cross-site request forgery and protecting user data integrity. |
+
+---
+
+## Testing
+
+### Test Suite Overview
+
+The application includes comprehensive unit and integration tests covering all major apps:
+
+| App | Tests | Coverage |
+|-----|-------|----------|
+| `accounts/` | Registration, login, role-based access control | 236 lines |
+| `scheduler/` | Lesson scheduling engine, round-robin algorithm, timetable generation | 1,505 lines |
+| `tracker/` | Lesson logs, mastery ratings, evidence uploads, calendar views | 2,237 lines |
+| `reports/` | PDF generation, grade calculation, report export | 1,248 lines |
+| `planning/` | Assignment grids, course planning, unified data flow | 1,213 lines |
+| `courses/` | Course enrollment, course assignments, form validation | 328 lines |
+| `curriculum/` | Oak National Academy CSV imports | 3 lines |
+| **Total** | | 6,770 lines |
+
+### Running Tests
+
+Activate your virtual environment and run:
+
+```bash
+source .venv/bin/activate
+python manage.py test
+```
+
+To run tests for a specific app:
+
+```bash
+python manage.py test accounts          # test the accounts app
+python manage.py test tracker.tests.FullCalendarNavigationTests  # test a specific class
+```
+
+### Test Coverage
+
+To generate a coverage report:
+
+```bash
+pip install coverage
+coverage run --source='.' manage.py test
+coverage report
+coverage html  # generates htmlcov/index.html for browser view
+```
+
+### Key Test Areas
+
+- **Authentication:** User registration, login, logout, role verification
+- **Authorization:** `@role_required` decorator enforcement, access control redirects
+- **Scheduling:** Lesson generation, timetable layout, calendar navigation
+- **Evidence Logging:** Lesson completion, mastery ratings, photo uploads
+- **Report Generation:** PDF creation, grade calculations, export functionality
+- **Forms & Validation:** Field validation, error handling, CSRF protection
+
+---
+
+## AI Development Reflection
+
+### Strategic Use of AI in Development
+
+AI tools were leveraged throughout EduTrack's development to accelerate implementation while maintaining code quality and correctness.
+
+#### Code Generation & Feature Implementation
+
+- **View layer refactors:** AI assisted in splitting monolithic views into organized packages (`scheduler/views/`, `tracker/views/`), maintaining clarity and modularity as the feature set grew.
+- **Service layer logic:** The round-robin lesson scheduling algorithm in `scheduler/services.py` and grade calculation logic in `reports/services_gradebook.py` were developed iteratively with AI suggestions for algorithm optimization.
+- **Template scaffolding:** Consistent HTML templates using Bootstrap 5 were rapidly generated with AI, then manually refined for accessibility (semantic structure, WCAG compliance, keyboard navigation).
+- **Form generation:** Django form classes with validation rules were created with AI assistance, then adjusted based on project-specific requirements (e.g., subject constraints, mastery level validation).
+
+#### Debugging & Issue Resolution
+
+- **Migration conflicts:** AI identified dependency gaps in Django migrations during CI failures (e.g., the 0014–0015 notes migration fold) and helped resolve circular dependencies.
+- **Template rendering issues:** AI assisted in diagnosing CSRF token placement, form rendering pipelines, and context variable flow in multi-app templates.
+- **URL routing:** AI helped trace complex URL namespacing across 7 apps, particularly during the transition from legacy student views to unified planning workflows.
+
+#### Test Generation & Coverage
+
+- **Unit test templates:** AI generated foundational test structures (setup, assertions, mocking patterns) across all apps, which were then customized for project-specific scenarios.
+- **Integration tests:** Tests for full workflows (user registration → lesson scheduling → report generation) were created with AI, then extended with edge cases and error conditions.
+- **Form validation tests:** AI-generated test cases for Django form validation were adapted to match project-specific field requirements and error messages.
+
+#### Performance & UX Optimization
+
+- **Calendar rendering:** AI suggested optimizations for calendar queries, reducing N+1 problems in the lesson fetch-and-render pipeline.
+- **Cloudinary integration:** AI provided patterns for efficient image upload handling and provided URL-based asset delivery to reduce payload size.
+- **PDF generation:** AI suggested memory-efficient approaches to xhtml2pdf rendering to prevent timeouts on large reports.
+
+### Outcome
+
+AI use significantly accelerated development velocity—particularly in boilerplate generation, migration resolution, and test authoring—while maintaining focus on domain-specific logic and user experience. The iterative feedback loop between AI suggestions and manual refinement ensured code correctness and alignment with project requirements.
