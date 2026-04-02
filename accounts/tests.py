@@ -122,6 +122,47 @@ class LoginLogoutTests(TestCase):
         self.assertFalse(response.wsgi_request.user.is_authenticated)
 
 
+class RootLandingPageTests(TestCase):
+    """Tests for the logged-out landing page and authenticated root redirect."""
+
+    def setUp(self):
+        self.parent = make_user("landing_parent@example.com", "parent")
+        self.student = make_user("landing_student@example.com", "student")
+        self.url = reverse("home")
+
+    def test_anonymous_root_serves_landing_page(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Home education, finally organised.")
+        self.assertContains(response, "/accounts/register/")
+        self.assertContains(response, "/accounts/login/")
+        self.assertContains(response, 'href="#footer-disclaimer"')
+        self.assertContains(
+            response,
+            "Oak Homeschooling Planner is an independent product",
+        )
+
+    def test_anonymous_root_serves_landing_assets(self):
+        response = self.client.get(self.url)
+        self.assertContains(response, "/static/landing/css/styles.css")
+        self.assertContains(
+            response,
+            "/static/landing/images/app_logo.jpeg",
+        )
+        self.assertContains(response, "/static/landing/images/app_icon.jpeg")
+        self.assertContains(response, "/static/landing/js/main.js")
+
+    def test_parent_root_redirects_to_assignments_home(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(self.url)
+        self.assertRedirects(response, reverse("tracker:home_assignments"))
+
+    def test_student_root_redirects_to_assignments_home(self):
+        self.client.force_login(self.student)
+        response = self.client.get(self.url)
+        self.assertRedirects(response, reverse("tracker:home_assignments"))
+
+
 # ── role_required decorator ───────────────────────────────────────────────────
 
 

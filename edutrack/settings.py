@@ -198,7 +198,10 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_DIRS = [BASE_DIR / "static"]
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+    ("landing", BASE_DIR / "landing" / "assets"),
+]
 _cloudinary_url = config("CLOUDINARY_URL", default="cloudinary://key:secret@cloud")
 CLOUDINARY_STORAGE = {"CLOUDINARY_URL": _cloudinary_url}
 # Export to os.environ so the cloudinary SDK can read it directly

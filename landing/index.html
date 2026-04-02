@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oak Homeschooling Planner — Home education, finally organised</title>
+  <meta name="description" content="Oak Homeschooling Planner handles the scheduling, tracking, and organisation of home education — so you can focus entirely on your child.">
+  <link rel="icon" href="/static/landing/images/app_icon.jpeg" type="image/jpeg">
+  <link rel="stylesheet" href="/static/landing/css/styles.css">
+</head>
+<body>
+
+  <!-- ============================================================
+       1. NAVIGATION
+       ============================================================ -->
+  <header class="site-header" id="nav">
+    <div class="container nav-container">
+      <a href="#" class="nav-logo" aria-label="Oak Homeschooling Planner — home">
+        <img src="/static/landing/images/app_logo.jpeg" alt="Oak Homeschooling Planner" class="nav-logo-img">
+      </a>
+
+      <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">
+        <span class="hamburger"></span>
+      </button>
+
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#faq">FAQ</a>
+        <a href="/accounts/login/">Log in</a>
+        <a href="/accounts/register/" class="btn btn-primary btn-sm">Start free</a>
+      </nav>
+    </div>
+  </header>
+
+
+  <!-- ============================================================
+       2. HERO
+       ============================================================ -->
+  <section class="section hero" id="hero">
+    <div class="container hero-inner">
+      <div class="hero-content">
+        <h1>Home education, finally organised.</h1>
+        <p class="hero-sub">Oak Homeschooling Planner handles the scheduling, tracking, and organisation — so you can focus entirely on your child.</p>
+        <div class="hero-ctas">
+          <a href="/accounts/register/" class="btn btn-primary">Start free</a>
+          <a href="#how-it-works" class="btn btn-secondary">See how it works</a>
+        </div>
+      </div>
+
+      <div class="hero-visual" aria-hidden="true">
+        <!-- CSS-drawn UI mockup: student daily agenda -->
+        <div class="mockup-window">
+          <div class="mockup-bar">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          </div>
+          <div class="mockup-body">
+            <p class="mockup-greeting">Good morning, Amira</p>
+            <p class="mockup-date">Wednesday 2 April</p>
+            <div class="mockup-card mockup-card--maths">
+              <span class="mockup-subject">Maths</span>
+              <span class="mockup-title">Fractions and decimals</span>
+              <span class="mockup-badge done">Done</span>
+            </div>
+            <div class="mockup-card mockup-card--science">
+              <span class="mockup-subject">Science</span>
+              <span class="mockup-title">Forces and motion</span>
+              <span class="mockup-badge current">In progress</span>
+            </div>
+            <div class="mockup-card mockup-card--english">
+              <span class="mockup-subject">English</span>
+              <span class="mockup-title">Persuasive writing</span>
+              <span class="mockup-badge upcoming">Up next</span>
+            </div>
+            <div class="mockup-card mockup-card--history">
+              <span class="mockup-subject">History</span>
+              <span class="mockup-title">The Industrial Revolution</span>
+              <span class="mockup-badge upcoming">Up next</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="social-proof">
+        <span>Trusted by 2,000+ home-educating families</span>
+        <span>Lesson content from Oak National Academy<a href="#footer-disclaimer" class="asterisk" aria-label="See disclaimer">*</a></span>
+        <span>Grounded in educational psychology research</span>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       3. PROBLEM STATEMENT
+       ============================================================ -->
+  <section class="section section--light" id="problem">
+    <div class="container">
+      <h2 class="section-title">You chose home education for all the right reasons. The admin shouldn't hold you back.</h2>
+      <div class="grid grid--3">
+        <div class="problem-card">
+          <div class="problem-icon" aria-hidden="true">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><rect x="4" y="6" width="32" height="28" rx="3" stroke="currentColor" stroke-width="2"/><path d="M4 14h32M14 14v20M26 14v20" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="10" r="1.5" fill="currentColor"/><circle cx="14" cy="10" r="1.5" fill="currentColor"/><circle cx="19" cy="10" r="1.5" fill="currentColor"/></svg>
+          </div>
+          <h3>Planning overload</h3>
+          <p>You're not a curriculum designer — but you're expected to plan an entire education from scratch. That's exhausting.</p>
+        </div>
+        <div class="problem-card">
+          <div class="problem-icon" aria-hidden="true">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="16" stroke="currentColor" stroke-width="2"/><path d="M20 10v10l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </div>
+          <h3>Uncertainty about progress</h3>
+          <p>Without clear structure, it's hard to know whether your child is growing, thriving, and reaching their potential.</p>
+        </div>
+        <div class="problem-card">
+          <div class="problem-icon" aria-hidden="true">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><path d="M8 32V12l12-6 12 6v20" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 32h24M14 32v-10h12v10M14 22h12" stroke="currentColor" stroke-width="2"/></svg>
+          </div>
+          <h3>No system for the big picture</h3>
+          <p>Weekly planning, long-term goals, day-to-day routines — managing all of it manually leaves little energy for the teaching itself.</p>
+        </div>
+      </div>
+      <p class="section-transition">You shouldn't need a master's degree in education to give your child an excellent one.</p>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       4. SOLUTION INTRODUCTION
+       ============================================================ -->
+  <section class="section" id="solution">
+    <div class="container">
+      <h2 class="section-title">We don't teach. We organise.</h2>
+      <p class="section-subtitle">Oak Homeschooling Planner is the structure layer — the planning, scheduling, and tracking system that sits on top of great curriculum sources, designed to bring out the best in your child. Pre-integrated with Oak National Academy's publicly available resources<a href="#footer-disclaimer" class="asterisk" aria-label="See disclaimer">*</a> and other high-quality providers.</p>
+
+      <div class="disclaimer-inline">
+        <p><strong>Important notice:</strong> Oak Homeschooling Planner is an independent product and is not affiliated with, endorsed by, or in any way connected to Oak National Academy. Oak National Academy is a government-funded provider of free, high-quality teaching resources for teachers and pupils, available at <a href="https://www.thenational.academy" rel="noopener noreferrer" target="_blank">thenational.academy</a>.</p>
+      </div>
+
+      <div class="steps-row">
+        <div class="step">
+          <span class="step-number">1</span>
+          <h3>Set up your child's profile</h3>
+          <p>Year group, subjects, pace, and goals</p>
+        </div>
+        <div class="step-connector" aria-hidden="true"></div>
+        <div class="step">
+          <span class="step-number">2</span>
+          <h3>Auto-generate your schedule</h3>
+          <p>A full academic year, built in minutes</p>
+        </div>
+        <div class="step-connector" aria-hidden="true"></div>
+        <div class="step">
+          <span class="step-number">3</span>
+          <h3>Your child gets their daily plan</h3>
+          <p>Open, start, learn</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       5. FEATURES — FOR PARENTS
+       ============================================================ -->
+  <section class="section section--light" id="features">
+    <div class="container">
+      <h2 class="section-title">Everything a home-educating parent needs</h2>
+
+      <div class="feature-row">
+        <div class="feature-text">
+          <h3>Automated scheduling</h3>
+          <p>Build a full academic year in minutes. Lessons, assignments, and activities, distributed across your calendar based on your child's pace and goals.</p>
+        </div>
+        <div class="feature-visual" aria-hidden="true">
+          <div class="mini-calendar">
+            <div class="cal-header">April 2026</div>
+            <div class="cal-grid">
+              <span class="cal-day filled">M</span>
+              <span class="cal-day filled">T</span>
+              <span class="cal-day filled">W</span>
+              <span class="cal-day filled">T</span>
+              <span class="cal-day filled">F</span>
+              <span class="cal-day off">S</span>
+              <span class="cal-day off">S</span>
+            </div>
+            <div class="cal-bar"></div>
+            <div class="cal-bar short"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="feature-row feature-row--reverse">
+        <div class="feature-text">
+          <h3>Curriculum alignment</h3>
+          <p>Pre-integrated with Oak National Academy's free, publicly available resources<a href="#footer-disclaimer" class="asterisk" aria-label="See disclaimer">*</a> and other high-quality content providers. Choose your sources or bring your own.</p>
+        </div>
+        <div class="feature-visual" aria-hidden="true">
+          <div class="source-list">
+            <div class="source-item active">Oak National Academy</div>
+            <div class="source-item">Past papers</div>
+            <div class="source-item">Custom resources</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="feature-row">
+        <div class="feature-text">
+          <h3>Exam-board integration</h3>
+          <p>Past papers mapped to your schedule so students practise with real assessment materials at the right time.</p>
+        </div>
+        <div class="feature-visual" aria-hidden="true">
+          <div class="exam-card">
+            <span class="exam-label">GCSE Maths — Paper 1</span>
+            <span class="exam-date">Scheduled: Week 28</span>
+            <div class="exam-bar"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="feature-row feature-row--reverse">
+        <div class="feature-text">
+          <h3>Clear progress records</h3>
+          <p>Know exactly where your child stands, and be ready to show that to anyone — a co-educator, a tutor, or a local authority. Clear records protect you and reflect well on the education you're providing.</p>
+        </div>
+        <div class="feature-visual" aria-hidden="true">
+          <div class="record-list">
+            <div class="record-item"><span class="record-dot done"></span>Maths — 42 lessons completed</div>
+            <div class="record-item"><span class="record-dot done"></span>Science — 38 lessons completed</div>
+            <div class="record-item"><span class="record-dot partial"></span>English — 29 of 40 lessons</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="feature-row">
+        <div class="feature-text">
+          <h3>Parent dashboard</h3>
+          <p>A clear weekly overview: what's been completed, what's upcoming, and a confident picture of how your child is progressing.</p>
+        </div>
+        <div class="feature-visual" aria-hidden="true">
+          <div class="dashboard-preview">
+            <div class="dash-stat">
+              <span class="dash-number">17</span>
+              <span class="dash-label">Lessons this week</span>
+            </div>
+            <div class="dash-stat">
+              <span class="dash-number">92%</span>
+              <span class="dash-label">Completion rate</span>
+            </div>
+            <div class="dash-stat">
+              <span class="dash-number">4.2h</span>
+              <span class="dash-label">Avg. daily learning</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       6. FEATURES — FOR STUDENTS
+       ============================================================ -->
+  <section class="section" id="student-features">
+    <div class="container">
+      <h2 class="section-title">Students who know what to do next, do more.</h2>
+
+      <div class="grid grid--3 student-grid">
+        <div class="student-card">
+          <div class="student-icon" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><rect x="4" y="4" width="24" height="24" rx="3" stroke="currentColor" stroke-width="2"/><path d="M10 12h12M10 16h12M10 20h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </div>
+          <h3>Daily agenda</h3>
+          <p>Every morning, a clear list of today's lessons. No decision fatigue. Just open and start.</p>
+        </div>
+
+        <div class="student-card">
+          <div class="student-icon" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><rect x="2" y="6" width="28" height="20" rx="3" stroke="currentColor" stroke-width="2"/><path d="M2 12h28" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="9" r="1" fill="currentColor"/><circle cx="12" cy="9" r="1" fill="currentColor"/></svg>
+          </div>
+          <h3>Lesson cards</h3>
+          <p>Each lesson links directly to the learning content, pre-loaded with a starter activity, main task, and exit quiz.</p>
+        </div>
+
+        <div class="student-card">
+          <div class="student-icon" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><polyline points="4,24 10,16 16,20 22,10 28,14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h3>Completion tracking</h3>
+          <p>Students log time spent and quiz scores. Progress is automatically recorded.</p>
+        </div>
+
+        <div class="student-card">
+          <div class="student-icon" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="14" r="10" stroke="currentColor" stroke-width="2"/><path d="M12 28h8M16 24v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M13 11l3 3 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h3>Badges and streaks</h3>
+          <p>Earn badges for consistency, milestones, and improvement. Streaks reward showing up every day.</p>
+        </div>
+
+        <div class="student-card">
+          <div class="student-icon" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><rect x="4" y="4" width="24" height="24" rx="3" stroke="currentColor" stroke-width="2"/><path d="M4 20l6-4 4 3 6-6 8 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+          <h3>Progress visualisation</h3>
+          <p>Charts showing growth over time, compared only to your own past performance — because the only competition that matters is yesterday's version of yourself.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       7. HOW IT WORKS
+       ============================================================ -->
+  <section class="section section--light" id="how-it-works">
+    <div class="container">
+      <h2 class="section-title">Up and running in minutes</h2>
+
+      <div class="how-steps">
+        <div class="how-step">
+          <span class="how-number">1</span>
+          <h3>Set up your child's profile</h3>
+          <p>Tell us their year group, subjects, learning pace, and goals. The platform adapts to your child, not a generic template.</p>
+        </div>
+        <div class="how-step">
+          <span class="how-number">2</span>
+          <h3>Choose your content sources</h3>
+          <p>Select from pre-integrated providers including Oak National Academy's free resources<a href="#footer-disclaimer" class="asterisk" aria-label="See disclaimer">*</a>, or bring your own.</p>
+        </div>
+        <div class="how-step">
+          <span class="how-number">3</span>
+          <h3>Generate your year plan</h3>
+          <p>The platform builds your full academic calendar automatically, with daily, weekly, and monthly views.</p>
+        </div>
+        <div class="how-step">
+          <span class="how-number">4</span>
+          <h3>Your child gets their daily agenda</h3>
+          <p>Each morning, a personalised plan is ready and waiting. Open, start, learn.</p>
+        </div>
+        <div class="how-step">
+          <span class="how-number">5</span>
+          <h3>Track, review, and adjust</h3>
+          <p>Monitor progress in real time. Adjust pace, swap lessons, or update goals at any time.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       8. TESTIMONIALS
+       ============================================================ -->
+  <section class="section" id="testimonials">
+    <div class="container">
+      <h2 class="section-title">Families like yours</h2>
+
+      <div class="grid grid--3">
+        <blockquote class="testimonial-card">
+          <p>"I used to spend every Sunday planning the week. Now I actually enjoy Monday mornings — and so does my daughter. I can see exactly where she is and where she's headed."</p>
+          <footer>
+            <strong>Sarah</strong>
+            <span>Home-educating parent of two</span>
+          </footer>
+        </blockquote>
+
+        <blockquote class="testimonial-card">
+          <p>"I actually know what I'm doing every day now. The badges sound silly, but honestly they keep me going. My streak is at 34 days."</p>
+          <footer>
+            <strong>Jamie, 15</strong>
+            <span>Home-educated student</span>
+          </footer>
+        </blockquote>
+
+        <blockquote class="testimonial-card">
+          <p>"When our local authority got in touch, I had everything ready in minutes. It was actually a really positive conversation — they could see how well-organised we were."</p>
+          <footer>
+            <strong>Mark</strong>
+            <span>Home-educating parent</span>
+          </footer>
+        </blockquote>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       9. RESEARCH & TRUST
+       ============================================================ -->
+  <section class="section section--light" id="research">
+    <div class="container">
+      <h2 class="section-title">Built on research, not guesswork</h2>
+
+      <div class="grid grid--2">
+        <div class="research-card">
+          <h3>Structured scheduling</h3>
+          <p>Reduces student anxiety and supports executive function development.</p>
+          <span class="research-source">Self-determination theory + executive function research</span>
+        </div>
+        <div class="research-card">
+          <h3>Reduced cognitive load</h3>
+          <p>Improves parental confidence and decision quality by eliminating unnecessary complexity.</p>
+          <span class="research-source">Sweller's cognitive load theory</span>
+        </div>
+        <div class="research-card">
+          <h3>Badges and streaks</h3>
+          <p>Increase motivation and long-term engagement through positive reinforcement.</p>
+          <span class="research-source">Gamification research</span>
+        </div>
+        <div class="research-card">
+          <h3>Self-comparison tracking</h3>
+          <p>Builds a growth mindset and sustained effort by measuring against your own past performance.</p>
+          <span class="research-source">Carol Dweck's growth mindset research</span>
+        </div>
+      </div>
+
+      <div class="comparison-table">
+        <div class="comparison-col comparison-col--without">
+          <h3>Without Oak Homeschooling Planner</h3>
+          <ul>
+            <li>Hours spent planning each week</li>
+            <li>No clear picture of progress</li>
+            <li>Scattered resources across tabs and folders</li>
+            <li>Stressful when asked about your child's education</li>
+          </ul>
+        </div>
+        <div class="comparison-col comparison-col--with">
+          <h3>With Oak Homeschooling Planner</h3>
+          <ul>
+            <li>Schedule generated automatically</li>
+            <li>Real-time progress tracking</li>
+            <li>Everything in one organised place</li>
+            <li>Confident and ready with clear records</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="oak-credit">
+        <p>Lesson content in Oak Homeschooling Planner is sourced from Oak National Academy, a government-funded provider of free, high-quality teaching resources. We are grateful for their contribution to home education in the UK. Oak National Academy is not affiliated with this product. Visit <a href="https://www.thenational.academy" rel="noopener noreferrer" target="_blank">thenational.academy</a>.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       10. PRICING
+       ============================================================ -->
+  <section class="section" id="pricing">
+    <div class="container">
+      <h2 class="section-title">Simple, transparent pricing</h2>
+      <p class="section-subtitle">Less than the cost of one tutoring session per month. All plans include a 14-day free trial — no credit card required.</p>
+
+      <div class="grid grid--3 pricing-grid">
+        <div class="pricing-card">
+          <h3>Free</h3>
+          <div class="pricing-price">
+            <span class="price-amount">&pound;0</span>
+            <span class="price-period">forever</span>
+          </div>
+          <p class="pricing-desc">Get started with the basics.</p>
+          <ul class="pricing-features">
+            <li>1 student profile</li>
+            <li>Basic scheduling</li>
+            <li>Daily agenda view</li>
+            <li>Limited progress tracking</li>
+          </ul>
+          <a href="/accounts/register/" class="btn btn-secondary btn-full">Start free</a>
+        </div>
+
+        <div class="pricing-card pricing-card--featured">
+          <span class="pricing-badge">Most popular</span>
+          <h3>Individual</h3>
+          <div class="pricing-price">
+            <span class="price-amount">&pound;7.99</span>
+            <span class="price-period">/ month</span>
+          </div>
+          <p class="pricing-annual">&pound;4.99/mo billed annually — save &pound;36/year</p>
+          <p class="pricing-desc">Full features for one student.</p>
+          <ul class="pricing-features">
+            <li>1 student profile</li>
+            <li>Automated year scheduling</li>
+            <li>Oak National Academy integration</li>
+            <li>Exam-board past papers</li>
+            <li>Full progress records</li>
+            <li>Badges and streaks</li>
+            <li>Parent dashboard</li>
+          </ul>
+          <a href="/accounts/register/" class="btn btn-primary btn-full">Start free trial</a>
+        </div>
+
+        <div class="pricing-card">
+          <span class="pricing-badge value">Best value</span>
+          <h3>Family</h3>
+          <div class="pricing-price">
+            <span class="price-amount">&pound;14.99</span>
+            <span class="price-period">/ month</span>
+          </div>
+          <p class="pricing-annual">&pound;9.99/mo billed annually — save &pound;60/year</p>
+          <p class="pricing-desc">Full features for up to 4 students.</p>
+          <ul class="pricing-features">
+            <li>Up to 4 student profiles</li>
+            <li>Everything in Individual</li>
+            <li>Family overview dashboard</li>
+            <li>Per-student customisation</li>
+            <li>Priority support</li>
+          </ul>
+          <a href="/accounts/register/" class="btn btn-secondary btn-full">Start free trial</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       11. FAQ
+       ============================================================ -->
+  <section class="section section--light" id="faq">
+    <div class="container container--narrow">
+      <h2 class="section-title">Frequently asked questions</h2>
+
+      <div class="faq-list">
+        <details class="faq-item">
+          <summary>Does this replace our curriculum?</summary>
+          <div class="faq-answer">
+            <p>No. Oak Homeschooling Planner is not a curriculum — it's a planning and organisation layer that sits on top of great curriculum sources. You choose the content; we help you schedule, track, and manage it.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Are you affiliated with Oak National Academy?</summary>
+          <div class="faq-answer">
+            <p>No. Oak Homeschooling Planner is fully independent and has no affiliation, endorsement, or formal relationship with Oak National Academy. Oak National Academy is a government-funded provider of free, high-quality teaching resources for teachers and pupils. We are grateful for the excellent resources they make publicly available, and any integration is made solely through their publicly available materials. Visit <a href="https://www.thenational.academy" rel="noopener noreferrer" target="_blank">thenational.academy</a> to learn more about their work.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Which content providers are you integrated with?</summary>
+          <div class="faq-answer">
+            <p>We currently integrate with Oak National Academy's publicly available resources and a growing library of past exam-board papers. You can also add your own custom resources and links to any lesson.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Is this suitable for all ages and subjects?</summary>
+          <div class="faq-answer">
+            <p>Oak Homeschooling Planner is designed for students aged 11–18 and covers a wide range of subjects aligned with the national curriculum. The scheduling system is flexible enough to accommodate different paces and subject combinations.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>How does the progress record feature work?</summary>
+          <div class="faq-answer">
+            <p>Every completed lesson is logged with a timestamp, time spent, and quiz scores. This builds a running record of your child's education that you can review at any time, export, or share with anyone who needs to see it.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Can I customise the schedule for holidays or a different pace?</summary>
+          <div class="faq-answer">
+            <p>Absolutely. You can set term dates, mark holiday periods, adjust the weekly lesson load, and change the pace at any time. The platform recalculates your schedule automatically.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>What happens after the free trial?</summary>
+          <div class="faq-answer">
+            <p>After your 14-day free trial, you can continue on the free plan with basic features, or upgrade to Individual or Family for full access. No credit card is required to start, and you won't be charged unless you choose to upgrade.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Is there support if I get stuck?</summary>
+          <div class="faq-answer">
+            <p>Yes. We offer email support for all users and priority support for Family plan subscribers. We also have a growing library of guides and walkthroughs to help you get the most from the platform.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Do students need their own login?</summary>
+          <div class="faq-answer">
+            <p>Yes. Each student gets their own login so they can see their personal daily agenda, track their own progress, and earn badges independently. Parents have a separate dashboard with an overview of all their children.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>How does this help if a local authority contacts us?</summary>
+          <div class="faq-answer">
+            <p>Being well-organised means that if a local authority makes contact, you can respond confidently and professionally. Your records are clear, up to date, and easy to share. Many of our parents have found that good preparation turns what felt like a stressful prospect into a straightforward and even supportive conversation.</p>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       12. FINAL CTA
+       ============================================================ -->
+  <section class="section section--cta" id="final-cta">
+    <div class="container text-center">
+      <h2>Give your child the structure to thrive.</h2>
+      <p>Join thousands of home-educating families who've taken the overwhelm out of education.</p>
+      <a href="/accounts/register/" class="btn btn-primary btn-lg">Start your free trial</a>
+      <p class="cta-reassurance">No credit card required. Cancel any time.</p>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       13. FOOTER
+       ============================================================ -->
+  <footer class="site-footer" id="footer">
+    <div class="container">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <img src="/static/landing/images/app_logo.jpeg" alt="Oak Homeschooling Planner" class="footer-logo-img">
+        </div>
+        <nav class="footer-links" aria-label="Footer navigation">
+          <a href="/accounts/login/">Log in</a>
+          <a href="#">Privacy policy</a>
+          <a href="#">Terms of service</a>
+          <a href="#">Contact</a>
+          <a href="#">About</a>
+        </nav>
+      </div>
+
+      <div class="footer-disclaimer" id="footer-disclaimer">
+        <p><strong>Important notice:</strong> Oak Homeschooling Planner is an independent product and is not affiliated with, endorsed by, or in any way connected to Oak National Academy. Oak National Academy is a government-funded provider of free, high-quality teaching resources for teachers and pupils, available at <a href="https://www.thenational.academy" rel="noopener noreferrer" target="_blank">thenational.academy</a>. We are grateful for the excellent free resources they make publicly available to educators. Any use of Oak National Academy content within this platform is made solely through their publicly available materials, in accordance with their usage terms. Oak National Academy has not reviewed, approved, or endorsed this product.</p>
+      </div>
+
+      <p class="footer-copy">&copy; 2026 Oak Homeschooling Planner. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script src="/static/landing/js/main.js"></script>
+</body>
+</html>

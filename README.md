@@ -2,6 +2,10 @@
 
 Home Education, Evidenced.
 
+The public, logged-out homepage is served from `landing/index.html` at `/`.
+Authenticated parent and student users are redirected from `/` to the
+in-app assignments home.
+
 ## Database (Neon Postgres)
 
 This project supports connecting to a Neon Postgres instance via `DATABASE_URL`.
