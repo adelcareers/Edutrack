@@ -109,9 +109,7 @@ class CreateStudentLoginPostTests(TestCase):
         )
         self.child.refresh_from_db()
         self.assertIsNotNone(self.child.student_user)
-        self.assertEqual(
-            self.child.student_user.username, "alice_student@example.com"
-        )
+        self.assertEqual(self.child.student_user.username, "alice_student@example.com")
 
     def test_duplicate_email_shows_error(self):
         User.objects.create_user(
@@ -485,13 +483,17 @@ class StudentOnboardingFlowTests(TestCase):
         self.assertFalse(child.is_setup_complete)
         self.assertRedirects(
             response,
-            reverse("scheduler:student_onboarding_resume", kwargs={"child_id": child.pk}),
+            reverse(
+                "scheduler:student_onboarding_resume", kwargs={"child_id": child.pk}
+            ),
             fetch_redirect_response=False,
         )
         self.assertEqual(child.birth_month, 3)
         self.assertEqual(child.birth_year, 2015)
 
-        resume_url = reverse("scheduler:student_onboarding_resume", kwargs={"child_id": child.pk})
+        resume_url = reverse(
+            "scheduler:student_onboarding_resume", kwargs={"child_id": child.pk}
+        )
         self.client.post(
             resume_url,
             {
@@ -514,7 +516,9 @@ class StudentOnboardingFlowTests(TestCase):
         )
         child.refresh_from_db()
         self.assertFalse(
-            Course.objects.filter(student_owner=child, is_student_workspace=True).exists()
+            Course.objects.filter(
+                student_owner=child, is_student_workspace=True
+            ).exists()
         )
 
         self.client.post(
@@ -527,13 +531,19 @@ class StudentOnboardingFlowTests(TestCase):
             },
         )
         subject_courses = list(
-            Course.objects.filter(student_owner=child, is_student_workspace=True).order_by("name")
+            Course.objects.filter(
+                student_owner=child, is_student_workspace=True
+            ).order_by("name")
         )
         self.assertEqual(len(subject_courses), 2)
         maths_course = Course.objects.get(name="Year 5 - Maths", student_owner=child)
-        english_course = Course.objects.get(name="Year 5 - English", student_owner=child)
+        english_course = Course.objects.get(
+            name="Year 5 - English", student_owner=child
+        )
         self.assertTrue(
-            CourseSubjectConfig.objects.filter(course=maths_course, subject_name="Maths").exists()
+            CourseSubjectConfig.objects.filter(
+                course=maths_course, subject_name="Maths"
+            ).exists()
         )
         self.assertTrue(
             EnrolledSubject.objects.filter(child=child, subject_name="English").exists()
@@ -541,7 +551,9 @@ class StudentOnboardingFlowTests(TestCase):
         self.assertEqual(maths_course.duration_weeks, 40)
         self.assertEqual(maths_course.frequency_days, 7)
         self.assertEqual(maths_course.grade_years, "5")
-        self.assertEqual(list(maths_course.subjects.values_list("name", flat=True)), ["Maths"])
+        self.assertEqual(
+            list(maths_course.subjects.values_list("name", flat=True)), ["Maths"]
+        )
         maths_enrollment = CourseEnrollment.objects.get(
             course=maths_course, child=child, status="active"
         )
@@ -557,8 +569,16 @@ class StudentOnboardingFlowTests(TestCase):
                 "action": "save_timetable",
                 "slots_json": json.dumps(
                     [
-                        {"subject_name": "Maths", "weekday": today_weekday, "period": 1},
-                        {"subject_name": "English", "weekday": next_weekday, "period": 2},
+                        {
+                            "subject_name": "Maths",
+                            "weekday": today_weekday,
+                            "period": 1,
+                        },
+                        {
+                            "subject_name": "English",
+                            "weekday": next_weekday,
+                            "period": 2,
+                        },
                     ]
                 ),
             },
@@ -570,14 +590,20 @@ class StudentOnboardingFlowTests(TestCase):
             ).count(),
             2,
         )
-        maths_cfg = CourseSubjectConfig.objects.get(course=maths_course, subject_name="Maths")
-        english_cfg = CourseSubjectConfig.objects.get(course=english_course, subject_name="English")
+        maths_cfg = CourseSubjectConfig.objects.get(
+            course=maths_course, subject_name="Maths"
+        )
+        english_cfg = CourseSubjectConfig.objects.get(
+            course=english_course, subject_name="English"
+        )
         self.assertEqual(maths_cfg.lessons_per_week, 1)
         self.assertEqual(maths_cfg.days_of_week, [today_weekday])
         self.assertEqual(english_cfg.lessons_per_week, 1)
         self.assertEqual(english_cfg.days_of_week, [next_weekday])
 
-        response = self.client.post(resume_url, {"action": "generate_lessons"}, follow=True)
+        response = self.client.post(
+            resume_url, {"action": "generate_lessons"}, follow=True
+        )
         child.refresh_from_db()
         maths_enrollment.refresh_from_db()
         english_enrollment.refresh_from_db()
@@ -630,11 +656,15 @@ class StudentOnboardingFlowTests(TestCase):
         )
         self.assertEqual(first_maths.order_on_day, 1)
         self.assertEqual(first_english.order_on_day, 2)
-        self.assertContains(response, "Lesson cards generated and added to the runtime calendar.")
+        self.assertContains(
+            response, "Lesson cards generated and added to the runtime calendar."
+        )
         self.assertEqual(maths_enrollment.days_of_week, [today_weekday])
         self.assertEqual(english_enrollment.days_of_week, [next_weekday])
 
-    def test_generation_repairs_legacy_workspace_start_date_before_creating_lessons(self):
+    def test_generation_repairs_legacy_workspace_start_date_before_creating_lessons(
+        self,
+    ):
         child = Child.objects.create(
             parent=self.parent,
             first_name="Repair",
@@ -677,7 +707,9 @@ class StudentOnboardingFlowTests(TestCase):
             is_student_workspace=True,
             name="Year 5 - Maths",
         )
-        enrollment = CourseEnrollment.objects.get(course=workspace, child=child, status="active")
+        enrollment = CourseEnrollment.objects.get(
+            course=workspace, child=child, status="active"
+        )
         enrollment.start_date = child.academic_year_start
         enrollment.save(update_fields=["start_date"])
         start_weekday = enrollment.enrolled_at.date().weekday()
@@ -687,17 +719,25 @@ class StudentOnboardingFlowTests(TestCase):
                 "action": "save_timetable",
                 "slots_json": json.dumps(
                     [
-                        {"subject_name": "Maths", "weekday": start_weekday, "period": 2},
+                        {
+                            "subject_name": "Maths",
+                            "weekday": start_weekday,
+                            "period": 2,
+                        },
                     ]
                 ),
             },
         )
         self.client.post(resume_url, {"action": "generate_lessons"})
         enrollment.refresh_from_db()
-        first_scheduled = ScheduledLesson.objects.filter(
-            child=child,
-            plan_item__course=workspace,
-        ).order_by("scheduled_date", "order_on_day").first()
+        first_scheduled = (
+            ScheduledLesson.objects.filter(
+                child=child,
+                plan_item__course=workspace,
+            )
+            .order_by("scheduled_date", "order_on_day")
+            .first()
+        )
         self.assertIsNotNone(first_scheduled)
         self.assertEqual(enrollment.start_date, enrollment.enrolled_at.date())
         self.assertEqual(first_scheduled.scheduled_date, enrollment.start_date)
@@ -753,7 +793,9 @@ class StudentOnboardingFlowTests(TestCase):
             },
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Timetable slots must stay within Mon-Sun and rows 1-8.")
+        self.assertContains(
+            response, "Timetable slots must stay within Mon-Sun and rows 1-8."
+        )
 
 
 class ChildListTests(TestCase):
@@ -1442,7 +1484,9 @@ class ParentDashboardTests(TestCase):
         )
         self.assertNotContains(
             response,
-            reverse("scheduler:create_student_login", kwargs={"child_id": self.child.pk}),
+            reverse(
+                "scheduler:create_student_login", kwargs={"child_id": self.child.pk}
+            ),
         )
         self.assertContains(
             response,

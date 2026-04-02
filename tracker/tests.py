@@ -2009,7 +2009,9 @@ class HomeAssignmentsDashboardTests(TestCase):
             days_of_week=[0, 2, 4],
             status="active",
         )
-        other_enrolled_subject = _make_enrolled_subject(self.child, subject_name="Science")
+        other_enrolled_subject = _make_enrolled_subject(
+            self.child, subject_name="Science"
+        )
         other_lesson = _make_lesson(subject="Science", title="Cells Intro")
         other_course_subject = other_course.subject_configs.create(
             subject_name="Science",

@@ -31,9 +31,8 @@ from reports.services_gradebook import (
     lazy_backfill_enrollment_grade_summary,
     recalculate_enrollment_grade,
 )
-from scheduler.models import Child
+from scheduler.models import Child, ScheduledLesson
 from tracker.models import EvidenceFile, LessonLog
-from scheduler.models import ScheduledLesson
 from tracker.views.utils import _hydrate_assignment_display
 
 from .forms import ReportForm
@@ -167,10 +166,16 @@ def _handle_gradebook_assignment_save(request, enrollment, role, redirect_url):
             assignment.status = status_raw
             update_fields.append("status")
 
-        if assignment.status in {"complete", "needs_grading"} and assignment.completed_at is None:
+        if (
+            assignment.status in {"complete", "needs_grading"}
+            and assignment.completed_at is None
+        ):
             assignment.completed_at = timezone.now()
             update_fields.append("completed_at")
-        if assignment.status not in {"complete", "needs_grading"} and assignment.completed_at is not None:
+        if (
+            assignment.status not in {"complete", "needs_grading"}
+            and assignment.completed_at is not None
+        ):
             assignment.completed_at = None
             update_fields.append("completed_at")
 
@@ -324,7 +329,9 @@ def _build_assignment_gradebook_context(
     elif sort_by == "name":
         assignments.sort(key=lambda item: (_assignment_sort_name(item), item.due_date))
     elif sort_by == "percent":
-        assignments.sort(key=lambda item: (Decimal(item.effective_percent), item.due_date))
+        assignments.sort(
+            key=lambda item: (Decimal(item.effective_percent), item.due_date)
+        )
     else:
         assignments.sort(key=lambda item: (item.due_date, item.id))
 
@@ -340,7 +347,9 @@ def _build_assignment_gradebook_context(
         ]
     )
     progress_total = len(assignments)
-    progress_percent = int((progress_done / progress_total) * 100) if progress_total else 0
+    progress_percent = (
+        int((progress_done / progress_total) * 100) if progress_total else 0
+    )
 
     return {
         "enrollment": enrollment,
@@ -361,8 +370,12 @@ def _build_assignment_gradebook_context(
     }
 
 
-def _build_child_gradebook_dashboard_context(request, child, enrollments, role, scope, section):
-    summaries = [lazy_backfill_enrollment_grade_summary(enrollment) for enrollment in enrollments]
+def _build_child_gradebook_dashboard_context(
+    request, child, enrollments, role, scope, section
+):
+    summaries = [
+        lazy_backfill_enrollment_grade_summary(enrollment) for enrollment in enrollments
+    ]
     enrollments_with_summary = list(zip(enrollments, summaries))
     selected_enrollment_id = request.GET.get("enrollment")
     selected_enrollment = None
@@ -410,24 +423,27 @@ def _build_child_gradebook_dashboard_context(request, child, enrollments, role, 
     lesson_total_count = lesson_qs.count()
     lesson_complete_count = lesson_qs.filter(log__status="complete").count()
     lesson_rows = []
-    for scheduled_lesson in (
-        lesson_qs.select_related("lesson", "enrolled_subject", "log")
-        .order_by("-scheduled_date", "-id")[:6]
-    ):
+    for scheduled_lesson in lesson_qs.select_related(
+        "lesson", "enrolled_subject", "log"
+    ).order_by("-scheduled_date", "-id")[:6]:
         lesson_log = getattr(scheduled_lesson, "log", None)
         lesson_rows.append(
             {
                 "title": scheduled_lesson.lesson.lesson_title,
                 "subject_name": scheduled_lesson.enrolled_subject.subject_name,
                 "scheduled_date": scheduled_lesson.scheduled_date,
-                "mastery": lesson_log.mastery if lesson_log and lesson_log.mastery else "unset",
+                "mastery": (
+                    lesson_log.mastery if lesson_log and lesson_log.mastery else "unset"
+                ),
                 "student_notes": lesson_log.student_notes if lesson_log else "",
             }
         )
 
     subject_rows = []
     for row in (
-        lesson_qs.values("enrolled_subject__subject_name", "enrolled_subject__colour_hex")
+        lesson_qs.values(
+            "enrolled_subject__subject_name", "enrolled_subject__colour_hex"
+        )
         .annotate(
             total=models.Count("id"),
             complete=models.Count("id", filter=models.Q(log__status="complete")),
@@ -469,8 +485,9 @@ def _build_child_gradebook_dashboard_context(request, child, enrollments, role, 
         mastery_chart_style = "background: #e5e7eb;"
 
     completed_logs = list(
-        LessonLog.objects.filter(scheduled_lesson__in=lesson_qs, status="complete")
-        .annotate(
+        LessonLog.objects.filter(
+            scheduled_lesson__in=lesson_qs, status="complete"
+        ).annotate(
             has_receipt=models.Case(
                 models.When(completion_receipt_url__gt="", then=models.Value(1)),
                 default=models.Value(0),
@@ -540,24 +557,30 @@ def _build_child_gradebook_dashboard_context(request, child, enrollments, role, 
         "lesson_card": {
             "complete": lesson_complete_count,
             "total": lesson_total_count,
-            "percent": round((lesson_complete_count / lesson_total_count) * 100)
-            if lesson_total_count
-            else 0,
+            "percent": (
+                round((lesson_complete_count / lesson_total_count) * 100)
+                if lesson_total_count
+                else 0
+            ),
         },
         "assignment_card": {
             "complete": assignment_complete_count,
             "total": assignment_total_count,
-            "percent": round((assignment_complete_count / assignment_total_count) * 100)
-            if assignment_total_count
-            else 0,
+            "percent": (
+                round((assignment_complete_count / assignment_total_count) * 100)
+                if assignment_total_count
+                else 0
+            ),
             "average_percent": assignment_avg_percent.quantize(Decimal("0.01")),
         },
         "activity_card": {
             "complete": activity_complete_count,
             "total": activity_total_count,
-            "percent": round((activity_complete_count / activity_total_count) * 100)
-            if activity_total_count
-            else 0,
+            "percent": (
+                round((activity_complete_count / activity_total_count) * 100)
+                if activity_total_count
+                else 0
+            ),
         },
         "lesson_subject_rows": subject_rows,
         "lesson_rows": lesson_rows,
@@ -723,7 +746,9 @@ def gradebook_child_detail_view(request, child_id):
     if role not in {"parent", "teacher", "student"}:
         return HttpResponseForbidden()
 
-    child = get_object_or_404(_gradebook_child_queryset(request.user, role), pk=child_id)
+    child = get_object_or_404(
+        _gradebook_child_queryset(request.user, role), pk=child_id
+    )
     scope = (request.GET.get("scope") or "current").strip().lower()
     if scope not in {"current", "completed", "all"}:
         scope = "current"

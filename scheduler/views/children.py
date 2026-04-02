@@ -16,10 +16,7 @@ from accounts.models import UserProfile
 from courses.models import Course, CourseEnrollment
 from curriculum.models import Lesson
 from scheduler.models import Child
-from scheduler.onboarding import (
-    clear_subject_timetable_data,
-    mark_setup_complete,
-)
+from scheduler.onboarding import clear_subject_timetable_data, mark_setup_complete
 
 
 @role_required("parent")
@@ -166,16 +163,13 @@ def child_detail_view(request, child_id):
                     validate_email(new_email)
                 except ValidationError:
                     login_manage_errors["new_email"] = "Enter a valid email address."
-            if (
-                "new_email" not in login_manage_errors
-                and (
-                    User.objects.filter(username__iexact=new_email)
-                    .exclude(pk=child.student_user.pk)
-                    .exists()
-                    or User.objects.filter(email__iexact=new_email)
-                    .exclude(pk=child.student_user.pk)
-                    .exists()
-                )
+            if "new_email" not in login_manage_errors and (
+                User.objects.filter(username__iexact=new_email)
+                .exclude(pk=child.student_user.pk)
+                .exists()
+                or User.objects.filter(email__iexact=new_email)
+                .exclude(pk=child.student_user.pk)
+                .exists()
             ):
                 login_manage_errors["new_email"] = (
                     "An account with this email already exists."

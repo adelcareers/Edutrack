@@ -805,7 +805,9 @@ class PlanItemServiceTests(TestCase):
         )
         self.assertEqual(actual, expected)
 
-    def test_compute_enrollment_calendar_date_aligns_student_workspace_to_weekday_slots(self):
+    def test_compute_enrollment_calendar_date_aligns_student_workspace_to_weekday_slots(
+        self,
+    ):
         self.course.is_student_workspace = True
         self.course.frequency_days = 7
         self.course.save(update_fields=["is_student_workspace", "frequency_days"])

@@ -204,15 +204,15 @@ def home_assignments_view(request):
     lessons = []
     for sl in lesson_qs:
         lesson_log = getattr(sl, "log", None)
-        lesson_status = _effective_lesson_status(
-            lesson_log, sl.scheduled_date
-        )
+        lesson_status = _effective_lesson_status(lesson_log, sl.scheduled_date)
         if lesson_status == "skipped":
             continue
         sl.effective_status = lesson_status
         sl.effective_status_label = lesson_status.title()
         sl.mastery = (
-            lesson_log.mastery if lesson_log and getattr(lesson_log, "mastery", "") else "unset"
+            lesson_log.mastery
+            if lesson_log and getattr(lesson_log, "mastery", "")
+            else "unset"
         )
         lessons.append(sl)
 

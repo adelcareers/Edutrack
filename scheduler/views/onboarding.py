@@ -28,7 +28,6 @@ from scheduler.onboarding import (
     sync_legacy_birth_fields,
 )
 
-
 WEEKDAY_CHOICES = [
     (0, "Mon"),
     (1, "Tue"),
@@ -117,7 +116,9 @@ def _slot_payload(subject_courses):
         return []
     course_ids = [course.id for course in subject_courses]
     slots = (
-        CourseSubjectScheduleSlot.objects.filter(course_subject__course_id__in=course_ids)
+        CourseSubjectScheduleSlot.objects.filter(
+            course_subject__course_id__in=course_ids
+        )
         .select_related("course_subject")
         .order_by("weekday", "period", "course_subject__subject_name")
     )
@@ -227,23 +228,31 @@ def _parse_slots(raw_value, valid_subject_names):
             }
         )
 
-    missing = [name for name in valid_subject_names if per_subject_counts.get(name, 0) < 1]
+    missing = [
+        name for name in valid_subject_names if per_subject_counts.get(name, 0) < 1
+    ]
     if missing:
         return None, f"Add at least one timetable slot for {missing[0]}."
-    normalized.sort(key=lambda row: (row["weekday"], row["period"], row["subject_name"]))
+    normalized.sort(
+        key=lambda row: (row["weekday"], row["period"], row["subject_name"])
+    )
     return normalized, None
 
 
 def _build_context(request, child):
     subject_courses = list(get_student_workspace_courses(child)) if child else []
-    completion = _section_completion(child, subject_courses) if child else {
-        "info": False,
-        "credentials": False,
-        "school_year": False,
-        "subjects": False,
-        "timetable": False,
-        "generated": False,
-    }
+    completion = (
+        _section_completion(child, subject_courses)
+        if child
+        else {
+            "info": False,
+            "credentials": False,
+            "school_year": False,
+            "subjects": False,
+            "timetable": False,
+            "generated": False,
+        }
+    )
     subject_rows = _subject_rows_for_year(child.school_year if child else "")
     selected_subjects = _selected_subjects(subject_courses)
     selected_names = {subject.subject_name for subject in selected_subjects}
@@ -269,7 +278,11 @@ def _build_context(request, child):
             "subject_name": subject.subject_name,
             "colour_hex": subject.colour_hex,
             "slot_count": len(
-                [slot for slot in slot_payload if slot["subject_name"] == subject.subject_name]
+                [
+                    slot
+                    for slot in slot_payload
+                    if slot["subject_name"] == subject.subject_name
+                ]
             ),
         }
         for subject in selected_subjects
@@ -290,7 +303,9 @@ def _build_context(request, child):
         "timetable_rows": _timetable_rows(),
         "slot_subjects": slot_subjects,
         "slot_payload_json": json.dumps(slot_payload),
-        "generation_summary": _current_generation_summary(request, child) if child else [],
+        "generation_summary": (
+            _current_generation_summary(request, child) if child else []
+        ),
     }
 
 
@@ -445,14 +460,20 @@ def _handle_onboarding_post(request, child):
                     "source_year": child.school_year,
                 }
             )
-        existing_subjects = _selected_subjects(list(get_student_workspace_courses(child)))
+        existing_subjects = _selected_subjects(
+            list(get_student_workspace_courses(child))
+        )
         existing_names = {subject.subject_name for subject in existing_subjects}
-        existing_by_name = {subject.subject_name: subject for subject in existing_subjects}
+        existing_by_name = {
+            subject.subject_name: subject for subject in existing_subjects
+        }
         for subject in selected_subjects:
             existing = existing_by_name.get(subject["subject_name"])
             if existing is not None:
                 subject["lessons_per_week"] = existing.lessons_per_week or 1
-                subject["days_of_week"] = list(existing.days_of_week or DEFAULT_WORKSPACE_DAYS)
+                subject["days_of_week"] = list(
+                    existing.days_of_week or DEFAULT_WORKSPACE_DAYS
+                )
         _, _, _, selection_changed = save_subject_selection(child, selected_subjects)
         if selection_changed:
             messages.info(
@@ -484,11 +505,12 @@ def _handle_onboarding_post(request, child):
             )
         clear_generated_lesson_data(child)
         course_ids = [course.id for course in subject_courses]
-        CourseSubjectScheduleSlot.objects.filter(course_subject__course_id__in=course_ids).delete()
+        CourseSubjectScheduleSlot.objects.filter(
+            course_subject__course_id__in=course_ids
+        ).delete()
         config_map = {subject.subject_name: subject for subject in selected_subjects}
         course_map = {
-            subject.subject_name: subject.course
-            for subject in selected_subjects
+            subject.subject_name: subject.course for subject in selected_subjects
         }
         counts = {name: 0 for name in valid_subject_names}
         weekdays = {name: set() for name in valid_subject_names}
@@ -522,9 +544,14 @@ def _handle_onboarding_post(request, child):
             if course_updates:
                 course.save(update_fields=course_updates)
             enrollment = (
-                course.enrollments.filter(child=child, status="active").order_by("id").first()
+                course.enrollments.filter(child=child, status="active")
+                .order_by("id")
+                .first()
             )
-            if enrollment is not None and list(enrollment.days_of_week or []) != days_of_week:
+            if (
+                enrollment is not None
+                and list(enrollment.days_of_week or []) != days_of_week
+            ):
                 enrollment.days_of_week = days_of_week
                 enrollment.save(update_fields=["days_of_week"])
             enrolled = child.enrolled_subjects.filter(subject_name=subject_name).first()
@@ -544,15 +571,21 @@ def _handle_onboarding_post(request, child):
         summary = []
         for course in subject_courses:
             enrollment = (
-                course.enrollments.filter(child=child, status="active").order_by("id").first()
+                course.enrollments.filter(child=child, status="active")
+                .order_by("id")
+                .first()
             )
             if enrollment is None:
                 continue
             enrollment = repair_student_course_enrollment(enrollment)
-            summary.extend(planning_services.generate_lessons_from_timetable(course, enrollment))
+            summary.extend(
+                planning_services.generate_lessons_from_timetable(course, enrollment)
+            )
         mark_setup_complete(child, True)
         _save_generation_summary(request, child, summary)
-        messages.success(request, "Lesson cards generated and added to the runtime calendar.")
+        messages.success(
+            request, "Lesson cards generated and added to the runtime calendar."
+        )
         return redirect("scheduler:student_onboarding_resume", child_id=child.pk)
 
     messages.error(request, "Unknown onboarding action.")

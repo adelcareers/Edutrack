@@ -1,9 +1,9 @@
 """Forms for the accounts app."""
 
 from django import forms
-from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 
 
@@ -69,9 +69,10 @@ class StudentCreationForm(forms.Form):
     def clean_email(self):
         """Ensure the email address is globally unique across auth users."""
         email = self.cleaned_data.get("email", "").lower().strip()
-        if User.objects.filter(username__iexact=email).exists() or User.objects.filter(
-            email__iexact=email
-        ).exists():
+        if (
+            User.objects.filter(username__iexact=email).exists()
+            or User.objects.filter(email__iexact=email).exists()
+        ):
             raise forms.ValidationError("An account with this email already exists.")
         return email
 

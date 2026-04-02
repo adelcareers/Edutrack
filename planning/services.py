@@ -1153,9 +1153,8 @@ def generate_lessons_from_timetable(course, enrollment):
     summary = {}
     for subject_config in subject_configs:
         lesson_subject = (
-            (subject_config.source_subject_name or "").strip()
-            or subject_config.subject_name
-        )
+            subject_config.source_subject_name or ""
+        ).strip() or subject_config.subject_name
         lesson_year = subject_config.source_year or subject_config.year
         matched = None
         source_key = lesson_subject.lower()

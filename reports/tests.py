@@ -683,7 +683,9 @@ class GradebookViewsAndServiceTests(TestCase):
         self.assertContains(response, "Science")
         self.assertContains(
             response,
-            reverse("reports:gradebook_child_detail", kwargs={"child_id": self.child.id}),
+            reverse(
+                "reports:gradebook_child_detail", kwargs={"child_id": self.child.id}
+            ),
         )
 
     def test_gradebook_child_detail_loads_lesson_dashboard_for_parent(self):
@@ -732,7 +734,11 @@ class GradebookViewsAndServiceTests(TestCase):
             reverse(
                 "reports:gradebook_child_detail", kwargs={"child_id": self.child.id}
             ),
-            {"section": "assignments", "scope": "completed", "enrollment": completed_enrollment.id},
+            {
+                "section": "assignments",
+                "scope": "completed",
+                "enrollment": completed_enrollment.id,
+            },
         )
         self.assertEqual(completed_response.status_code, 200)
         self.assertContains(completed_response, "History")
@@ -1241,7 +1247,9 @@ class TrackingOverviewTests(TestCase):
         response = self.client.get(reverse("reports:tracking_overview"))
         self.assertEqual(response.status_code, 200)
 
-        summaries = {row["course"].name: row for row in response.context["course_summaries"]}
+        summaries = {
+            row["course"].name: row for row in response.context["course_summaries"]
+        }
         self.assertEqual(summaries["Tracking Course"]["total_lessons"], 1)
         self.assertEqual(summaries["Tracking Course"]["complete_lessons"], 1)
         self.assertEqual(summaries["Science Course"]["total_lessons"], 1)

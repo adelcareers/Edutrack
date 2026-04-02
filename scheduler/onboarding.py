@@ -6,17 +6,16 @@ from django.db import transaction
 from django.utils import timezone
 
 from courses.models import (
+    LEGACY_GRADE_YEAR_KEY_MAP,
     Course,
     CourseEnrollment,
     CourseSubjectConfig,
     CourseSubjectScheduleSlot,
-    LEGACY_GRADE_YEAR_KEY_MAP,
     Subject,
     sync_course_assignment_types_from_global,
 )
 from planning.models import LessonPlanDetail, PlanItem
 from scheduler.models import EnrolledSubject, ScheduledLesson
-
 
 WORKSPACE_DURATION_WEEKS = 40
 WORKSPACE_FREQUENCY_DAYS = 7
@@ -61,7 +60,10 @@ def _repair_student_enrollment(enrollment):
         updates.append("start_date")
     elif enrollment.enrolled_at is not None:
         enrolled_date = timezone.localtime(enrollment.enrolled_at).date()
-        if enrollment.start_date == enrollment.child.academic_year_start and enrolled_date:
+        if (
+            enrollment.start_date == enrollment.child.academic_year_start
+            and enrolled_date
+        ):
             if enrolled_date != enrollment.start_date:
                 enrollment.start_date = enrolled_date
                 updates.append("start_date")
@@ -138,8 +140,9 @@ def ensure_student_workspace(child):
 
 def _delete_course_runtime(course):
     lesson_plan_items = list(
-        PlanItem.objects.filter(course=course, item_type=PlanItem.ITEM_TYPE_LESSON)
-        .values_list("id", flat=True)
+        PlanItem.objects.filter(
+            course=course, item_type=PlanItem.ITEM_TYPE_LESSON
+        ).values_list("id", flat=True)
     )
     if lesson_plan_items:
         ScheduledLesson.objects.filter(plan_item_id__in=lesson_plan_items).delete()
@@ -156,7 +159,9 @@ def _delete_subject_course(course):
 
 def clear_generated_lesson_data(child, course=None):
     """Clear lesson generation artifacts for one or all student subject courses."""
-    courses = [course] if course is not None else list(get_student_workspace_courses(child))
+    courses = (
+        [course] if course is not None else list(get_student_workspace_courses(child))
+    )
     for current in courses:
         _delete_course_runtime(current)
 
@@ -246,7 +251,9 @@ def ensure_student_subject_course(child, payload):
         },
     )
     enrollment = _repair_student_enrollment(enrollment)
-    desired_enrollment_days = list(payload.get("days_of_week") or enrollment.days_of_week or DEFAULT_WORKSPACE_DAYS)
+    desired_enrollment_days = list(
+        payload.get("days_of_week") or enrollment.days_of_week or DEFAULT_WORKSPACE_DAYS
+    )
     if list(enrollment.days_of_week or []) != desired_enrollment_days:
         enrollment.days_of_week = desired_enrollment_days
         enrollment.save(update_fields=["days_of_week"])
@@ -259,7 +266,9 @@ def ensure_student_subject_course(child, payload):
         "colour_hex": colour_hex,
         "source": payload.get("source", "oak"),
         "source_subject_name": payload.get("source_subject_name", subject_name),
-        "source_year": payload.get("source_year", payload.get("year", child.school_year)),
+        "source_year": payload.get(
+            "source_year", payload.get("year", child.school_year)
+        ),
         "is_active": True,
     }
     config, _ = CourseSubjectConfig.objects.update_or_create(
@@ -291,7 +300,9 @@ def save_subject_selection(child, selected_subjects):
     if selection_changed:
         for course in existing_course_map.values():
             clear_generated_lesson_data(child, course)
-            CourseSubjectScheduleSlot.objects.filter(course_subject__course=course).delete()
+            CourseSubjectScheduleSlot.objects.filter(
+                course_subject__course=course
+            ).delete()
 
     removed_names = existing_names - desired_name_set
     for subject_name in removed_names:
