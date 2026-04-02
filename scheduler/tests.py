@@ -1543,7 +1543,9 @@ class ParentDashboardTests(TestCase):
         response = self.client.get("/")
         self.assertRedirects(response, reverse("tracker:home_assignments"))
 
-    def test_root_shows_home_for_unauthenticated(self):
+    def test_root_serves_landing_page_for_unauthenticated(self):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "home.html")
+        self.assertContains(response, "Home education, finally organised.")
+        self.assertContains(response, "/accounts/login/")
+        self.assertContains(response, "/accounts/register/")
